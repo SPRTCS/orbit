@@ -10,8 +10,8 @@ import { openInternalPage } from "../../pages/urls";
 import type { BatterySaverWhen } from "../../../store/settings";
 import { Button, Group, PopUp, Row, SectionHeader, Toggle, useFormColors } from "../controls";
 
-const REPOSITORY = "https://github.com/mantrakp04/ardia";
-const SOURCE_NOTICE = "Ardia is open source under the Apache License 2.0.";
+const REPOSITORY = "https://github.com/SPRTCS/orbit";
+const SOURCE_NOTICE = "Orbit is open source under the Apache License 2.0, based on Ardia by Mantra Patel.";
 
 const BATTERY_SAVER_DESCRIPTIONS: Record<BatterySaverWhen, string> = {
   lowBattery: "At 20% battery or less, or in Low Power Mode, busy background tabs pause and animations slow down.",
@@ -129,7 +129,7 @@ function CommandLineSection() {
     <>
       <SectionHeader title="Command line" />
       <Group>
-        <Row title="Let the ardia command control Ardia" description={serverNote}>
+        <Row title="Let the ardia command control Orbit" description={serverNote}>
           <Toggle value={on} onChange={(v) => update({ cliControl: v })} />
         </Row>
         <Row

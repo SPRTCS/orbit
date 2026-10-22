@@ -71,7 +71,7 @@ function LittleArdiaBar() {
       </View>
       <View style={{ position: "absolute", right: INSET, top: MID - BUTTON / 2, flexDirection: "row", gap: 2 }}>
         <IconButton icon={copied ? "checkmark" : "link"} size={14} box={BUTTON} radius={7} disabled={!tab?.url} tooltip="Copy Link (⇧⌘C)" onPress={copy} />
-        <IconButton icon="arrow.up.left.and.arrow.down.right" size={13} box={BUTTON} radius={7} tooltip="Open in Ardia (⌘O)" onPress={() => openInMainWindow(windowId)} />
+        <IconButton icon="arrow.up.left.and.arrow.down.right" size={13} box={BUTTON} radius={7} tooltip="Open in Orbit (⌘O)" onPress={() => openInMainWindow(windowId)} />
       </View>
     </View>
   );

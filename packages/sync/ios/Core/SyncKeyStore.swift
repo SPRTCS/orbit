@@ -10,7 +10,7 @@ public protocol SyncKeyStore {
 public struct KeychainKeyStore: SyncKeyStore {
   public let service: String
 
-  public init(service: String = "Ardia Sync Key") { self.service = service }
+  public init(service: String = "Orbit Sync Key") { self.service = service }
 
   func query(_ account: String) -> [String: Any] {
     [

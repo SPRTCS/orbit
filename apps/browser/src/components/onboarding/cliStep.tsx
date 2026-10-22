@@ -49,14 +49,14 @@ export function CliStep() {
     >
       <Reveal delay={60}>
         <StepTitle
-          title="Drive Ardia from the terminal"
-          subtitle="The ardia command lets scripts and coding agents open tabs, click, type and read pages in Ardia."
+          title="Drive Orbit from the terminal"
+          subtitle="The ardia command lets scripts and coding agents open tabs, click, type and read pages in Orbit."
         />
       </Reveal>
       <Reveal delay={140} style={{ gap: 12 }}>
         <CheckRow
           icon="terminal"
-          title="Let the ardia command control Ardia"
+          title="Let the ardia command control Orbit"
           subtitle="Stays on after you quit. Turn it off in Settings."
           value={control}
           disabled={started}

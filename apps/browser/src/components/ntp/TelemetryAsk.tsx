@@ -5,6 +5,7 @@ import { useDefaultBrowserCheckIn } from "../../lib/defaultBrowserCheckIn";
 import { hex, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { dismissAsk, setSharing, useTelemetry } from "../../telemetry/client";
+import { TELEMETRY_AVAILABLE } from "../../telemetry/config";
 import { SHARING_COPY } from "../../telemetry/copy";
 import { onboardingCompletedAt, useOnboarding } from "../onboarding/state";
 import { useHover } from "../primitives";
@@ -14,6 +15,7 @@ import { usePendingReleaseNotes } from "./releaseNotes";
 const FRAME = { width: 300 };
 
 export function TelemetryAsk({ windowId }: { windowId: string }) {
+  if (!TELEMETRY_AVAILABLE) return null;
   const due = useTelemetry((s) => !s.decided && !s.askDone);
   const incognito = useBrowser((s) => !!s.windows[windowId]?.incognito);
   const onboarding = useOnboarding((s) => s.windowId !== null);

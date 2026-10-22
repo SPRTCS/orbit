@@ -1,11 +1,13 @@
 import { ScrollView, Text, View } from "react-native";
 import { useTheme } from "../../../lib/theme";
 import { setSharing, useTelemetry } from "../../../telemetry/client";
+import { TELEMETRY_AVAILABLE } from "../../../telemetry/config";
 import { SHARING_COPY, WHATS_SENT } from "../../../telemetry/copy";
 import { Button, Group, Row, SectionHeader, Sheet, Toggle } from "../controls";
 import { closeSettingsSheet, showSettingsSheet } from "../sheet";
 
 export function ShareDiagnosticsSection() {
+  if (!TELEMETRY_AVAILABLE) return null;
   const sharing = useTelemetry((s) => s.sharing);
   return (
     <>

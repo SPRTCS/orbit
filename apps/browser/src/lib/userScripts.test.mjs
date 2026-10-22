@@ -101,7 +101,7 @@ test("installing a now-valid folder over a copy the engine blocked loads it, and
   fake.change();
   await settle();
   assert.deepEqual(calls, [["install", ""]]);
-  assert.match(lastWrite().profiles.Personal.error, /^Ardia Scripts can only hold content scripts/);
+  assert.match(lastWrite().profiles.Personal.error, /^Orbit Scripts can only hold content scripts/);
   Object.assign(installed.get("").get("abc"), { enabled: true, state: "ENABLED", blockedByPolicy: false });
 });
 

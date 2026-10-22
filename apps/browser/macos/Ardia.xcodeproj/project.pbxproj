@@ -381,7 +381,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 66;
 				DEAD_CODE_STRIPPING = NO;
-				DEVELOPMENT_TEAM = U5L5T3NGVV;
+				DEVELOPMENT_TEAM = MYXQKK3T2Z;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = "Ardia-macOS/Info.plist";
@@ -395,7 +395,7 @@
 					"\"$(ARDIACORE_STAGE_DIR)/Chromium Framework.framework/Chromium Framework\"",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.browser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aisconsulting.orbit;
 				PRODUCT_NAME = Ardia;
 				SDKROOT = macosx;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -416,7 +416,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 66;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = U5L5T3NGVV;
+				DEVELOPMENT_TEAM = MYXQKK3T2Z;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = "Ardia-macOS/Info.plist";
@@ -430,7 +430,7 @@
 					"\"$(ARDIACORE_STAGE_DIR)/Chromium Framework.framework/Chromium Framework\"",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.ardia.browser;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aisconsulting.orbit;
 				PRODUCT_NAME = Ardia;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;

@@ -253,14 +253,14 @@ export function menuState(s: BrowserState): MenuState {
     titles.bookmarkPage = "Edit Bookmark…";
   }
 
-  if (!s.settings.openLinksInLittleArdia) titles.toggleOpenLinksInLittleArdia = "Open Links from Other Apps in Little Ardia";
+  if (!s.settings.openLinksInLittleArdia) titles.toggleOpenLinksInLittleArdia = "Open Links from Other Apps in Little Orbit";
 
   const sidebar = sidebarMenuState(s, windowId);
   disabled.push(...sidebar.disabled);
   Object.assign(titles, sidebar.titles);
   if (w?.kind === "small") {
     disabled.push(...LITTLE_ARDIA_DISABLED_COMMANDS);
-    titles.openFile = "Open in Ardia";
+    titles.openFile = "Open in Orbit";
   }
 
   const closed = [

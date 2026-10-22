@@ -9,7 +9,7 @@ public final class AppUpdater: NSObject {
   static var feedOverride: String? {
     let env = ProcessInfo.processInfo.environment
     if let feed = env["ARDIA_UPDATE_FEED_URL"] ?? UserDefaults.standard.string(forKey: "ACUpdateFeedURL") { return feed }
-    return env["ARDIA_BACKGROUND"] == "1" ? "https://github.com/mantrakp04/ardia/releases/latest/download/appcast.xml" : nil
+    return env["ARDIA_BACKGROUND"] == "1" ? "https://github.com/SPRTCS/orbit/releases/latest/download/appcast.xml" : nil
   }
 
   public static let channels = ["stable", "nightly"]
@@ -41,7 +41,7 @@ public final class AppUpdater: NSObject {
     return "\(version[..<range.lowerBound]) Nightly \(number)"
   }
 
-  static let aboutNotice = "© 2026 Mantra Patel. Ardia is open source under the Apache License 2.0. It's built on Chromium, ungoogled-chromium and uBlock Origin, each under its own license."
+  static let aboutNotice = "Orbit is open source under the Apache License 2.0, based on Ardia © 2026 Mantra Patel. It's built on Chromium, ungoogled-chromium and uBlock Origin, each under its own license."
 
   @objc public func showAbout(_ sender: Any?) {
     NSApp.orderFrontStandardAboutPanel(options: [.applicationVersion: Self.displayVersion, .credits: Self.aboutCredits])
@@ -49,7 +49,7 @@ public final class AppUpdater: NSObject {
 
   private static var aboutCredits: NSAttributedString {
     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-    let repository = "https://github.com/mantrakp04/ardia"
+    let repository = "https://github.com/SPRTCS/orbit"
     let centered = NSMutableParagraphStyle()
     centered.alignment = .center
     let plain: [NSAttributedString.Key: Any] = [

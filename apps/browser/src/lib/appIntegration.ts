@@ -114,7 +114,7 @@ async function recordPerformanceIssue() {
   if (await isTracing()) return;
   const start = await confirm({
     title: "Record a performance issue?",
-    message: "Ardia records what the engine does while you reproduce the problem. The recording is saved to your Downloads folder.",
+    message: "Orbit records what the engine does while you reproduce the problem. The recording is saved to your Downloads folder.",
     confirmTitle: "Start Recording",
   });
   if (!start.confirmed || !(await beginTracing())) return;

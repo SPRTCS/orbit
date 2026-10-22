@@ -39,7 +39,7 @@ const loadedFrom = (ext: InstalledExtension, path: string) => !!ext.path && with
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-const BLOCKED = "Ardia Scripts can only hold content scripts, and the engine blocked this copy.";
+const BLOCKED = "Orbit Scripts can only hold content scripts, and the engine blocked this copy.";
 
 async function load(profile: string, path: string): Promise<ScriptsOutcome> {
   try {

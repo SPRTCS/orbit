@@ -63,7 +63,7 @@ export const SWITCHES = {
 type SwitchName = keyof typeof SWITCHES;
 
 const CACHE_DOC = "switches-cache.json";
-const SWITCHES_URL = "https://ardia.dev/switches.json";
+const SWITCHES_URL = "https://raw.githubusercontent.com/SPRTCS/orbit/orbit/switches.json";
 const SWITCHES_ENV = "ARDIA_SWITCHES";
 const FETCH_TIMEOUT_MS = 5000;
 const MAX_BYTES = 4096;

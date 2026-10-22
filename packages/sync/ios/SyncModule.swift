@@ -220,7 +220,7 @@ public class SyncModule: Module {
   }
 
   private func temporaryKit() throws -> URL {
-    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Ardia Recovery Kit", isDirectory: true)
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("Orbit Recovery Kit", isDirectory: true)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     let url = dir.appendingPathComponent(RecoveryKit.pdfName)
     try Self.kit(try words(), text: false).write(to: url, options: [.atomic])
@@ -252,8 +252,8 @@ public class SyncModule: Module {
 
   static var defaultFolder: URL {
     if let testFolder { return testFolder }
-    if let dataDirectory { return dataDirectory.appendingPathComponent("Ardia Sync", isDirectory: true) }
-    let folder = SyncFolder.iCloudDrive.appendingPathComponent("Ardia Sync", isDirectory: true)
+    if let dataDirectory { return dataDirectory.appendingPathComponent("Orbit Sync", isDirectory: true) }
+    let folder = SyncFolder.iCloudDrive.appendingPathComponent("Orbit Sync", isDirectory: true)
     let legacy = SyncFolder.iCloudDrive.appendingPathComponent(LegacyName.syncFolderName, isDirectory: true)
     if !FileManager.default.fileExists(atPath: folder.path), SyncFolder.hasSyncData(legacy) { return legacy }
     return folder

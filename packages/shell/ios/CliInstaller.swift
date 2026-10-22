@@ -101,7 +101,7 @@ final class CliInstaller {
       return finish(failure("This build's version (\(version)) has no ardia command release."))
     }
     guard let script = Self.script(), FileManager.default.isReadableFile(atPath: script.path) else {
-      return finish(failure("The installer isn't in this build of Ardia."))
+      return finish(failure("The installer isn't in this build of Orbit."))
     }
     var arguments = [script.path, "--version", version]
     if let digest = Self.pinnedDigest() { arguments += ["--sha256", digest] }

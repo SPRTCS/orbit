@@ -1,7 +1,7 @@
 import { engineInfo } from "@ardia/ardiacore";
 import { launchEnvironment, readDocument, systemInfo, writeDocument, type SystemInfo } from "@ardia/shell";
 import { create } from "zustand";
-import { DEV_SEND_ENV, LOGS_URL, MAX_BODY_BYTES } from "./config";
+import { DEV_SEND_ENV, LOGS_URL, MAX_BODY_BYTES, TELEMETRY_AVAILABLE } from "./config";
 import { EVENTS_SCOPE, eventRecord, LOGS_SCOPE, logRecord, logsRequest, outcome, type OtlpLogRecord, type QueuedEvent } from "./otlp";
 import { cleanProperties } from "./sanitize";
 
@@ -76,14 +76,14 @@ export const environment = (): "dev" | "test" | "production" =>
   __DEV__ ? "dev" : appInfo().isolatedInstance ? "test" : "production";
 
 const devSendAllowed = () => launchEnvironment(DEV_SEND_ENV) === "1";
-const canSend = () => !__DEV__ || devSendAllowed();
+const canSend = () => TELEMETRY_AVAILABLE && (!__DEV__ || devSendAllowed());
 
 function context(): Record<string, unknown> {
   const info = appInfo();
   return {
     $lib: "ardia-telemetry",
     $lib_version: "1",
-    $app_name: "Ardia",
+    $app_name: "Orbit",
     $app_version: info.appVersion,
     $app_build: info.appBuild,
     $os: "macOS",

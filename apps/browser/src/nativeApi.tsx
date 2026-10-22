@@ -26,7 +26,7 @@ export function startSkewed(message: string) {
       </Text>
     </View>
   ));
-  void requireNativeModule<Shell>("ArdiaShell").openWindow("native-api-skew", { kind: "settings", title: "Ardia", focus: false });
+  void requireNativeModule<Shell>("ArdiaShell").openWindow("native-api-skew", { kind: "settings", title: "Orbit", focus: false });
   if (__DEV__) answerWithSkew(message, "dev-eval.js", "dev-eval-result.json");
 }
 

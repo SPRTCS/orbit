@@ -123,7 +123,7 @@ public class ShellModule: Module {
       dir = URL(fileURLWithPath: custom, isDirectory: true)
     } else {
       let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-      dir = base.appendingPathComponent(Bundle.main.bundleIdentifier ?? "Ardia", isDirectory: true)
+      dir = base.appendingPathComponent(Bundle.main.bundleIdentifier ?? "Orbit", isDirectory: true)
     }
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     return dir.appendingPathComponent((name as NSString).lastPathComponent)

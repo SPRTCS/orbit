@@ -66,7 +66,7 @@ test("a fetch asks for the plain URL (no cookies, no query), saves the answer, a
     return answer(file({ sidebarSlide: false, lazySidebarRows: false }))();
   };
   assert.equal(await ks.refreshSwitches(fetchFn), "updated");
-  assert.equal(asked.url, "https://ardia.dev/switches.json");
+  assert.equal(asked.url, "https://raw.githubusercontent.com/SPRTCS/orbit/orbit/switches.json");
   assert.equal(asked.init.credentials, "omit");
   assert.equal(asked.init.headers, undefined);
   assert.ok(!asked.url.includes("?"));

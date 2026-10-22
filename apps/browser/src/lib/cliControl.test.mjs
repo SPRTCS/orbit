@@ -78,7 +78,7 @@ test("the engine hears which page the user is looking at while control is on", a
   assert.deepEqual(active, [41, 42, -1], "nothing is sent while control is off");
 });
 
-test("a page parked behind New Tab or an Ardia page is not what the user is looking at", async () => {
+test("a page parked behind New Tab or an Orbit page is not what the user is looking at", async () => {
   const active = [];
   globalThis.acTestCliActive = (id) => (active.push(id), Promise.resolve({}));
   const { patchPage } = await import("../components/layout/pageState.ts");
@@ -102,7 +102,7 @@ test("a page parked behind New Tab or an Ardia page is not what the user is look
   assert.deepEqual(active, [51, -1, 51], "Forward shows the page again");
   S().updateTab(a, { url: "ardia://settings", navigation: { ...S().tabs[a].navigation, url: "ardia://settings" } });
   await settle();
-  assert.deepEqual(active, [51, -1, 51, -1], "an Ardia page over a parked WebContents");
+  assert.deepEqual(active, [51, -1, 51, -1], "an Orbit page over a parked WebContents");
   emit({ state: "off", generation: 4 });
   await settle();
 });

@@ -1,5 +1,7 @@
+import { TELEMETRY_AVAILABLE } from "../../telemetry/config";
 import { launchEnvironment, readDocument, stopIntroMusic, writeDocument } from "@ardia/shell";
 import { create } from "zustand";
+import { applyOrbitFirstRunSettings } from "../../lib/orbitDefaults";
 import { useBrowser } from "../../store/browser";
 import { resolveWindowId } from "../../store/model";
 import { pinSites } from "./sites";
@@ -7,7 +9,9 @@ import { endToolTour, startToolTour } from "./tour/state";
 
 export type OnboardingStep = "intro" | "defaultBrowser" | "personalize" | "import" | "pinnedTabs" | "privacy" | "cli" | "outro";
 
-export const STEPS: OnboardingStep[] = ["intro", "defaultBrowser", "personalize", "import", "pinnedTabs", "privacy", "cli", "outro"];
+export const STEPS: OnboardingStep[] = (["intro", "defaultBrowser", "personalize", "import", "pinnedTabs", "privacy", "cli", "outro"] as OnboardingStep[]).filter(
+  (step) => step !== "privacy" || TELEMETRY_AVAILABLE,
+);
 
 type OnboardingState = {
   windowId: string | null;
@@ -101,6 +105,7 @@ export function maybeStartOnboarding() {
   if (saved?.completedAt) return;
   if (saved?.startedAt) return startOnboarding(null, "defaultBrowser");
   if (readDocument("session.json")) return markCompleted();
+  applyOrbitFirstRunSettings();
   if (__DEV__ && launchEnvironment("ARDIA_ONBOARDING") !== "1") return;
   save({ startedAt: Date.now() });
   startOnboarding();

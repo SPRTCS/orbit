@@ -89,8 +89,8 @@ export async function ensureNotificationPermission(windowId?: string): Promise<b
   if (asked) return false;
   asked = true;
   const { confirmed } = await confirm({
-    title: "Ardia Needs Notifications Permission",
-    message: "You need to open System Settings to give Ardia permission to show you Notifications.",
+    title: "Orbit Needs Notifications Permission",
+    message: "You need to open System Settings to give Orbit permission to show you Notifications.",
     confirmTitle: "Open System Settings",
     cancelTitle: "Not Now",
     windowId,
