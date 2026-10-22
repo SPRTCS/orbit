@@ -4,14 +4,9 @@ import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { tabLayoutOf } from "../../../store/model";
 import type { Settings } from "../../../store/settings";
-import { Checkbox, Group, PopUp, Row, SectionHeader, Toggle, useFormColors } from "../controls";
-
-const CLEAN_UP = [
-  { value: "12", title: "12 hours" },
-  { value: "24", title: "24 hours" },
-  { value: "168", title: "7 days" },
-  { value: "720", title: "30 days" },
-];
+import { ARCHIVE_AFTER, archiveAfterHours, archiveAfterValue } from "../../archive/archiveAfter";
+import { Button, Group, PopUp, Row, SectionHeader, Toggle, useFormColors } from "../controls";
+import { openArchive } from "../windows";
 
 export function TabsPane() {
   const settings = useBrowser((s) => s.settings);
@@ -82,17 +77,19 @@ export function TabsPane() {
       </Group>
 
       <SectionHeader
-        title="Clean up"
-        description="Closes tabs you haven't used (and duplicates) automatically, like the tab menu's Clean Up Daily. Pinned, playing and selected tabs stay; cleaned tabs are listed under Recently Cleaned."
+        title="Archive"
+        description="Unpinned tabs you haven't used (and duplicates) are archived automatically. Pinned, playing and selected tabs stay. Find archived tabs in History › Show Archive (⌥⌘A)."
       />
       <Group>
-        <Row title={<Checkbox value={settings.cleanUpInactiveTabsAfterHours !== null} onChange={(v) => update({ cleanUpInactiveTabsAfterHours: v ? 24 : null })} label="Clean up tabs I haven't used in:" />}>
+        <Row title="Archive tabs after">
           <PopUp
-            value={String(settings.cleanUpInactiveTabsAfterHours ?? 24)}
-            options={CLEAN_UP}
-            disabled={settings.cleanUpInactiveTabsAfterHours === null}
-            onChange={(v) => update({ cleanUpInactiveTabsAfterHours: Number(v) })}
+            value={archiveAfterValue(settings.cleanUpInactiveTabsAfterHours)}
+            options={ARCHIVE_AFTER}
+            onChange={(v) => update({ cleanUpInactiveTabsAfterHours: archiveAfterHours(v) })}
           />
+        </Row>
+        <Row title="Archived tabs">
+          <Button title="Show Archive…" onPress={openArchive} />
         </Row>
       </Group>
     </View>

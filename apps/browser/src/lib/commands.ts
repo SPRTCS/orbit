@@ -24,7 +24,7 @@ import {
 import { bookmarkActivePage, bookmarkAllTabs } from "../components/bookmarks/actions";
 import { useClearDataRequest } from "../components/pages/ClearDataDialog";
 import { openInternalPage } from "../components/pages/urls";
-import { isUtilityWindowId, openImport, openSettings } from "../components/settings/windows";
+import { isUtilityWindowId, openArchive, openImport, openSettings } from "../components/settings/windows";
 import { closePanelToHeroBar, focusHeroBar } from "../components/omnibox/barState";
 import { closeNewTabBar, isEmptyCardTab, showNewTabBar, toggleNewTabBar } from "../components/omnibox/newTabBar";
 import { NEW_TAB_BAR_POLICY } from "../store/newTabBar";
@@ -84,6 +84,8 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
       return openSettings("shortcuts");
     case "importBrowserData":
       return openImport();
+    case "showArchive":
+      return openArchive();
     case "openFile":
       return void openFiles(requested);
     case "manageExtensions":

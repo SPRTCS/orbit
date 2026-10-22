@@ -711,6 +711,7 @@ enum MainMenu {
   private static func buildHistory(_ state: MenuState) {
     history.removeAllItems()
     history.addItem(CommandItem("Show History…", "showHistory", key: "y"))
+    history.addItem(CommandItem("Show Archive…", "showArchive", key: "a", [.command, .option]))
     history.addItem(CommandItem("Clear Browsing Data…", "clearBrowsingData", key: "\u{8}", [.command, .shift]))
     history.addItem(.separator())
     let header = NSMenuItem(title: "Recently Closed", action: nil, keyEquivalent: "")

@@ -20,6 +20,7 @@ import {
 import { isCalendarUrl } from "../../live/meetings";
 import { bookmarkTab } from "../bookmarks/actions";
 import { showToast } from "../layout/splitActions";
+import { openArchive } from "../settings/windows";
 import { canShare, shareTab } from "../site/share";
 import { calendarMenuItem, newLiveFolderMenuItem, runCalendarMenu, runNewLiveFolder } from "./liveMenus";
 import { openSyncedTab, syncedDevicesMenuItem } from "../../sync/menu";
@@ -343,6 +344,7 @@ export async function openOverflowMenu(windowId: string) {
         : [{ id: "none", title: "Empty", enabled: false }],
     },
     ...(deleted.length ? [{ id: "deleted", title: "Recently Deleted Groups", symbol: "trash", children: deleted }] : []),
+    { id: "archive", title: "Show Archive…", symbol: "archivebox", ...hint("a", "option", "command") },
     sep,
     { id: "clean", title: "Clean Up Tabs", symbol: "wand.and.stars", ...hint("k", "option", "command") },
     { id: "daily", title: "Clean Up Daily", checked: daily },
@@ -357,6 +359,7 @@ export async function openOverflowMenu(windowId: string) {
   else if (choice.startsWith("restore:")) s.restoreClosed(choice.slice(8), windowId);
   else if (choice.startsWith("cleaned:")) s.restoreCleaned(choice.slice(8), windowId);
   else if (choice === "restoreAll") s.restoreCleaned(undefined, windowId);
+  else if (choice === "archive") openArchive();
   else if (choice === "clean") s.cleanUpTabs(windowId);
   else if (choice === "daily") s.updateSettings({ cleanUpInactiveTabsAfterHours: daily ? null : 24 });
   else if (choice === "mute") muteAll(windowId, !muted);

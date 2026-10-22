@@ -10,6 +10,7 @@ import { downloadSession } from "../store/ui";
 import { startFavicons } from "./favicons";
 import { startBookmarks } from "./bookmarks";
 import { startHistory } from "./history";
+import { startArchive } from "./archive";
 import { startProfileDataCleanup } from "./profileData";
 
 const SAVE_DELAY_MS = 800;
@@ -237,6 +238,7 @@ export function startPersistence() {
   const stopFavicons = startFavicons();
   const stopHistory = startHistory();
   const stopBookmarks = startBookmarks();
+  const stopArchive = startArchive();
   const stopProfileData = startProfileDataCleanup();
   const stopSession = useBrowser.subscribe((s, prev) => {
     check(s);
@@ -246,6 +248,7 @@ export function startPersistence() {
     stopFavicons();
     stopHistory();
     stopBookmarks();
+    stopArchive();
     stopProfileData();
     stopSession();
   };

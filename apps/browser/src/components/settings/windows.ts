@@ -3,9 +3,10 @@ import { create } from "zustand";
 
 export const SETTINGS_WINDOW_ID = "settings";
 export const IMPORT_WINDOW_ID = "import";
+export const ARCHIVE_WINDOW_ID = "archive";
 
 export const isUtilityWindowId = (id: string | null | undefined) =>
-  id === SETTINGS_WINDOW_ID || id === IMPORT_WINDOW_ID;
+  id === SETTINGS_WINDOW_ID || id === IMPORT_WINDOW_ID || id === ARCHIVE_WINDOW_ID;
 
 export type SettingsPane =
   | "general"
@@ -62,4 +63,8 @@ export function openSettings(pane?: SettingsPane, profileId?: string | null) {
 
 export function openImport() {
   void openWindow(IMPORT_WINDOW_ID, { kind: "import", title: "Import from Another Browser" });
+}
+
+export function openArchive() {
+  void openWindow(ARCHIVE_WINDOW_ID, { kind: "archive", title: "Archive" });
 }

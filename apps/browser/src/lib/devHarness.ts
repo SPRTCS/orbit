@@ -34,6 +34,9 @@ export function startDevHarness() {
     pageState: usePages,
     openSettings,
     favicons,
+    get archive(): typeof import("./archive") & typeof import("../store/archive") {
+      return { ...require("./archive"), ...require("../store/archive") };
+    },
     get checkIn(): typeof import("./defaultBrowserCheckIn") {
       return require("./defaultBrowserCheckIn");
     },

@@ -72,6 +72,7 @@ export type BrowserCommand =
   | "openSettings"
   | "importBrowserData"
   | "showHistory"
+  | "showArchive"
   | "clearBrowsingData"
   | "manageBookmarks"
   | "bookmarkAllTabs"
@@ -164,7 +165,7 @@ export type OpenWindowOptions = {
   incognito?: boolean;
   title?: string;
   focus?: boolean;
-  kind?: "browser" | "small" | "settings" | "import";
+  kind?: "browser" | "small" | "settings" | "import" | "archive";
   profile?: string;
   size?: [number, number];
   behind?: string;
