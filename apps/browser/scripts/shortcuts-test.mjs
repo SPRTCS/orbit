@@ -125,6 +125,8 @@ const shortcuts = [
   ["⌃⇧=", K("+", 24, "control", "shift"), { command: "openSplitPane" }, "⌃⇧="],
   ["⌃⇧]", K("}", 30, "control", "shift"), { command: "focusNextPane" }, "⌃⇧]"],
   ["⌃⇧[", K("{", 33, "control", "shift"), { command: "focusPreviousPane" }, "⌃⇧["],
+  ["⌃⇧-", K("_", 27, "control", "shift"), { command: "closeSplitPane" }, "Arc's ⌃⇧-"],
+  ["⌃Space", K(" ", 49, "control"), { command: "revealTab" }, "Arc's ⌃Space"],
   ["⇧⌘B", cmd("B", 11, "shift"), { command: "toggleBookmarksBar" }, "⇧⌘B"],
   ["⌘0", cmd("0", 29), { command: "zoomReset" }, "⌘0"],
   ["⌘+", cmd("+", 24, "shift"), { command: "zoomIn" }, "⌘+"],
@@ -144,8 +146,10 @@ const shortcuts = [
   ["⌘→", cmd(F(0xf703), 124, "function"), { command: "forward" }, "⌘→", "not-field"],
   ["⇧⌘]", cmd("}", 30, "shift"), { command: "nextTab" }, "⇧⌘]"],
   ["⇧⌘[", cmd("{", 33, "shift"), { command: "previousTab" }, "⇧⌘["],
-  ["⌥⌘→", cmd(F(0xf703), 124, "option", "function"), { command: "nextTab" }, "(Chrome's)"],
-  ["⌥⌘←", cmd(F(0xf702), 123, "option", "function"), { command: "previousTab" }, "(Chrome's)"],
+  ["⌥⌘→", cmd(F(0xf703), 124, "option", "function"), { command: "nextProfile" }, "Arc's Next Space"],
+  ["⌥⌘←", cmd(F(0xf702), 123, "option", "function"), { command: "previousProfile" }, "Arc's Previous Space"],
+  ["⌃⌘→", cmd(F(0xf703), 124, "control", "function"), { command: "nextTab" }, "Arc's Cycle Tab Forward"],
+  ["⌃⌘←", cmd(F(0xf702), 123, "control", "function"), { command: "previousTab" }, "Arc's Cycle Tab Backward"],
   ["⌃⇟", K(F(0xf72d), 121, "control", "function"), { command: "nextTab" }, "(Chrome's)"],
   ["⌃⇞", K(F(0xf72c), 116, "control", "function"), { command: "previousTab" }, "(Chrome's)"],
   ["⌥⌘↓", cmd(F(0xf701), 125, "option", "function"), { command: "nextTab" }, "⌥⌘↓ (alternate)"],
@@ -162,9 +166,8 @@ const shortcuts = [
   ["⌃⌘P", cmd("p", 35, "control"), { command: "newGroupWithTabs" }, "(Chrome's)"],
   ["⌃⌘C", cmd("c", 8, "control"), { command: "newTabInGroup" }, "(Chrome's)"],
   ["⌃⌘W", cmd("w", 13, "control"), { command: "closeTabGroup" }, "(Chrome's)"],
-  ["⌘D", cmd("d", 2), { command: "bookmarkPage" }, "⌘D"],
+  ["⌘D", cmd("d", 2), { command: "togglePinnedRow" }, "Arc's Pin/Unpin Tab"],
   ["⇧⌘D", cmd("D", 2, "shift"), { command: "bookmarkAllTabs" }, "(Chrome's)", "devtools-own"],
-  ["⌥⇧⌘D", cmd("D", 2, "option", "shift"), { command: "togglePinnedRow" }, "(Arc's ⌘D is Bookmark)"],
   ["⌥⌘B", cmd("b", 11, "option"), { command: "manageBookmarks" }, "⌥⌘B"],
   ["⌘Y", cmd("y", 16), { command: "showHistory" }, "⌘Y"],
   ["⇧⌘⌫", cmd(F(0x7f), 51, "shift"), { command: "clearBrowsingData" }, "⇧⌘⌫", "page-field"],
@@ -307,7 +310,7 @@ await real("⌘2 in the command bar", cmd("2", 19), { asKey: true }, "pin2");
 check("…and the command bar closes", !(await state()).panel, "");
 await real("⇧⌘] (Next Tab)", cmd("}", 30, "shift"), sidebar, "t1");
 await real("⇧⌘[ (Previous Tab)", cmd("{", 33, "shift"), sidebar, "pin2");
-await real("⌥⌘→ (Next Tab)", cmd(F(0xf703), 124, "option", "function"), sidebar, "t1");
+await real("⌃⌘→ (Next Tab)", cmd(F(0xf703), 124, "control", "function"), sidebar, "t1");
 await real("⌃⇟ (Next Tab)", K(F(0xf72d), 121, "control", "function"), sidebar, "t2");
 await showPage("t3");
 await sleep(2000);
@@ -341,6 +344,12 @@ check("⌃2 switches the window to the second profile", (await state()).profile 
 await press(K("1", 18, "control"), sidebar);
 await sleep(600);
 check("⌃1 switches back", (await state()).profile === "default", (await state()).profile);
+await press(cmd(F(0xf703), 124, "option", "function"), sidebar);
+await sleep(900);
+check("⌥⌘→ switches to the next space", (await state()).profile === "p-work", (await state()).profile);
+await press(cmd(F(0xf702), 123, "option", "function"), sidebar);
+await sleep(900);
+check("⌥⌘← switches to the previous space", (await state()).profile === "default", (await state()).profile);
 await showPage("t3");
 await press(cmd("l", 37), sidebar);
 await sleep(400);

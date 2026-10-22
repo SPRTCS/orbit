@@ -68,12 +68,12 @@ function CreateProfileSheet({ windowId, preset, onDone }: { windowId: string | n
 
   return (
     <Sheet width={420} onClose={() => onDone(null)}>
-      <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textPrimary }}>Create a Profile</Text>
+      <Text style={{ fontSize: 15, fontWeight: "600", color: theme.textPrimary }}>Create a Space</Text>
       <Text style={{ fontSize: 12.5, lineHeight: 17, marginTop: 6, color: theme.textSecondary }}>
         Profiles separate your logins, cookies, passwords, extensions, history and bookmarks.
       </Text>
 
-      <TextField value={name} onChangeText={setName} placeholder="Profile name" autoFocus onSubmit={submit} onEscape={() => onDone(null)} style={{ marginTop: 16 }} />
+      <TextField value={name} onChangeText={setName} placeholder="Space name" autoFocus onSubmit={submit} onEscape={() => onDone(null)} style={{ marginTop: 16 }} />
 
       <View style={{ flexDirection: "row", gap: 7, marginTop: 12 }}>
         {(Object.keys(PROFILE_COLORS) as ProfileColor[]).map((c) => (
@@ -116,7 +116,7 @@ function CreateProfileSheet({ windowId, preset, onDone }: { windowId: string | n
 
       <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
         <Button title="Cancel" onPress={() => onDone(null)} />
-        <Button title="Create Profile" kind="primary" onPress={submit} />
+        <Button title="Create Space" kind="primary" onPress={submit} />
       </View>
     </Sheet>
   );

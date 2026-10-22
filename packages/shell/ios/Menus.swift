@@ -239,12 +239,11 @@ final class MenuTarget: NSObject, NSMenuItemValidation {
 }
 
 enum MainMenu {
-  private static var moveToProfile = NSMenu(title: "Move to Profile")
+  private static var moveToProfile = NSMenu(title: "Move to Space")
   private static var moveToWindow = NSMenu(title: "Move to Window")
   private static var bookmarkToFolder = NSMenu(title: "Add Bookmark to Folder")
-  private static var profiles = NSMenu(title: "Profiles")
-  private static var profilesItem = NSMenuItem(title: "Profiles", action: nil, keyEquivalent: "")
-  private static var profilesSeparator = NSMenuItem.separator()
+  private static var spaces = NSMenu(title: "Spaces")
+  private static var spacesFixedCount = 0
   private static var bookmarks = NSMenu(title: "Bookmarks")
   private static var bookmarksFixedCount = 0
   private static var history = NSMenu(title: "History")
@@ -254,11 +253,9 @@ enum MainMenu {
   static func build() -> NSMenu {
     let appName = ProcessInfo.processInfo.processName
     let main = NSMenu()
-    moveToProfile = NSMenu(title: "Move to Profile")
+    moveToProfile = NSMenu(title: "Move to Space")
     moveToWindow = NSMenu(title: "Move to Window")
     bookmarkToFolder = NSMenu(title: "Add Bookmark to Folder")
-    profiles = NSMenu(title: "Profiles")
-    profilesSeparator = NSMenuItem.separator()
 
     func std(_ title: String, _ action: Selector, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command) -> StandardItem {
       StandardItem(title, action, key: key, mods)
@@ -413,6 +410,9 @@ enum MainMenu {
       cmd("Open Split Pane", "openSplitPane", "+", .control).hiddenShortcut(),
       cmd("Focus Next Split Pane", "focusNextPane", "}", .control).hiddenShortcut(),
       cmd("Focus Previous Split Pane", "focusPreviousPane", "{", .control).hiddenShortcut(),
+      cmd("Close Split Pane", "closeSplitPane", "-", [.control, .shift]),
+      cmd("Close Split Pane", "closeSplitPane", "_", .control).hiddenShortcut(),
+      cmd("Reveal Current Tab", "revealTab", " ", .control),
       .separator(),
       sub("Show Bookmarks Bar", [
         cmd("Always", "setBookmarksBar", arg: "always"),
@@ -445,6 +445,15 @@ enum MainMenu {
       ]),
     ])
 
+    spaces = top("Spaces", [
+      cmd("Next Space", "nextProfile", rightArrow, [.command, .option]),
+      cmd("Previous Space", "previousProfile", leftArrow, [.command, .option]),
+      .separator(),
+      cmd("New Space…", "newProfile"),
+      cmd("Edit Space…", "editProfile"),
+    ], menu: NSMenu(title: "Spaces"))
+    spacesFixedCount = spaces.items.count
+
     let selectTab = (1...8).map { cmd("Select Tab \($0)", "selectTab", arg: "\($0)", "\($0)").hiddenShortcut() }
     _ = top("Tabs", [
       cmd("Go Back", "back", "["),
@@ -456,8 +465,8 @@ enum MainMenu {
       cmd("Previous Tab", "previousTab", "[", [.command, .shift]),
       cmd("Next Tab", "nextTab", "}").hiddenShortcut(),
       cmd("Previous Tab", "previousTab", "{").hiddenShortcut(),
-      cmd("Next Tab", "nextTab", functionKey(NSRightArrowFunctionKey), [.command, .option]).hiddenShortcut(),
-      cmd("Previous Tab", "previousTab", functionKey(NSLeftArrowFunctionKey), [.command, .option]).hiddenShortcut(),
+      cmd("Next Tab", "nextTab", rightArrow, [.command, .control]).hiddenShortcut(),
+      cmd("Previous Tab", "previousTab", leftArrow, [.command, .control]).hiddenShortcut(),
       cmd("Next Tab", "nextTab", functionKey(NSPageDownFunctionKey), .control).hiddenShortcut(),
       cmd("Previous Tab", "previousTab", functionKey(NSPageUpFunctionKey), .control).hiddenShortcut(),
       cmd("Next Tab", "nextTab", functionKey(NSDownArrowFunctionKey), [.command, .option]).hiddenShortcut(),
@@ -472,17 +481,17 @@ enum MainMenu {
       cmd("Select Last Tab", "selectLastTab", "9").hiddenShortcut(),
       .separator(),
       cmd("Pin", "togglePin"),
-      cmd("Move to Pinned", "togglePinnedRow", "d", [.command, .option, .shift]),
+      cmd("Move to Pinned", "togglePinnedRow", "d"),
       cmd("Duplicate", "duplicateTab"),
       cmd("New Group with Tab", "newGroupWithTabs", "n", [.command, .control]),
       cmd("New Group with Tab", "newGroupWithTabs", "p", [.command, .control]).hiddenShortcut(),
       cmd("New Tab in Group", "newTabInGroup", "c", [.command, .control]).hiddenShortcut(),
       cmd("Close Group", "closeTabGroup", "w", [.command, .control]).hiddenShortcut(),
       .separator(),
-      sub("Move to Profile", [], menu: moveToProfile),
+      sub("Move to Space", [], menu: moveToProfile),
       sub("Move to Window", [], menu: moveToWindow),
       .separator(),
-      cmd("Add to Bookmarks…", "bookmarkPage", "d"),
+      cmd("Add to Bookmarks…", "bookmarkPage"),
       sub("Add Bookmark to Folder", [], menu: bookmarkToFolder),
       .separator(),
       cmd("Rename…", "renameTab"),
@@ -491,7 +500,7 @@ enum MainMenu {
     ])
 
     bookmarks = top("Bookmarks", [
-      cmd("Bookmark This Page", "bookmarkPage", "d"),
+      cmd("Bookmark This Page", "bookmarkPage"),
       cmd("Bookmark All Tabs…", "bookmarkAllTabs", "d", [.command, .shift]),
       cmd("Manage Bookmarks", "manageBookmarks", "b", [.command, .option]),
     ])
@@ -499,7 +508,6 @@ enum MainMenu {
     history = top("History", [])
     extensions = top("Extensions", [])
 
-    profilesItem = sub("Profiles", [], menu: profiles)
     let minimizeAll = std("Minimize All", #selector(NSApplication.miniaturizeAll(_:)), "m", [.command, .option])
     let arrange = std("Arrange in Front", #selector(MenuTarget.arrangeWindowsInFront(_:)))
     arrange.target = MenuTarget.shared
@@ -517,9 +525,7 @@ enum MainMenu {
       cmd("Downloads", "downloads", "l", [.command, .option]).hiddenShortcut(),
       CommandItem("Task Manager", "taskManager", key: ""),
       cmd("Merge All Windows", "mergeAllWindows"),
-      profilesSeparator,
-      profilesItem,
-      cmd("Show Profiles Menu", "openProfileMenu", "m", [.command, .shift]).hiddenShortcut(),
+      cmd("Show Spaces Menu", "openProfileMenu", "m", [.command, .shift]).hiddenShortcut(),
     ])
     NSApp.windowsMenu = windowMenu
 
@@ -651,22 +657,16 @@ enum MainMenu {
       moveToProfile.addItem(item)
     }
     moveToProfile.addItem(.separator())
-    moveToProfile.addItem(CommandItem("New Profile…", "moveTabToProfile", arg: "new"))
+    moveToProfile.addItem(CommandItem("New Space…", "moveTabToProfile", arg: "new"))
 
-    profiles.removeAllItems()
-    profilesItem.isHidden = state.profiles.count < 2
-    profilesSeparator.isHidden = profilesItem.isHidden
+    while spaces.items.count > spacesFixedCount { spaces.removeItem(at: spacesFixedCount) }
+    if !state.profiles.isEmpty { spaces.addItem(.separator()) }
     for (i, p) in state.profiles.enumerated() {
       let item = CommandItem(p.title, "switchProfile", arg: p.id, key: i < 9 ? "\(i + 1)" : "", .control)
       item.tracksChecked = false
       item.state = p.current ? .on : .off
-      profiles.addItem(item)
+      spaces.addItem(item)
     }
-    profiles.addItem(.separator())
-    profiles.addItem(CommandItem("Next Profile", "nextProfile"))
-    profiles.addItem(CommandItem("Previous Profile", "previousProfile"))
-    profiles.addItem(.separator())
-    profiles.addItem(CommandItem("New Profile…", "newProfile"))
   }
 
   private static func buildMoveToWindow(_ state: MenuState) {

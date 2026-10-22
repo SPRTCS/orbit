@@ -37,7 +37,7 @@ const DEFS: ActionDef[] = [
   {
     command: "togglePin",
     arg: "row",
-    title: ({ s, tab }) => (isPinnedRow(tab) ? "Move to Top Apps" : `Move to Pinned in ${s.profiles[tab?.profileId ?? ""]?.name ?? "Profile"}`),
+    title: ({ s, tab }) => (isPinnedRow(tab) ? "Move to Top Apps" : `Move to Pinned in ${s.profiles[tab?.profileId ?? ""]?.name ?? "Space"}`),
     icon: "list.bullet",
     keywords: ["pin", "pinned tabs", "pin as row", "move to pinned", "favorites"],
     needs: "tab",
@@ -59,7 +59,6 @@ const DEFS: ActionDef[] = [
     title: ({ s, windowId, tab }) =>
       tab?.url && isBookmarked(s.bookmarks, bookmarkProfileId(s, s.windows[windowId]), tab.url) ? "Remove Bookmark" : "Bookmark This Page",
     icon: "bookmark",
-    hint: "⌘D",
     keywords: ["add bookmark", "bookmark"],
     needs: page,
   },
@@ -80,7 +79,8 @@ const DEFS: ActionDef[] = [
   { command: "importBrowserData", title: "Import Browser Data", icon: "square.and.arrow.down", keywords: ["import bookmarks", "import passwords"] },
   { command: "keyboardShortcuts", title: "Keyboard Shortcuts", icon: "keyboard", keywords: ["shortcuts", "hotkeys"] },
   { command: "mergeAllWindows", title: "Merge All Windows", icon: "rectangle.stack", needs: "profiles" },
-  { command: "newProfile", title: "New Profile", icon: "person.crop.circle.badge.plus", keywords: ["create profile"], needs: "profiles" },
+  { command: "newProfile", title: "New Space", icon: "person.crop.circle.badge.plus", keywords: ["create space", "create profile", "new profile"], needs: "profiles" },
+  { command: "editProfile", title: "Edit Space", icon: "pencil", keywords: ["edit profile", "rename space", "space theme", "space icon"], needs: "profiles" },
   { command: "setAppearance", arg: "dark", title: "Dark Appearance", icon: "moon", keywords: ["dark mode"] },
   { command: "setAppearance", arg: "light", title: "Light Appearance", icon: "sun.max", keywords: ["light mode"] },
   { command: "setAppearance", arg: "auto", title: "Use System Appearance", icon: "circle.lefthalf.filled", keywords: ["auto appearance", "system appearance"] },
@@ -109,7 +109,7 @@ export function barActions(s: BrowserState, windowId: string): CommandAction[] {
     s.profileOrder.forEach((id, i) => {
       if (id === w.profileId) return;
       const name = s.profiles[id]?.name ?? "";
-      out.push({ id: `switchProfile:${id}`, title: `Switch to ${name}`, icon: "person.crop.circle", hint: i < 9 ? `⌃${i + 1}` : undefined, keywords: [name, "profile"] });
+      out.push({ id: `switchProfile:${id}`, title: `Switch to ${name}`, icon: "person.crop.circle", hint: i < 9 ? `⌃${i + 1}` : undefined, keywords: [name, "space", "profile"] });
     });
   }
   return out;

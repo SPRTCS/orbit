@@ -30,10 +30,12 @@ import { closeNewTabBar, isEmptyCardTab, showNewTabBar, toggleNewTabBar } from "
 import { NEW_TAB_BAR_POLICY } from "../store/newTabBar";
 import { addressBarInSidebar } from "../components/layout/windowLayout";
 import { withLivePage } from "./livePage";
+import { closePeek, usePeeks } from "./peek";
 import { webviews } from "./webviews";
 import { goBack, goForward } from "../components/layout/history";
-import { openSplitPane } from "../components/layout/splitActions";
+import { closePane, openSplitPane } from "../components/layout/splitActions";
 import { runSidebarCommand } from "../components/sidebar/commands";
+import { revealActiveTab } from "../components/sidebar/reveal";
 import { numberedTabs } from "../components/sidebar/entries";
 import { openExtensionFromMenu } from "../components/extensions/bridge";
 import { toggleCastPicker } from "../components/media/cast";
@@ -43,6 +45,7 @@ import { copyPageUrl, jumpToSelection } from "../components/site/selection";
 import { shareTab } from "../components/site/share";
 import { openProfileMenu } from "../components/ProfileIndicator";
 import { groupOf } from "../store/organize";
+import { splitOf } from "../store/splits";
 import { isSmall, mainWindowFor, originalProfile } from "../store/small";
 import { closeLittleArdia, openInMainWindow, openLittleArdia } from "../components/littleArdia/actions";
 
@@ -139,6 +142,7 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
       if (!focusHeroBar(windowId, tabId)) return tab ? s.openPanel(windowId, "") : undefined;
       return ui?.panel.open ? s.closePanel(windowId) : undefined;
     case "closeTab":
+      if (usePeeks.getState().peeks[windowId]) return closePeek(windowId);
       if (ui?.panel.newTab) {
         closeNewTabBar(windowId);
         if (NEW_TAB_BAR_POLICY.closeTabKeyOnlyDismissesBar || !tabId) return;
@@ -196,6 +200,10 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
       return s.focusPane(windowId, 1);
     case "focusPreviousPane":
       return s.focusPane(windowId, -1);
+    case "closeSplitPane":
+      return tabId && splitOf(s, tabId) ? closePane(tabId) : undefined;
+    case "revealTab":
+      return revealActiveTab(windowId);
     case "toggleSidebar":
       return s.toggleSidebar(windowId);
     case "zoomIn":
@@ -293,6 +301,8 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
       return void requestAutofill(windowId, arg);
     case "newProfile":
       return void createProfile(windowId).then((id) => id && switchProfile(windowId, id));
+    case "editProfile":
+      return s.windows[windowId]?.incognito ? undefined : openSettings("profiles", s.windows[windowId]?.profileId);
   }
 }
 

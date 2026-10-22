@@ -41,6 +41,22 @@ and the passkey/payment keychain groups for upstream's team, so Touch ID passkey
 work in Orbit builds yet. A full rename means building the engine (`docs/engine-build.md`) with
 `chromium-branding.patch` and `chromium-safe-storage-name.patch` adjusted.
 
+## Spaces and shortcuts (Arc)
+
+Profiles play the role of Arc's Spaces: user-visible strings for switching say "Space"; data settings
+(logins, sharing) still say "Profile". Differences from upstream's defaults (`packages/shell/ios/Menus.swift`):
+
+| Key | Orbit | Upstream |
+| --- | --- | --- |
+| ⌘D | Move to Pinned / Move out of Pinned (Arc's Pin/Unpin Tab) | Add to Bookmarks (now no key) |
+| ⌥⌘→ / ⌥⌘← | Next / Previous Space | hidden Next / Previous Tab |
+| ⌃⌘→ / ⌃⌘← | Next / Previous Tab (Arc's Cycle Tab) | none |
+| ⌃⇧- | Close Split Pane | none |
+| ⌃Space | Reveal Current Tab in the sidebar | none |
+
+A "Spaces" menu (Next/Previous Space, New Space…, Edit Space…, each space on ⌃1–⌃9) replaces Window › Profiles,
+and the sidebar footer shows each space's icon (a dot without one) with a "+" for a new space.
+
 ## Building locally
 
 ```sh

@@ -85,7 +85,7 @@ export async function openTabMenu(windowId: string, tab: Tab) {
   const moveToProfile: MenuItem[] = [
     ...s.profileOrder.map((id) => ({ id: `profile:${id}`, title: s.profiles[id]!.name, checked: id === tab.profileId, enabled: id !== tab.profileId })),
     sep,
-    { id: "profile:new", title: "New Profile…" },
+    { id: "profile:new", title: "New Space…" },
   ];
   const groups = moveToGroupItems(windowId, group?.id);
 
@@ -107,7 +107,7 @@ export async function openTabMenu(windowId: string, tab: Tab) {
     { id: "pin", title: tab.pinned ? "Unpin" : "Pin", symbol: tab.pinned ? "pin.slash" : "pin" },
     isPinnedRow(tab)
       ? { id: "pinTile", title: "Move to Top Apps", symbol: "app" }
-      : { id: "pinRow", title: "Move to Pinned Tabs", symbol: "list.bullet" },
+      : { id: "pinRow", title: "Move to Pinned Tabs", symbol: "list.bullet", ...hint("d", "command") },
     { id: "duplicate", title: "Duplicate", symbol: "plus.square.on.square" },
     ...(tab.pinned
       ? []
@@ -123,10 +123,10 @@ export async function openTabMenu(windowId: string, tab: Tab) {
     { id: "copy", title: "Copy URL", symbol: "link", enabled: !!tab.url, ...hint("c", "shift", "command") },
     { id: "copyMd", title: "Copy Link as Markdown", symbol: "text.badge.checkmark", enabled: !!tab.url, ...hint("c", "option", "shift", "command") },
     { id: "share", title: "Share", symbol: "square.and.arrow.up", enabled: canShare(tab), share: true },
-    { id: "bookmark", title: "Add to Bookmarks…", symbol: "bookmark", enabled: !!tab.url, ...hint("d", "command") },
+    { id: "bookmark", title: "Add to Bookmarks…", symbol: "bookmark", enabled: !!tab.url },
     { id: "bookmarkTo", title: "Add Bookmark to Folder", symbol: "folder", enabled: !!tab.url, children: bookmarkFolderItems(windowId, "folder:") },
     sep,
-    { id: "moveToProfile", title: "Move to Profile", symbol: "person.crop.circle", enabled: !incognito, children: moveToProfile },
+    { id: "moveToProfile", title: "Move to Space", symbol: "person.crop.circle", enabled: !incognito, children: moveToProfile },
     { id: "moveToWindow", title: "Move to Window", symbol: "macwindow", enabled: !incognito, children: moveToWindowItems(windowId) },
     sep,
     { id: "close", title: "Close Tab", symbol: "xmark", ...hint("w", "command") },

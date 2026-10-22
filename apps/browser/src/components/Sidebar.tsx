@@ -26,6 +26,7 @@ import { useClipped, useShift, type ClipSource, type EntryMotion } from "./sideb
 import { sidebarEntries } from "./sidebar/entries";
 import { GroupBlock } from "./sidebar/GroupBlock";
 import { dismissHover, dismissHoverIn } from "./sidebar/hover";
+import { onRevealTab } from "./sidebar/reveal";
 import { LiveFolders } from "./sidebar/LiveFolderBlock";
 import { capture, GhostSlot, ListMotionContext, newCapture, useListMotion } from "./sidebar/listMotion";
 import { openOverflowMenu, openSidebarMenu } from "./sidebar/menus";
@@ -430,9 +431,14 @@ function useRevealTabs(windowId: string, scroll: RefObject<ScrollView | null>, s
       schedule();
     });
     geometry.current.laidOut = schedule;
+    const stopRevealRequests = onRevealTab(windowId, () => {
+      switched = activeTabId(useBrowser.getState(), windowId) ?? null;
+      schedule();
+    });
     return () => {
       cancelAnimationFrame(frame);
       unsubscribe();
+      stopRevealRequests();
       geometry.current.laidOut = undefined;
     };
   }, [windowId, glowRoom]);
