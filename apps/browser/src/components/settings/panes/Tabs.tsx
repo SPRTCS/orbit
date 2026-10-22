@@ -53,6 +53,11 @@ export function TabsPane() {
         <Row title={top ? "Add new tabs to the left" : "Add new tabs to the top"}>
           <Toggle value={settings.newTabPosition === "top"} onChange={(v) => update({ newTabPosition: v ? "top" : "bottom" })} />
         </Row>
+        {toggle(
+          "openPinnedLinksInPeek",
+          "Open links from pinned tabs in Peek",
+          "A link from a pinned tab to another site opens over the page instead of leaving the pinned tab. ⇧-click any link to peek at it. Esc or a click outside closes it.",
+        )}
         {toggle("warnBeforeClosingLastTab", "Warn before closing last tab in a Profile")}
         {toggle("tabReorderHaptics", "Haptic feedback when reordering tabs")}
         {toggle("extendWebsiteColor", "Extend website color into tab bar")}

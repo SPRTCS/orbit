@@ -61,6 +61,9 @@ import "./layout/devExpose";
 import { closeWebNotification, showWebNotification } from "../lib/webNotifications";
 import { isSmallWindow } from "../store/small";
 import { closeLittleArdiaOnEscape } from "./littleArdia/actions";
+import { PeekOverlay } from "./peek/PeekOverlay";
+import { peekFromPage } from "../lib/peek";
+import { usePeekLinks } from "../lib/peekLinks";
 
 export function ContentCard() {
   const windowId = useWindowId();
@@ -282,6 +285,7 @@ export function ContentCard() {
       {split && !fullscreenTab && <SplitDividers split={split} dividers={dividers} width={size.width} height={size.height} />}
       {!fullscreenTab && <DropTargets panes={panes} origin={origin} />}
       <SplitToast windowId={windowId} />
+      {size.width > 0 && <PeekOverlay windowId={windowId} width={size.width} height={size.height} />}
     </View>
   );
 }
@@ -432,6 +436,7 @@ const TabWebView = memo(function TabWebView({ tabId, visible, warm }: { tabId: s
   const store = () => useBrowser.getState();
   const ref = useMemo(() => webviewRef(tabId), [tabId]);
   const autoPictureInPicture = useAutoPictureInPicture(tabId, visible);
+  usePeekLinks(tabId, visible);
   const pageColor = useProfilesValue(profileId, (profiles) => (isIncognitoProfile(profileId) ? "incognito" : (profiles[profileId]?.color ?? "plum")));
 
   const lastPage = useRef<string | null>(null);
@@ -476,7 +481,7 @@ const TabWebView = memo(function TabWebView({ tabId, visible, warm }: { tabId: s
 
   const onOpenWindow = (request: OpenWindowRequest) => {
     const t = tab();
-    if (t) openFromPage(request, { windowId: t.windowId, profileId: t.profileId, tabId });
+    if (t && !peekFromPage(request, t)) openFromPage(request, { windowId: t.windowId, profileId: t.profileId, tabId });
   };
 
   return (

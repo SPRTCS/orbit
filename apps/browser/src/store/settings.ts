@@ -64,6 +64,7 @@ export type Settings = {
   shortcuts: Record<string, string[]>;
 
   openLinksInLittleArdia: boolean;
+  openPinnedLinksInPeek: boolean;
   littleArdiaSize: [number, number];
 
   chosen?: string[];
@@ -113,6 +114,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultProfileId: DEFAULT_PROFILE_ID,
   shortcuts: {},
   openLinksInLittleArdia: true,
+  openPinnedLinksInPeek: true,
   littleArdiaSize: [900, 640],
 };
 
