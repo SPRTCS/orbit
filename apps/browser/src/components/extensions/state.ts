@@ -21,6 +21,7 @@ import { webviews } from "../../lib/webviews";
 import { useBrowser, type BrowserState } from "../../store/browser";
 import { activeTabId, engineProfile } from "../../store/model";
 import { openSettings } from "../settings/windows";
+import { isBoostsExtension } from "../../lib/boosts/compile";
 import { closeSidePanelsOf, toggleSidePanel } from "./sidePanels";
 import { browserIdOf, extensionProfile, pageProfile, shownIn, useExtensions, windowExtensions, type Anchor } from "./store";
 
@@ -35,7 +36,8 @@ export function refreshExtensions(profile: string): Promise<InstalledExtension[]
   const running = loading.get(profile);
   if (running) return running;
   const job = listExtensions(profile)
-    .then((list) => {
+    .then((all) => {
+      const list = all.filter((x) => !isBoostsExtension(x));
       list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
       useExtensions.setState((e) => ({ lists: { ...e.lists, [profile]: list } }));
       return list;

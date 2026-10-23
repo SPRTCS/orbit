@@ -4,9 +4,10 @@ import { create } from "zustand";
 export const SETTINGS_WINDOW_ID = "settings";
 export const IMPORT_WINDOW_ID = "import";
 export const ARCHIVE_WINDOW_ID = "archive";
+export const BOOSTS_WINDOW_ID = "boosts";
 
 export const isUtilityWindowId = (id: string | null | undefined) =>
-  id === SETTINGS_WINDOW_ID || id === IMPORT_WINDOW_ID || id === ARCHIVE_WINDOW_ID;
+  id === SETTINGS_WINDOW_ID || id === IMPORT_WINDOW_ID || id === ARCHIVE_WINDOW_ID || id === BOOSTS_WINDOW_ID;
 
 export type SettingsPane =
   | "general"

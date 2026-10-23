@@ -29,6 +29,7 @@ import { copyPageUrl } from "./selection";
 import { canShare, shareTab } from "./share";
 import { ActionTile, FooterChip, gridColumns, MoreButton, SectionTitle, SettingRow, SITE_PANEL, TileRow } from "./SiteControlsParts";
 import { SiteExtensions } from "./SiteExtensions";
+import { SiteBoosts } from "../boosts/SiteBoosts";
 import { TranslateRows } from "./TranslateControls";
 import { ZoomStepper } from "./ZoomControls";
 
@@ -233,6 +234,7 @@ function SiteControlsPanel({
         <TileRow>{tiles}</TileRow>
 
         <SiteExtensions windowId={tab.windowId} columns={gridColumns(tiles.length)} onClose={close} />
+        {origin ? <SiteBoosts tabId={tabId} onClose={close} /> : null}
 
         {origin ? (
           <>

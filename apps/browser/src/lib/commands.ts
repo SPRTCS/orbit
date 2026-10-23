@@ -24,6 +24,7 @@ import {
 import { bookmarkActivePage, bookmarkAllTabs } from "../components/bookmarks/actions";
 import { useClearDataRequest } from "../components/pages/ClearDataDialog";
 import { openInternalPage } from "../components/pages/urls";
+import { runBoostCommand } from "./boosts/actions";
 import { isUtilityWindowId, openArchive, openImport, openSettings } from "../components/settings/windows";
 import { closePanelToHeroBar, focusHeroBar } from "../components/omnibox/barState";
 import { closeNewTabBar, isEmptyCardTab, showNewTabBar, toggleNewTabBar } from "../components/omnibox/newTabBar";
@@ -58,6 +59,7 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
     requested = null;
   }
   if (isSmall(s, requested) && runLittleArdiaCommand(command, requested!)) return;
+  if (runBoostCommand(command, requested)) return;
 
   switch (command) {
     case "newWindow":

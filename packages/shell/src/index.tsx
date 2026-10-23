@@ -76,6 +76,9 @@ export type BrowserCommand =
   | "importBrowserData"
   | "showHistory"
   | "showArchive"
+  | "zapElements"
+  | "showBoosts"
+  | "newBoost"
   | "newPinnedFolder"
   | "clearBrowsingData"
   | "manageBookmarks"
@@ -169,7 +172,7 @@ export type OpenWindowOptions = {
   incognito?: boolean;
   title?: string;
   focus?: boolean;
-  kind?: "browser" | "small" | "settings" | "import" | "archive";
+  kind?: "browser" | "small" | "settings" | "import" | "archive" | "boosts";
   profile?: string;
   size?: [number, number];
   behind?: string;

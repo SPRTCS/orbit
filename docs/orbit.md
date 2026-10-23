@@ -97,6 +97,51 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `packages/shell/src/index.tsx` | `"newPinnedFolder"` in `BrowserCommand`. |
 | `components/import/apply.ts` | import; `space = arcPinnedFolders(profileId, space);` first line of `importArcSpace` (folders go to the overlay, all their links are imported as pinned rows). |
 | `lib/devHarness.ts` | `ac.pinnedFolders` getter (dev only). |
+| `lib/commands.ts` | Boosts: import; `if (runBoostCommand(command, requested)) return;` after the Little Ardia line (`zapElements`, `showBoosts`, `newBoost`). |
+| `components/omnibox/actions.ts` | Boosts: the "Zap Elements…", "New Boost for This Site" and "Boosts" command bar entries. |
+| `packages/shell/src/index.tsx` | Boosts: `"zapElements"`, `"showBoosts"`, `"newBoost"` in `BrowserCommand`; `"boosts"` in `OpenWindowOptions.kind`. |
+| `components/settings/windows.ts` | Boosts: `BOOSTS_WINDOW_ID` and its `isUtilityWindowId` clause. |
+| `components/settings/UtilityWindow.tsx` | Boosts: import; `id === BOOSTS_WINDOW_ID ? <BoostsWindow />`. |
+| `components/site/SiteControls.tsx` | Boosts: import; `{origin ? <SiteBoosts …/> : null}` after `<SiteExtensions …/>`. |
+| `components/Toolbar.tsx` | Boosts: import; `<BoostIndicator …/>` after `<ZoomIndicator …/>` in the URL field. |
+| `components/extensions/state.ts` | Boosts: import; `refreshExtensions` filters `isBoostsExtension` out of the lists. |
+| `main.tsx` | Boosts: import; `afterFirstWindow(startBoosts)`. |
+| `lib/devHarness.ts` | Boosts: `ac.boosts` getter (dev only). |
+| `packages/shell/expo-module.config.json` | Boosts: `"OrbitBoostsModule"` (`packages/shell/ios/OrbitBoosts.swift`; a new native file, so `pod install`). |
+
+## Boosts (Arc)
+
+Per-site customizations, applied by Chrome's own content scripts so they land before first paint, in every frame
+and every tab, with no engine change.
+
+- **Model** (`lib/boosts/model.ts`, store `store/boosts.ts`): a boost has a site (host, "include subdomains", an
+  optional path prefix with `*` globs), a space (`profileId`, null for all spaces), on/off, CSS, JavaScript,
+  zapped selectors, style options (font, colour tint and "dark page" through CSS filters, media counter-filtered),
+  "run in private windows" (off by default) and `jsAllowed`. Saved in `boosts.json` in the data dir.
+- **Compile and load** (`lib/boosts/compile.ts`, `lib/boosts/runtime.ts`): per engine profile, the live boosts
+  become an MV3 extension with only `content_scripts` (no permissions, same shape the engine's Scripts policy
+  accepts) that Orbit writes to `<data dir>/Boosts/<profile>/extension` through the `OrbitBoosts` native module
+  (temp folder, then `renamex_np` swap; unchanged content isn't rewritten) and loads with `installExtension`,
+  reloading it after a change. Each boost is one ISOLATED-world script at `document_start` that adds a
+  `<style data-orbit-boost>` (re-attached if a page removes it) and, when allowed, one at `document_end` running the
+  user's JavaScript with `chrome`/`browser` shadowed. Private windows: the extension is enabled in incognito only
+  when some boost allows it, and every other boost's script returns on `chrome.extension.inIncognitoContext`. It's
+  separate from the CLI's `Scripts/extension`, so `ardia scripts` and "Let the ardia command control Orbit" are
+  unaffected, and it's hidden from the extensions lists.
+- **Live edits**: open tabs get CSS changes and on/off at once (`liveStyleScript` through `webview.evaluate`
+  rewrites or disables the `style[data-orbit-boost]` elements); JavaScript changes apply on reload.
+- **Zap** (`lib/boosts/zap.ts`, `lib/boosts/pageScripts.ts`): an overlay in the page (closed shadow root) that
+  highlights the element under the pointer, hides it on click and reports a selector: a stable id, then
+  data-test/aria/role/name attributes, then the shortest unique tag + stable-class chain with `:nth-of-type` only
+  where needed; hashed, generated and state classes are skipped. Each zap is saved into the site's boost at once;
+  Undo (button or ⌘Z) and Done/Esc talk to the app through one pending `evaluate` per step.
+- **UI**: command bar "Zap Elements…", "New Boost for This Site", "Boosts"; Site Controls › Boosts (per-boost
+  toggles, Zap, Edit/New); a brush in the URL field when a boost is on for the page; the Boosts utility window
+  (list for this site and other sites, editor with site, space, private windows, style, zapped elements, CSS and
+  JavaScript, Export…, Copy as Text, Delete, Import from file/clipboard/pasted text).
+- **Sharing**: `.orbitboost` files are JSON (`orbitBoost: 1`, name, site, css, js, zaps, style); spaces, private
+  window permission and JS permission never travel. Import shows what the boost does and asks separately before
+  its JavaScript may run; until then it's kept but not compiled.
 
 ## Building locally
 

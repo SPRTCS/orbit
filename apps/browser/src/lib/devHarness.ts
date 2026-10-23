@@ -34,6 +34,9 @@ export function startDevHarness() {
     pageState: usePages,
     openSettings,
     favicons,
+    get boosts(): typeof import("./boosts/runtime") & typeof import("./boosts/actions") & typeof import("./boosts/zap") & typeof import("../store/boosts") {
+      return { ...require("./boosts/runtime"), ...require("./boosts/actions"), ...require("./boosts/zap"), ...require("../store/boosts") };
+    },
     get archive(): typeof import("./archive") & typeof import("../store/archive") {
       return { ...require("./archive"), ...require("../store/archive") };
     },

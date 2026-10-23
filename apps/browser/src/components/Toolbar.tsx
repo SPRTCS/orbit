@@ -25,6 +25,7 @@ import { ToolbarExtensions, useToolbarExtensionsWidth } from "./extensions/Toolb
 import { GlassFill, liquidGlass } from "./glass";
 import { TranslateButton } from "./site/TranslateControls";
 import { ZoomIndicator } from "./site/ZoomControls";
+import { BoostIndicator } from "./boosts/BoostIndicator";
 
 type ToolbarTab = Pick<Tab, "id" | "url" | "title" | "windowId" | "zoom">;
 const toolbarTab = (t: Tab | undefined): ToolbarTab | undefined =>
@@ -358,6 +359,7 @@ export const UrlField = memo(function UrlField({
         {capture && <CaptureIndicator camera={capture.camera} microphone={capture.microphone} screen={capture.screen} onPress={toggleSiteControls} />}
         <TranslateButton tabId={tab.id} palette={palette} onFocus={onFocus} />
         <ZoomIndicator tabId={tab.id} zoom={tab.zoom} palette={palette} onFocus={onFocus} />
+        <BoostIndicator tabId={tab.id} palette={palette} onPress={toggleSiteControls} />
         {popups > 0 && (
           <ToolbarButton
             palette={palette}
