@@ -31,6 +31,7 @@ import { NEW_TAB_BAR_POLICY } from "../store/newTabBar";
 import { addressBarInSidebar } from "../components/layout/windowLayout";
 import { withLivePage } from "./livePage";
 import { closePeek, usePeeks } from "./peek";
+import { newPinnedFolder } from "./pinnedFolders";
 import { webviews } from "./webviews";
 import { goBack, goForward } from "../components/layout/history";
 import { closePane, openSplitPane } from "../components/layout/splitActions";
@@ -89,6 +90,8 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
       return openImport();
     case "showArchive":
       return openArchive();
+    case "newPinnedFolder":
+      return void newPinnedFolder(requested);
     case "openFile":
       return void openFiles(requested);
     case "manageExtensions":

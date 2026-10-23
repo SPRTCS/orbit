@@ -31,6 +31,7 @@ import { LiveFolders } from "./sidebar/LiveFolderBlock";
 import { capture, GhostSlot, ListMotionContext, newCapture, useListMotion } from "./sidebar/listMotion";
 import { openOverflowMenu, openSidebarMenu } from "./sidebar/menus";
 import { PinFieldZone, PinnedGrid, PinSlotZone } from "./sidebar/PinnedGrid";
+import { PinnedFolders } from "./sidebar/PinnedFolders";
 import { ResizeHandle } from "./sidebar/ResizeHandle";
 import { entriesHeight, firstPaintEntries, rowSpan, startsOffScreen, type Section } from "./sidebar/geometry";
 import { measureRow } from "./sidebar/state";
@@ -330,6 +331,7 @@ function PageRows({ windowId, profileId, current, rows, inlineNewTab, glowRoom, 
           onLayout={geometry ? (e) => void (geometry.current.regions.pinnedGroups = e.nativeEvent.layout.y) : undefined}
           style={{ marginTop: tiles.length ? 6 : topGap, gap: layout.rowGap }}
         >
+          <PinnedFolders windowId={windowId} profileId={profileId} rows={offScreen ? NONE : pinnedRows} groups={offScreen ? NONE : pinnedGroups}>
           {(offScreen ? NONE : pinnedRows).map((id) => (
             <TabRowItem key={id} tabId={id} section="pinnedRows" />
           ))}
@@ -338,6 +340,7 @@ function PageRows({ windowId, profileId, current, rows, inlineNewTab, glowRoom, 
             <GroupBlock key={id} groupId={id} section="pinnedGroups" />
           ))}
           <Tail id="tail:pinnedGroups" section="pinnedGroups" />
+          </PinnedFolders>
         </View>
         {offScreen ? null : <LiveFolders windowId={windowId} spaced={pinnedSection} />}
         {divided ? <ClearDivider windowId={windowId} spaced={pinnedSection} /> : null}

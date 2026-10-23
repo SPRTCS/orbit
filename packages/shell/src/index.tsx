@@ -76,6 +76,7 @@ export type BrowserCommand =
   | "importBrowserData"
   | "showHistory"
   | "showArchive"
+  | "newPinnedFolder"
   | "clearBrowsingData"
   | "manageBookmarks"
   | "bookmarkAllTabs"

@@ -11,6 +11,7 @@ import { beginTabDrag, cancelTabDrag, endTabDrag, setDragPicture, updateTabDrag,
 import { useClipped, type ClipSource } from "./entryMotion";
 import { suppressHover } from "./hover";
 import { overPins, pinGridHeight, pinSlot, TILE_GAP } from "./pinZone";
+import { pinnedTreeDrop } from "./pinnedFolderDrop";
 
 type Frame = { x: number; y: number; w: number; h: number };
 type Section = "tiles" | "pinnedRows" | "pinnedGroups" | "list";
@@ -208,7 +209,7 @@ class DragController {
       !splitDrop && this.measured && ghost && sources.length === 1 && sources[0]!.kind !== "tile" && !this.into && drop.type !== "onto"
         ? this.landingSpot(commit ? drop : { type: "none" })
         : null;
-    if (commit && !splitDrop && this.measured && sources.length) {
+    if (commit && !splitDrop && this.measured && sources.length && !pinnedTreeDrop(this, sources, drop, this.pointer)) {
       const s = useBrowser.getState();
       const ids = sources.flatMap((i) => i.tabIds);
       if (drop.type === "tabs") s.placeTabs(ids, drop.placement);

@@ -57,6 +57,47 @@ Profiles play the role of Arc's Spaces: user-visible strings for switching say "
 A "Spaces" menu (Next/Previous Space, New Space…, Edit Space…, each space on ⌃1–⌃9) replaces Window › Profiles,
 and the sidebar footer shows each space's icon (a dot without one) with a "+" for a new space.
 
+## Pinned folders (Arc)
+
+The pinned section (pinned rows and pinned groups, not the Top Apps grid) can hold folders, nested to any
+depth. Folders are an Orbit overlay: upstream's flat model (`Tab.pinned`/`pinnedAsRow`, `TabGroup`) stays the
+source of truth for the pins themselves, and the overlay only adds hierarchy, order, names and collapsed state.
+
+- **Model** (`store/pinnedFolders.ts`): one tree per space (profile), `{ root, folders: { id: { name, collapsed,
+  children } } }`. Leaves are `t:<pinKey>` (a pinned row) and `g:<pinKey>` (a pinned group), so every window's
+  mirrored copy of a pin (`pinKeyOf`, store/pinMirror.ts) maps to the same leaf; folders are `f:<id>`.
+- **Self-healing**: rendering resolves the tree against the window's actual pinned rows/groups. A pin the tree
+  doesn't know appears at root next to its upstream neighbour; a missing one isn't shown. A store subscription
+  (`lib/pinnedFolders.ts`, only for spaces that have folders) records new pins, forgets removed ones, and follows
+  upstream reorders among siblings (⌥⌘↑/↓, upstream drags while no folder exists). Deleting the last folder drops
+  the tree, so a space without folders renders exactly upstream's markup.
+- **Saved** in `pinned-folders.json` in the data dir. Not synced: the overlay isn't in upstream's sync format.
+- **UI**: sidebar context menu and command bar "New Folder"; a pinned row's / pinned group's context menu
+  "Move to Folder ›"; a folder's menu (Rename, New Folder Inside, Collapse, Move to Folder, Delete Folder: contents
+  move up); click toggles, double-click renames; a collapsed folder keeps the path to the active tab visible. Drag
+  a row, tile, list tab or group onto a folder header (middle half) to drop it in, between rows to place it; drag
+  a folder header to move the folder (a line shows where).
+- **Arc import** keeps Arc's pinned folders as pinned folders (with nesting and order) instead of bookmarks.
+
+### Orbit layers and their hooks in upstream files
+
+Re-apply these when a merge conflicts; everything else is in Orbit-owned files
+(`store/pinnedFolders.ts`, `lib/pinnedFolders.ts`, `components/sidebar/PinnedFolders.tsx`,
+`components/sidebar/pinnedFolderDrop.ts`, `components/sidebar/pinnedFolderMenus.ts`,
+`components/import/arcFolders.ts`, and their tests).
+
+| File (apps/browser/src unless noted) | Hook |
+| --- | --- |
+| `components/Sidebar.tsx` | import `PinnedFolders`; `<PinnedFolders …>` wraps the pinned rows / pinned groups / their two `Tail`s in `PageRows` (children deliberately not re-indented). Without folders it renders its children unchanged. |
+| `components/sidebar/dnd.tsx` | import `pinnedTreeDrop`; `&& !pinnedTreeDrop(this, sources, drop, this.pointer)` in `DragController.end`'s commit condition: drops onto pinned rows / pinned groups go into the tree when the space has folders. |
+| `components/sidebar/menus.ts` | import; `...pinnedFolderMenuItems(…)` + `runPinnedFolderMenu(…)` in `openTabMenu` and `openGroupMenu`; `...newPinnedFolderMenuItems(…)` + `runPinnedFolderMenu` in `openSidebarMenu`. |
+| `lib/persist.ts` | import; `startPinnedFolders()` / `stopPinnedFolders()` next to the archive's. |
+| `lib/commands.ts` | import; `case "newPinnedFolder"`. |
+| `components/omnibox/actions.ts` | the "New Folder" command bar entry. |
+| `packages/shell/src/index.tsx` | `"newPinnedFolder"` in `BrowserCommand`. |
+| `components/import/apply.ts` | import; `space = arcPinnedFolders(profileId, space);` first line of `importArcSpace` (folders go to the overlay, all their links are imported as pinned rows). |
+| `lib/devHarness.ts` | `ac.pinnedFolders` getter (dev only). |
+
 ## Building locally
 
 ```sh

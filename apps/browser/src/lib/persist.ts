@@ -11,6 +11,7 @@ import { startFavicons } from "./favicons";
 import { startBookmarks } from "./bookmarks";
 import { startHistory } from "./history";
 import { startArchive } from "./archive";
+import { startPinnedFolders } from "./pinnedFolders";
 import { startProfileDataCleanup } from "./profileData";
 
 const SAVE_DELAY_MS = 800;
@@ -239,6 +240,7 @@ export function startPersistence() {
   const stopHistory = startHistory();
   const stopBookmarks = startBookmarks();
   const stopArchive = startArchive();
+  const stopPinnedFolders = startPinnedFolders();
   const stopProfileData = startProfileDataCleanup();
   const stopSession = useBrowser.subscribe((s, prev) => {
     check(s);
@@ -249,6 +251,7 @@ export function startPersistence() {
     stopHistory();
     stopBookmarks();
     stopArchive();
+    stopPinnedFolders();
     stopProfileData();
     stopSession();
   };

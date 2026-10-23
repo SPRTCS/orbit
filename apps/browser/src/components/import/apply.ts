@@ -8,6 +8,7 @@ import type { ProfileColor } from "../../store/types";
 import { importModule } from "./module";
 import { adoptProfileTheme } from "../../sync/engine";
 import { parseArcTheme } from "./arcTheme";
+import { arcPinnedFolders } from "./arcFolders";
 
 export type ImportCounts = { bookmarks: number; history: number; tabs: number; passwords: number; cookies: number; addresses: number; cards: number };
 
@@ -126,6 +127,7 @@ export function importTabs(
 }
 
 export function importArcSpace(profileId: string, space: SpaceSuggestion, spaceName: string): { tabs: number; bookmarks: number } {
+  space = arcPinnedFolders(profileId, space);
   const links = space.pinned.filter((n) => n.type === "url" && n.url);
   const folders = space.pinned.filter((n) => n.type === "folder");
   let tabs = importTabs(

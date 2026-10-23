@@ -23,6 +23,7 @@ import { showToast } from "../layout/splitActions";
 import { openArchive } from "../settings/windows";
 import { canShare, shareTab } from "../site/share";
 import { calendarMenuItem, newLiveFolderMenuItem, runCalendarMenu, runNewLiveFolder } from "./liveMenus";
+import { newPinnedFolderMenuItems, pinnedFolderMenuItems, runPinnedFolderMenu } from "./pinnedFolderMenus";
 import { openSyncedTab, syncedDevicesMenuItem } from "../../sync/menu";
 import { setSidebarUi } from "./state";
 import { toggleNewTabBar } from "../omnibox/newTabBar";
@@ -108,6 +109,7 @@ export async function openTabMenu(windowId: string, tab: Tab) {
     isPinnedRow(tab)
       ? { id: "pinTile", title: "Move to Top Apps", symbol: "app" }
       : { id: "pinRow", title: "Move to Pinned Tabs", symbol: "list.bullet", ...hint("d", "command") },
+    ...pinnedFolderMenuItems(windowId, { kind: "tab", id: tab.id }),
     { id: "duplicate", title: "Duplicate", symbol: "plus.square.on.square" },
     ...(tab.pinned
       ? []
@@ -137,6 +139,7 @@ export async function openTabMenu(windowId: string, tab: Tab) {
   if (!choice) return;
   const t = { kind: "tab" as const, id: tab.id };
   if (runCalendarMenu(choice)) return;
+  if (runPinnedFolderMenu(windowId, choice, { kind: "tab", id: tab.id })) return;
   if (choice === "backToPin") s.returnToPinnedUrl(tab.id);
   else if (choice === "replacePin") s.setPinnedUrl(tab.id);
   else if (choice === "editPin") void editPinnedPage(windowId, tab.id);
@@ -232,6 +235,7 @@ export async function openGroupMenu(windowId: string, groupId: string) {
     sep,
     { id: "newTab", title: "New Tab in Group", symbol: "plus", ...hint("t", "option", "command") },
     { id: "pin", title: g.pinned ? "Unpin Group" : "Pin Group", symbol: g.pinned ? "pin.slash" : "pin" },
+    ...pinnedFolderMenuItems(windowId, { kind: "group", id: groupId }),
     { id: "duplicate", title: "Duplicate Group", symbol: "plus.square.on.square" },
     { id: "collapse", title: g.collapsed ? "Expand Group" : "Collapse Group", symbol: g.collapsed ? "chevron.down" : "chevron.up" },
     sep,
@@ -245,6 +249,7 @@ export async function openGroupMenu(windowId: string, groupId: string) {
   ]);
   if (!choice) return;
   const target = { kind: "group" as const, id: groupId };
+  if (runPinnedFolderMenu(windowId, choice, target)) return;
   if (choice === "rename") void startRename(windowId, target);
   else if (choice === "icon") void openIconPicker(windowId, target);
   else if (choice.startsWith("color:")) s.updateGroup(groupId, { color: (choice.slice(6) || null) as GroupColor | null });
@@ -276,8 +281,9 @@ export async function openSidebarMenu(windowId: string) {
     { id: "closeAll", title: "Close All Tabs", symbol: "xmark", ...hint("k", "shift", "command") },
     sep,
     newLiveFolderMenuItem(),
+    ...newPinnedFolderMenuItems(windowId),
   ]);
-  if (choice && runNewLiveFolder(windowId, choice)) return;
+  if (choice && (runNewLiveFolder(windowId, choice) || runPinnedFolderMenu(windowId, choice))) return;
   if (choice === "newTab") {
     if (!toggleNewTabBar(windowId)) s.newTab(windowId);
   }

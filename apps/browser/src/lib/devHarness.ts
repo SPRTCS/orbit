@@ -37,6 +37,9 @@ export function startDevHarness() {
     get archive(): typeof import("./archive") & typeof import("../store/archive") {
       return { ...require("./archive"), ...require("../store/archive") };
     },
+    get pinnedFolders(): typeof import("./pinnedFolders") & typeof import("../store/pinnedFolders") {
+      return { ...require("./pinnedFolders"), ...require("../store/pinnedFolders") };
+    },
     get checkIn(): typeof import("./defaultBrowserCheckIn") {
       return require("./defaultBrowserCheckIn");
     },
