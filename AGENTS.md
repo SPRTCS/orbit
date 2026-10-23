@@ -4,6 +4,21 @@ Ardia is a macOS browser: Dia's polish and Arc's sidebar, built on Chrome's own 
 with no account. This file is how the owner works; follow it.
 For the architecture and the test tooling, read `docs/agent-brief.md`.
 
+## Orbit overrides (this fork)
+This checkout is **Orbit**, a fork of Ardia owned by AIS Consulting UG. Where the rest of this file says otherwise,
+these rules win; read `docs/orbit.md` first.
+- **Branch:** work on `orbit`, never `main` (`main` mirrors upstream). Push to `origin` (SPRTCS/orbit); `upstream` is
+  Ardia. Merge upstream release tags only, then run `node scripts/orbit/rebrand.mjs`.
+- **Orbit layers:** build Orbit features in new files with minimal hooks in upstream files, and list every hook in
+  `docs/orbit.md` › "Orbit layers and their hooks in upstream files".
+- **AI features are allowed when opt-in** (e.g. the MCP server, local models). Default off, nothing leaves the Mac
+  without the user's choice. Ardia's "No AI features" rule does not apply to Orbit.
+- **No ardia.dev, no upstream telemetry, no tweets.** Releases follow `docs/orbit.md` › Releasing; publishing needs
+  the owner's OK.
+- **Builds:** the checkout lives in iCloud. Use an absolute derived data path under `~/Library/Caches/Orbit/`,
+  `xattr -cr` the app when codesign reports "detritus", and delete iCloud conflict copies (`* 2.*`).
+- **UI language:** English for now.
+
 ## How work gets done
 - **Move fast.** Don't break work into phases or ask about details you can decide; there are no users to
   migrate yet. Ask only when the answer changes what you build.
