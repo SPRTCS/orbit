@@ -207,6 +207,7 @@ export type WebViewHandle = {
   evaluate<T = unknown>(code: string): Promise<T | null>;
   navigationEntries(): Promise<NavigationEntry[]>;
   capturePicture(scale: number): Promise<{ data: string; frame: [number, number, number, number] } | null>;
+  devToolsTarget(): Promise<{ targetId: string; browserContextId: string } | null>;
   downloadFavicon(url: string): Promise<FaviconImage | null>;
   downloadImage(url: string, maxPixels: number): Promise<FaviconImage | null>;
 
@@ -373,6 +374,7 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       },
       navigationEntries: async () => (await call([], (n) => n.navigationEntries())).map((e) => ({ ...e, url: toAppUrl(e.url) })),
       capturePicture: (scale) => call(null, (n) => n.capturePicture(scale)),
+      devToolsTarget: () => call(null, (n) => n.devToolsTarget()),
       downloadImage: (url, maxPixels) => call(null, (n) => n.downloadImage(url, maxPixels)),
       downloadFavicon: (url) => call(null, (n) => n.downloadFavicon(url)),
       mediaCommand: (action, seconds) => call(undefined, (n) => n.mediaCommand(action, seconds)),

@@ -28,6 +28,8 @@ the pins into `pyproject.toml`).
   `~/.claude/skills`, `~/.cursor/skills` or `~/.config/opencode/skills`; with `--project`, into `./.agents/skills`,
   `./.claude/skills`, `./.cursor/skills` or `./.opencode/skills`. It replaces only its own `ardia` folder.
 - `ardia scripts new|test|install|uninstall|list` writes, tests and installs userscripts (see Userscripts).
+- `ardia mcp [--data-dir DIR]` runs Orbit's MCP server for AI agents; `ardia mcp install|uninstall --target
+  claude-code|claude-desktop|cursor|codex [--project]` edits their config. See `docs/mcp.md`.
 - `ardia --version`, `ardia --help`, `ardia exec --help`, `ardia scripts <command> --help`.
 
 `exec` never quits Ardia: it refuses `browser.stop()`, and every WebSocket it opens checks each outgoing message (and

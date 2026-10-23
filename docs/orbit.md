@@ -108,6 +108,13 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `main.tsx` | Boosts: import; `afterFirstWindow(startBoosts)`. |
 | `lib/devHarness.ts` | Boosts: `ac.boosts` getter (dev only). |
 | `packages/shell/expo-module.config.json` | Boosts: `"OrbitBoostsModule"` (`packages/shell/ios/OrbitBoosts.swift`; a new native file, so `pod install`). |
+| `main.tsx` | AI agents: import; `startAgentSpaces()` after `startCliControl()`. |
+| `components/settings/panes/Advanced.tsx` | AI agents: import; `<AgentsSection />` after `<CommandLineSection />`. |
+| `packages/ardiacore/src/WebView.tsx` | AI agents: `devToolsTarget()` in `WebViewHandle` and its implementation (next to `capturePicture`). |
+| `packages/ardiacore/ios/CefModule.swift` | AI agents: the `devToolsTarget` view `AsyncFunction` after `capturePicture`. |
+| `packages/ardiacore/ios/ArdiaCoreWebView.h` / `.mm` | AI agents: `-devToolsTarget:` (`Target.getTargetInfo` through the tab's `devToolsCall:`), before `-navigationEntries:`. Native: rebuild the app. |
+| `apps/cli/ardia_cli/cli.py` | AI agents: `mcp_cli.add_parser(…)` after the scripts parser; `if args.command == "mcp": return mcp_cli.run(…)`. |
+| `apps/cli/requirements.in`, `requirements.lock`, `pyproject.toml` | AI agents: `mcp==2.3.0` and its locked dependencies. |
 
 ## Boosts (Arc)
 
@@ -142,6 +149,15 @@ and every tab, with no engine change.
 - **Sharing**: `.orbitboost` files are JSON (`orbitBoost: 1`, name, site, css, js, zaps, style); spaces, private
   window permission and JS permission never travel. Import shows what the boost does and asks separately before
   its JavaScript may run; until then it's kept but not compiled.
+
+## AI agents (MCP)
+
+`ardia mcp` serves Orbit to AI agents over MCP; user and design docs: `docs/mcp.md`. Orbit-owned files:
+`apps/cli/ardia_cli/{mcp_cli,mcp_server,mcp_install,agent_browser,agent_policy,agent_scripts,agent_data}.py`,
+`apps/cli/tests/test_mcp.py`, `apps/browser/src/lib/agentSpaces.ts` (+ test), and
+`components/settings/panes/Agents.tsx`. The app publishes the allowed spaces' browser contexts in
+`<data dir>/agent-spaces.json`; the server filters every target by it. Upstream's CLI still defaults to
+`com.ardia.browser` for the data dir; `ardia mcp` looks for Orbit's (`com.aisconsulting.orbit`) first.
 
 ## Building locally
 

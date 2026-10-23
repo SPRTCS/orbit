@@ -2201,6 +2201,16 @@ void ArdiaCoreWebViewsSetFieldTiming(BOOL on) {
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{ answer(nil); });
 }
 
+- (void)devToolsTarget:(void (^)(NSDictionary<NSString *, id> *))completion {
+  if (!_tab || _tab.closed || ![_tab respondsToSelector:@selector(devToolsCall:params:completion:)]) return completion(nil);
+  [_tab devToolsCall:@"Target.getTargetInfo" params:@{} completion:^(NSDictionary *result, NSString *error) {
+    NSDictionary *info = result[@"targetInfo"];
+    NSString *target = [info isKindOfClass:NSDictionary.class] ? info[@"targetId"] : nil;
+    NSString *context = [info isKindOfClass:NSDictionary.class] ? info[@"browserContextId"] : nil;
+    completion([target isKindOfClass:NSString.class] && [context isKindOfClass:NSString.class] ? @{@"targetId" : target, @"browserContextId" : context} : nil);
+  }];
+}
+
 - (void)navigationEntries:(void (^)(NSArray<NSDictionary<NSString *, id> *> *))completion {
   completion([_tab respondsToSelector:@selector(navigationEntries)] ? _tab.navigationEntries : @[]);
 }

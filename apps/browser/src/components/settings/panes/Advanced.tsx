@@ -9,6 +9,7 @@ import { useBrowser } from "../../../store/browser";
 import { openInternalPage } from "../../pages/urls";
 import type { BatterySaverWhen } from "../../../store/settings";
 import { Button, Group, PopUp, Row, SectionHeader, Toggle, useFormColors } from "../controls";
+import { AgentsSection } from "./Agents";
 
 const REPOSITORY = "https://github.com/SPRTCS/orbit";
 const SOURCE_NOTICE = "Orbit is open source under the Apache License 2.0, based on Ardia by Mantra Patel.";
@@ -75,6 +76,7 @@ export function AdvancedPane() {
       </Group>
 
       <CommandLineSection />
+      <AgentsSection />
 
       <SectionHeader title="Web engine" />
       <Group>

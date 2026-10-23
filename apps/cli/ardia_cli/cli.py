@@ -87,6 +87,9 @@ def build_parser():
     from ardia_cli import scripts_cli
 
     scripts_cli.add_parser(commands, argparse.RawDescriptionHelpFormatter)
+    from ardia_cli import mcp_cli
+
+    mcp_cli.add_parser(commands, argparse.RawDescriptionHelpFormatter)
     return parser
 
 
@@ -109,6 +112,10 @@ def main(argv: list[str] | None = None) -> int:
         from ardia_cli import scripts_cli
 
         return scripts_cli.run(args, parser)
+    if args.command == "mcp":
+        from ardia_cli import mcp_cli
+
+        return mcp_cli.run(args, parser)
     parser.print_help()
     return 0
 
