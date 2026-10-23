@@ -40,6 +40,9 @@ export function startDevHarness() {
     get archive(): typeof import("./archive") & typeof import("../store/archive") {
       return { ...require("./archive"), ...require("../store/archive") };
     },
+    get spaces(): typeof import("./spaces") & typeof import("./spaceSessions") & typeof import("./spaceSubscriptions") & typeof import("../components/spaces/spaceFiles") & typeof import("../store/spaceSnapshot") {
+      return { ...require("./spaces"), ...require("./spaceSessions"), ...require("./spaceSubscriptions"), ...require("../components/spaces/spaceFiles"), ...require("../store/spaceSnapshot") };
+    },
     get pinnedFolders(): typeof import("./pinnedFolders") & typeof import("../store/pinnedFolders") {
       return { ...require("./pinnedFolders"), ...require("../store/pinnedFolders") };
     },

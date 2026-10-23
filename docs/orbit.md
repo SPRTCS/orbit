@@ -108,6 +108,19 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `main.tsx` | Boosts: import; `afterFirstWindow(startBoosts)`. |
 | `lib/devHarness.ts` | Boosts: `ac.boosts` getter (dev only). |
 | `packages/shell/expo-module.config.json` | Boosts: `"OrbitBoostsModule"` (`packages/shell/ios/OrbitBoosts.swift`; a new native file, so `pod install`). |
+| `lib/commands.ts` | Spaces: imports; `if (runSpaceCommand(command, arg, requested)) return;` after the Boosts line; `takeSpaceFiles(await pickFiles())` in `openFiles`. |
+| `lib/native.ts` | Spaces: import; `openExternalUrls(takeSpaceFiles(urls))` in `onOpenURLs` (Finder double-click, `open`). |
+| `components/layout/fileDrop.tsx` | Spaces: import; `takeSpaceFiles(droppedUrls(e.items))` on drop. |
+| `lib/persist.ts` | Spaces: import; `startOrbitSpaces()` / `stopOrbitSpaces()` next to the pinned folders'. |
+| `components/profiles/ProfileDots.tsx` | Spaces: import; `...spaceMenuItems(id)` + `runSpaceMenu(…)` in the footer icon's context menu. |
+| `components/omnibox/actions.ts` | Spaces: the Share/Copy/Import/Subscribe/Save Session/Sessions & Timeline command bar entries. |
+| `packages/shell/src/index.tsx` | Spaces: `"shareSpace"`, `"importSpace"`, `"subscribeSpace"`, `"saveSession"`, `"showSessions"` in `BrowserCommand`; `"spaceImport"`, `"sessions"` in `OpenWindowOptions.kind`. |
+| `components/settings/windows.ts` | Spaces: `SPACE_IMPORT_WINDOW_ID`, `SESSIONS_WINDOW_ID` and their `isUtilityWindowId` clauses. |
+| `components/settings/UtilityWindow.tsx` | Spaces: imports; `SessionsWindow` / `SpaceImportWindow` branches. |
+| `lib/devHarness.ts` | Spaces: `ac.spaces` getter (dev only). |
+| `packages/shell/ios/Menus.swift` | Spaces: six items after "Edit Space…" in the Spaces menu; "Import Space…" after File › Open File…. |
+| `packages/shell/expo-module.config.json` | Spaces: `"OrbitSpaceFilesModule"` (`packages/shell/ios/OrbitSpaceFiles.swift`, a new native file: `pod install`). |
+| `Ardia-macOS/Info.plist` | Spaces: an "Orbit Space" `CFBundleDocumentTypes` entry (Owner) and `UTExportedTypeDeclarations` for `com.aisconsulting.orbit.space` (`.orbitspace`, conforms to `public.json`). |
 | `main.tsx` | AI agents: import; `startAgentSpaces()` after `startCliControl()`. |
 | `components/settings/panes/Advanced.tsx` | AI agents: import; `<AgentsSection />` after `<CommandLineSection />`. |
 | `packages/ardiacore/src/WebView.tsx` | AI agents: `devToolsTarget()` in `WebViewHandle` and its implementation (next to `capturePicture`). |
@@ -115,6 +128,27 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `packages/ardiacore/ios/ArdiaCoreWebView.h` / `.mm` | AI agents: `-devToolsTarget:` (`Target.getTargetInfo` through the tab's `devToolsCall:`), before `-navigationEntries:`. Native: rebuild the app. |
 | `apps/cli/ardia_cli/cli.py` | AI agents: `mcp_cli.add_parser(…)` after the scripts parser; `if args.command == "mcp": return mcp_cli.run(…)`. |
 | `apps/cli/requirements.in`, `requirements.lock`, `pyproject.toml` | AI agents: `mcp==2.3.0` and its locked dependencies. |
+
+## Shared spaces, sessions and the timeline (Arc)
+
+User guide: `docs/spaces-sharing-and-sessions.md`. Orbit-owned files: `store/spaceSnapshot.ts` (versioned
+document, serialize/parse), `store/spaceApply.ts` (apply a document's pins to a space), `store/spaceTimeline.ts`
+(retention), `lib/spaces.ts`, `lib/spaceSessions.ts`, `lib/spaceSubscriptions.ts`, `components/spaces/*`,
+`packages/shell/ios/OrbitSpaceFiles.swift`, and their tests.
+
+- **Document** (`format: "orbit-space"`, `version: 1`): name, icon, colour, theme, Top Apps, the pinned section as
+  a tree (rows, groups with their tabs, folders with children, in sidebar order) and optionally today tabs. Links
+  are URL, page title, custom title and custom icon; only http(s) in shared files (local sessions also keep
+  `file:`). Nothing else from the tab or profile. Parsing sanitizes every field, caps depth and node count, refuses
+  newer versions with a message and upgrades older ones through `UPGRADES`.
+- **Apply** builds pins the way upstream does: real `Tab`/`TabGroup` objects (unloaded, no navigation) in the window
+  that shows the space, ordered with `pinnedFirst`/`orderSections`/`syncGroupOrder`, pin choices recorded for sync,
+  then `mirrorPins` copies them to other windows. A space no window shows gets them through a stand-in window that
+  `parkWindowPins` turns into `parkedPins` (the sync adapter's technique). Replace demotes open pinned tabs to today
+  tabs and removes the rest; merge dedupes by page and merges groups by name. The folder tree is written through
+  `replacePinnedTree` with the new pin keys.
+- **Files in the data dir**: `space-sessions.json`, `space-timeline.json` (index) + `space-timeline-<space>.json`,
+  `space-subscriptions.json`.
 
 ## Boosts (Arc)
 

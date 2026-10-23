@@ -80,6 +80,11 @@ export type BrowserCommand =
   | "showBoosts"
   | "newBoost"
   | "newPinnedFolder"
+  | "shareSpace"
+  | "importSpace"
+  | "subscribeSpace"
+  | "saveSession"
+  | "showSessions"
   | "clearBrowsingData"
   | "manageBookmarks"
   | "bookmarkAllTabs"
@@ -172,7 +177,7 @@ export type OpenWindowOptions = {
   incognito?: boolean;
   title?: string;
   focus?: boolean;
-  kind?: "browser" | "small" | "settings" | "import" | "archive" | "boosts";
+  kind?: "browser" | "small" | "settings" | "import" | "archive" | "boosts" | "spaceImport" | "sessions";
   profile?: string;
   size?: [number, number];
   behind?: string;

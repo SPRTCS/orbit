@@ -30,6 +30,7 @@ import { windowOpens } from "./windowOpenOrder";
 import { openExternalUrls } from "../components/littleArdia/actions";
 import { LITTLE_ARDIA_DISABLED_COMMANDS } from "../components/littleArdia/menu";
 import { runCommand } from "./commands";
+import { takeSpaceFiles } from "../components/spaces/spaceFiles";
 import { flushPersistence, resumePersistence } from "./persist";
 import { startWindowCloseGuard } from "./windowClose";
 import { startExtensionsBridge } from "../components/extensions/bridge";
@@ -45,7 +46,7 @@ export function startNativeSync() {
   onCommand(runCommand);
   startWindowCloseGuard();
   startExtensionsBridge();
-  onOpenURLs((urls) => openExternalUrls(urls));
+  onOpenURLs((urls) => openExternalUrls(takeSpaceFiles(urls)));
   onDownload((d) => store.getState().upsertDownload(d));
 
   store.getState().setAppDark(Appearance.getColorScheme() === "dark");

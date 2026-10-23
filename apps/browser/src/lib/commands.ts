@@ -25,6 +25,8 @@ import { bookmarkActivePage, bookmarkAllTabs } from "../components/bookmarks/act
 import { useClearDataRequest } from "../components/pages/ClearDataDialog";
 import { openInternalPage } from "../components/pages/urls";
 import { runBoostCommand } from "./boosts/actions";
+import { runSpaceCommand } from "../components/spaces/spaceActions";
+import { takeSpaceFiles } from "../components/spaces/spaceFiles";
 import { isUtilityWindowId, openArchive, openImport, openSettings } from "../components/settings/windows";
 import { closePanelToHeroBar, focusHeroBar } from "../components/omnibox/barState";
 import { closeNewTabBar, isEmptyCardTab, showNewTabBar, toggleNewTabBar } from "../components/omnibox/newTabBar";
@@ -60,6 +62,7 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
   }
   if (isSmall(s, requested) && runLittleArdiaCommand(command, requested!)) return;
   if (runBoostCommand(command, requested)) return;
+  if (runSpaceCommand(command, arg, requested)) return;
 
   switch (command) {
     case "newWindow":
@@ -361,7 +364,7 @@ async function addBookmarkToFolder(windowId: string, folder: string) {
 }
 
 async function openFiles(windowId: string | null) {
-  const urls = await pickFiles();
+  const urls = takeSpaceFiles(await pickFiles());
   if (!urls.length) return;
   const s = useBrowser.getState();
   const target = resolveWindowId(s, windowId);

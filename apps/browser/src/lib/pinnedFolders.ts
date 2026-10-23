@@ -240,3 +240,7 @@ export function planArcImport(profileId: string, plan: Omit<ImportPlan, "expires
   const { plans } = usePinnedFolders.getState();
   usePinnedFolders.setState({ plans: { ...plans, [profileId]: { ...plan, expires: Date.now() + PLAN_MS } } });
 }
+
+export function replacePinnedTree(profileId: string, tree: PinnedTree) {
+  updateTree(profileId, () => tree);
+}

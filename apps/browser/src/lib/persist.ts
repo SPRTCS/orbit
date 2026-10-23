@@ -12,6 +12,7 @@ import { startBookmarks } from "./bookmarks";
 import { startHistory } from "./history";
 import { startArchive } from "./archive";
 import { startPinnedFolders } from "./pinnedFolders";
+import { startOrbitSpaces } from "./spaceSessions";
 import { startProfileDataCleanup } from "./profileData";
 
 const SAVE_DELAY_MS = 800;
@@ -241,6 +242,7 @@ export function startPersistence() {
   const stopBookmarks = startBookmarks();
   const stopArchive = startArchive();
   const stopPinnedFolders = startPinnedFolders();
+  const stopOrbitSpaces = startOrbitSpaces();
   const stopProfileData = startProfileDataCleanup();
   const stopSession = useBrowser.subscribe((s, prev) => {
     check(s);
@@ -252,6 +254,7 @@ export function startPersistence() {
     stopBookmarks();
     stopArchive();
     stopPinnedFolders();
+    stopOrbitSpaces();
     stopProfileData();
     stopSession();
   };

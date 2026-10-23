@@ -9,6 +9,7 @@ import { usePagerPages, type PagerPage } from "../layout/profilePager";
 import { IconButton, useHover } from "../primitives";
 import { openSettings } from "../settings/windows";
 import { profileSymbol } from "./icons";
+import { runSpaceMenu, spaceMenuItems } from "../spaces/spaceActions";
 
 export const PROFILE_DOTS_HEIGHT = 41;
 const CELL = 24;
@@ -61,7 +62,9 @@ function SpaceIcon({ id, windowId, page, pos }: { id: string; windowId: string; 
   const ink = theme.dark ? "#FFFFFF" : "#000000";
   const symbol = profileSymbol(icon);
   const editMenu = async () => {
-    if ((await showMenu([{ id: "edit", title: "Edit Space…", symbol: "pencil" }])) === "edit") openSettings("profiles", id);
+    const choice = await showMenu([{ id: "edit", title: "Edit Space…", symbol: "pencil" }, ...spaceMenuItems(id)]);
+    if (choice === "edit") openSettings("profiles", id);
+    else if (choice) runSpaceMenu(choice, id, windowId);
   };
   return (
     <View {...hoverProps} tooltip={name}>

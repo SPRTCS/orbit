@@ -25,7 +25,8 @@
       "WindowProfileModule",
       "CliModule",
       "UserScriptsModule",
-      "OrbitBoostsModule"
+      "OrbitBoostsModule",
+      "OrbitSpaceFilesModule"
     ]
   }
 }

@@ -7,6 +7,7 @@ import {
   shownProfile,
   subjectRef,
 } from "../../lib/pinnedFolders";
+import { exportFolder } from "../spaces/spaceFiles";
 import { useBrowser } from "../../store/browser";
 import { childrenOf, folderDepth, folderRef, isWithin, parentOf, usePinnedFolders, type PinnedTree } from "../../store/pinnedFolders";
 
@@ -85,6 +86,7 @@ export async function openPinnedFolderMenu(windowId: string, profileId: string, 
     { id: "collapse", title: folder.collapsed ? "Expand Folder" : "Collapse Folder", symbol: folder.collapsed ? "chevron.down" : "chevron.up" },
     sep,
     { id: "move", title: "Move to Folder", symbol: "folder", children: destinationItems(tree, ref, folderId) },
+    { id: "share", title: "Share Folder…", symbol: "square.and.arrow.up" },
     sep,
     { id: "delete", title: "Delete Folder", symbol: "trash" },
   ]);
@@ -95,6 +97,7 @@ export async function openPinnedFolderMenu(windowId: string, profileId: string, 
     newPinnedFolder(windowId, { target: { parent: folderId, before: childrenOf(tree, folderId)[0] ?? null } });
   } else if (choice === "collapse") setPinnedFolderCollapsed(profileId, folderId, !folder.collapsed);
   else if (choice === "delete") deletePinnedFolder(profileId, folderId);
+  else if (choice === "share") void exportFolder(profileId, folderId, windowId);
   else if (choice === `${PREFIX}root`) movePinnedNodes(profileId, [ref], { parent: null });
   else if (choice.startsWith(`${PREFIX}into:`)) movePinnedNodes(profileId, [ref], { parent: choice.slice(PREFIX.length + 5) });
 }

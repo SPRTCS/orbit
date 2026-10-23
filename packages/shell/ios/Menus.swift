@@ -312,6 +312,7 @@ enum MainMenu {
       cmd("Reopen Closed Tab", "reopenClosedTab", "t", [.command, .shift]),
       cmd("Reopen Closed Window", "reopenClosedWindow"),
       cmd("Open File…", "openFile", "o"),
+      cmd("Import Space…", "importSpace"),
       .separator(),
       cmd("Open Command Bar", "focusCommandBar", "l"),
       cmd("Open Command Bar", "focusCommandBar", functionKey(NSF5FunctionKey), .control).hiddenShortcut(),
@@ -451,6 +452,14 @@ enum MainMenu {
       .separator(),
       cmd("New Space…", "newProfile"),
       cmd("Edit Space…", "editProfile"),
+      .separator(),
+      cmd("Share Space…", "shareSpace"),
+      cmd("Import Space…", "importSpace"),
+      cmd("Import Space from Clipboard", "importSpace", arg: "clipboard"),
+      cmd("Subscribe to Shared Space…", "subscribeSpace"),
+      .separator(),
+      cmd("Save Session…", "saveSession"),
+      cmd("Sessions & Timeline…", "showSessions"),
     ], menu: NSMenu(title: "Spaces"))
     spacesFixedCount = spaces.items.count
 

@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useRef, type ReactNode } from "react";
 import type { StyleProp, View, ViewStyle } from "react-native";
 import { useBrowser } from "../../store/browser";
 import type { TabPlacement } from "../../store/organize";
+import { takeSpaceFiles } from "../spaces/spaceFiles";
 
 export type DropPoint = [number, number];
 export type TabDropTarget = {
@@ -101,7 +102,7 @@ export const TabDropArea = forwardRef<View, Props>(function TabDropArea({ target
       inside.current = false;
       const windowId = latest.current.windowId;
       const profileId = useBrowser.getState().windows[windowId]?.profileId;
-      const urls = droppedUrls(e.items);
+      const urls = takeSpaceFiles(droppedUrls(e.items));
       void run(() => {
         const current = token === generation.current;
         const placement = current ? latest.current.drop(at(e), token) : null;
