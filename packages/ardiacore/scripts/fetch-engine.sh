@@ -74,4 +74,5 @@ if [ ! -f "$dest/.complete" ]; then
     [ "${old%/}" = "$dest" ] || rm -rf "${old%/}"
   done
 fi
+"$root/scripts/orbit/brand-engine.sh" "$dest/$name.framework" >&2 || die "couldn't brand the engine for Orbit"
 echo "$dest/$name.framework"

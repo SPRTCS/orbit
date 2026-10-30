@@ -18,9 +18,9 @@
 	<true/>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER).webauthn</string>
-		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER).unexportable-keys</string>
-		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER).secure-payment-confirmation</string>
+		<string>$(AppIdentifierPrefix)com.ardia.browser.webauthn</string>
+		<string>$(AppIdentifierPrefix)com.ardia.browser.unexportable-keys</string>
+		<string>$(AppIdentifierPrefix)com.ardia.browser.secure-payment-confirmation</string>
 	</array>
 </dict>
 </plist>

@@ -26,6 +26,10 @@ const URLS = [
   ['"https://github.com/mantrakp04/ardia"', `"https://github.com/${REPO}"`],
 ];
 
+const ENGINE_KEYCHAIN_GROUPS = [
+  ["$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER).", "$(AppIdentifierPrefix)com.ardia.browser."],
+];
+
 const TEXT = [
   ["© 2026 Mantra Patel. Ardia is open source under the Apache License 2.0.", `${NAME} is open source under the Apache License 2.0, based on Ardia © 2026 Mantra Patel.`],
   [/const SOURCE_NOTICE = ".*";/, `const SOURCE_NOTICE = "${NAME} is open source under the Apache License 2.0, based on Ardia by Mantra Patel.";`],
@@ -58,6 +62,7 @@ const TARGETS = [
     skip: [/Legacy(Migration|DockTile)\.swift$/],
   },
   { dir: "apps/browser/macos/Ardia-macOS", ext: [".plist", ".sdef"], stringsOnly: false },
+  { dir: "apps/browser/macos/Ardia-macOS", ext: [".entitlements"], stringsOnly: true },
 ];
 
 function* files(dir, ext) {
@@ -73,7 +78,7 @@ const isComment = (line) => /^\s*(\/\/|\*|\/\*)/.test(line);
 const inStrings = (line) => line.replace(/"(?:[^"\\]|\\.)*"/g, (lit) => lit.replace(WORD, NAME));
 
 function rebrandLine(line, target) {
-  for (const [from, to] of URLS) line = line.split(from).join(to);
+  for (const [from, to] of [...URLS, ...ENGINE_KEYCHAIN_GROUPS]) line = line.split(from).join(to);
   for (const [pattern, to] of TEXT) line = line.replace(pattern, to);
   if (isComment(line) || KEEP_LINE.some((re) => re.test(line))) return line;
   return target.stringsOnly ? inStrings(line) : line.replace(WORD, NAME);
