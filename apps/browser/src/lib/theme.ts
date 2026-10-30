@@ -3,6 +3,7 @@ import { createContext, createElement, useContext, type ReactNode } from "react"
 import { useBrowser, type BrowserState } from "../store/browser";
 import { PageProfileContext, WindowContext } from "../store/hooks";
 import type { Profile, ProfileColor, ProfileTheme } from "../store/types";
+import { glassSidebarOn, glassSpaceTheme, withGlassTokens } from "./glassTheme";
 import { opaqueThemeTint, PRESET_BACKDROP, resolveTheme, rgbToHsl, themeAccent, themeBackdrop, themeDark, themePalette, type ThemeBackdropProps } from "./profileTheme";
 import { backdropTint, opaqueTint, tintForHue, type BackdropTint } from "./windowTint";
 
@@ -236,6 +237,7 @@ function customTheme(custom: ProfileTheme, color: ProfileColor, appDark: boolean
 
 export function profileTheme(profile: Pick<Profile, "color" | "theme"> | undefined, appDark: boolean, followApp = false): Theme {
   const color = profile?.color ?? "plum";
+  if (glassSidebarOn()) return withGlassTokens(customTheme(profile?.theme ?? glassSpaceTheme(color), color, appDark, followApp), profile?.theme ? null : themeFor(`${color}:${appDark ? "dark" : "light"}`));
   if (profile?.theme) return customTheme(profile.theme, color, appDark, followApp);
   return themeFor(`${color}:${appDark ? "dark" : "light"}`);
 }

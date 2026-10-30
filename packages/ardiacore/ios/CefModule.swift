@@ -59,6 +59,7 @@ public class CefModule: Module {
       .runOnQueue(.main)
     AsyncFunction("isTracing") { ArdiaCoreHost.isTracing }.runOnQueue(.main)
     AsyncFunction("setSearchEngineName") { (name: String) in ArdiaCoreWebView.setSearchEngineName(name) }.runOnQueue(.main)
+    AsyncFunction("setSelectionAskName") { (name: String?) in ArdiaCoreWebView.setSelectionAskName(name) }.runOnQueue(.main)
     AsyncFunction("forgetOpenedURL") { (id: Int) in }.runOnQueue(.main)
     AsyncFunction("setDisplayMediaPicker") { (enabled: Bool) in ArdiaCoreWebView.setDisplayMediaPicker(enabled) }.runOnQueue(.main)
     AsyncFunction("setAutoPictureInPicture") { (enabled: Bool) in ArdiaCoreWebView.setAutoPictureInPictureEnabled(enabled) }.runOnQueue(.main)
@@ -279,6 +280,9 @@ public class CefModule: Module {
       }.runOnQueue(.main)
       AsyncFunction("devToolsTarget") { (view: CefWebView, promise: Promise) in
         view.browser.devToolsTarget { promise.resolve($0) }
+      }.runOnQueue(.main)
+      AsyncFunction("orbitCapture") { (view: CefWebView, method: String, params: [String: Any], file: String?, promise: Promise) in
+        view.browser.orbitCapture(method, params: params, file: file) { promise.resolve($0) }
       }.runOnQueue(.main)
       AsyncFunction("downloadFavicon") { (view: CefWebView, url: String, promise: Promise) in
         view.browser.downloadFavicon(url, name: nil) { promise.resolve($0) }

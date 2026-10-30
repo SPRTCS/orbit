@@ -38,6 +38,10 @@ import { measureRow } from "./sidebar/state";
 import { SplitRowItem, TabRowItem } from "./sidebar/TabRow";
 import { useSidebarTokens } from "./sidebar/tokens";
 import { toggleNewTabBar } from "./omnibox/newTabBar";
+import { GLASS, useGlassSidebar } from "../lib/glassTheme";
+import { GlassFooter } from "./glassSidebar/GlassFooter";
+import { GlassHeaderTools } from "./glassSidebar/GlassHeader";
+import { SelectionGlide } from "./glassSidebar/SelectionGlide";
 
 const GLOW_ROOM = 24;
 const ROW_PITCH = layout.rowHeight + layout.rowGap;
@@ -71,7 +75,8 @@ export function Sidebar({ width }: { width: number }) {
   const hasDownloads = useBrowser((s) => downloadsIn(s, windowId).length > 0);
   const dots = useProfileDotsShown();
   const footerDownloads = addressBar && hasDownloads;
-  const footer = dots || footerDownloads ? PROFILE_DOTS_HEIGHT : 0;
+  const glass = useGlassSidebar();
+  const footer = glass ? GLASS.footer : dots || footerDownloads ? PROFILE_DOTS_HEIGHT : 0;
   const nothingPinned = useBrowser((s) => sidebarEntries(s, windowId, current).tiles.length === 0);
 
   useRevealTabs(windowId, scroll, scrollY, geometry, glowRoom);
@@ -135,7 +140,7 @@ export function Sidebar({ width }: { width: number }) {
             </View>
           ) : null}
 
-          {footer ? (
+          {glass ? <GlassFooter windowId={windowId} width={width} downloads={addressBar} /> : footer ? (
             <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: footer }}>
               {dots ? <ProfileDots windowId={windowId} /> : null}
               {footerDownloads ? (
@@ -150,7 +155,7 @@ export function Sidebar({ width }: { width: number }) {
             <WindowDragRegion style={StyleSheet.absoluteFill} />
             {addressBar ? (
               <>
-                <SidebarHeaderTools width={width} />
+                {glass ? <GlassHeaderTools width={width} /> : <SidebarHeaderTools width={width} />}
                 <SidebarAddressRow width={width} />
               </>
             ) : (
@@ -323,6 +328,7 @@ function PageRows({ windowId, profileId, current, rows, inlineNewTab, glowRoom, 
           if (current) onListHeight(measured.current);
         }}
       >
+        {geometry ? <SelectionGlide windowId={windowId} profileId={profileId} geometry={geometry} /> : null}
         <PinnedGrid tabs={offScreen ? NONE : tiles} innerWidth={innerWidth} />
         <View
           ref={(v) => {

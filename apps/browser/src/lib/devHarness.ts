@@ -46,6 +46,15 @@ export function startDevHarness() {
     get pinnedFolders(): typeof import("./pinnedFolders") & typeof import("../store/pinnedFolders") {
       return { ...require("./pinnedFolders"), ...require("../store/pinnedFolders") };
     },
+    get capture(): typeof import("./capture/capture") & typeof import("./capture/model") {
+      return { ...require("./capture/capture"), ...require("./capture/model") };
+    },
+    get airTraffic(): typeof import("./airTraffic/store") & typeof import("./airTraffic/rules") & typeof import("./airTraffic/flights") & typeof import("./airTraffic/actions") & typeof import("../components/littleArdia/actions") & typeof import("../components/settings/panes/AirTraffic") {
+      return { ...require("./airTraffic/store"), ...require("./airTraffic/rules"), ...require("./airTraffic/flights"), ...require("./airTraffic/actions"), ...require("../components/littleArdia/actions"), ...require("../components/settings/panes/AirTraffic") };
+    },
+    get ai(): typeof import("./ai/settings") & typeof import("./ai/client") & typeof import("./ai/chat") & typeof import("./ai/commands") & typeof import("./ai/run") & typeof import("./ai/tidy") {
+      return { ...require("./ai/settings"), ...require("./ai/client"), ...require("./ai/chat"), ...require("./ai/commands"), ...require("./ai/run"), ...require("./ai/tidy") };
+    },
     get checkIn(): typeof import("./defaultBrowserCheckIn") {
       return require("./defaultBrowserCheckIn");
     },

@@ -3,11 +3,15 @@ import ExpoModulesCore
 
 public enum OpenURLInbox {
   static var pending: [String] = []
-  static var deliver: (([String]) -> Void)?
+  static var deliver: (([String], String?) -> Void)?
 
   public static func receive(_ urls: [URL]) {
     let strings = urls.map { $0.isFileURL ? $0.absoluteString : $0.absoluteString }
-    if let deliver { deliver(strings) } else { pending += strings }
+    let source = OrbitLinkSource.sender()
+    if let deliver { deliver(strings, source) } else {
+      OrbitLinkSource.hold(source, joining: !pending.isEmpty)
+      pending += strings
+    }
   }
 }
 
@@ -184,11 +188,11 @@ public class ShellModule: Module {
 
     OnStartObserving("onOpenURLs") {
       DispatchQueue.main.async { [weak self] in
-        OpenURLInbox.deliver = { urls in self?.sendEvent("onOpenURLs", ["urls": urls]) }
+        OpenURLInbox.deliver = { urls, source in self?.sendEvent("onOpenURLs", OrbitLinkSource.payload(urls, from: source)) }
         if !OpenURLInbox.pending.isEmpty {
           let urls = OpenURLInbox.pending
           OpenURLInbox.pending = []
-          OpenURLInbox.deliver?(urls)
+          OpenURLInbox.deliver?(urls, OrbitLinkSource.pending)
         }
       }
     }

@@ -1,6 +1,7 @@
 import { type LinkRoute, routeLinkTabs } from "@ardia/ardiacore";
 import { focus, openWindow } from "../../lib/actions";
 import { routedLinks, type RoutedLinks } from "../../lib/linkRoutes";
+import { airTrafficFlights } from "../../lib/airTraffic/flights";
 import { runsJavaScript } from "../../lib/scriptUrls";
 import { useBrowser } from "../../store/browser";
 import { activeTabId } from "../../store/model";
@@ -16,17 +17,17 @@ export function openLittleArdia(url?: string, profileId?: string, adoptId?: stri
 
 const opensInLittleArdia = (url: string) => /^(https?|file):/i.test(url);
 
-export function openExternalUrls(given: string[]) {
+export function openExternalUrls(given: string[], sourceApp?: string) {
   const settings = store().settings;
   const urls = settings.allowJavaScriptFromAppleEvents ? given : given.filter((url) => !runsJavaScript(url, settings));
   if (!urls.length) return;
   void routeLinkTabs(urls).then(
-    (route) => openRoutedUrls(urls, route),
-    () => openUrlsFromApps(urls, routedLinks({}, urls.length)),
+    (route) => openRoutedUrls(urls, route, sourceApp),
+    () => openUrlsFromApps(urls, routedLinks({}, urls.length), sourceApp),
   );
 }
 
-function openRoutedUrls(urls: string[], route: LinkRoute) {
+function openRoutedUrls(urls: string[], route: LinkRoute, sourceApp?: string) {
   const dismissed = new Set(route.dismissed ?? []);
   const kept = urls.map((_, i) => i).filter((i) => !dismissed.has(i));
   if (!kept.length) return;
@@ -34,13 +35,18 @@ function openRoutedUrls(urls: string[], route: LinkRoute) {
   openUrlsFromApps(
     kept.map((i) => urls[i]!),
     routedLinks({ ...route, adoptIds: kept.map((i) => marks[i] ?? null) }, kept.length),
+    sourceApp,
   );
 }
 
-function openUrlsFromApps(urls: string[], routed: RoutedLinks) {
+function openUrlsFromApps(urls: string[], routed: RoutedLinks, sourceApp?: string) {
+  for (const flight of airTrafficFlights(urls, routed, sourceApp)) openFlight(flight.urls, flight.routed, flight.little);
+}
+
+function openFlight(urls: string[], routed: RoutedLinks, little?: boolean) {
   const [url] = urls;
   const profileId = routed.profileId ?? lastActiveProfile(store());
-  if (store().settings.openLinksInLittleArdia && urls.length === 1 && url && opensInLittleArdia(url)) return void openLittleArdia(url, profileId, routed.adoptIds[0]);
+  if ((little ?? (store().settings.openLinksInLittleArdia && urls.length === 1)) && url && opensInLittleArdia(url)) return void openLittleArdia(url, profileId, routed.adoptIds[0]);
   openLinksInMainWindow(urls, profileId, routed.adoptIds);
 }
 

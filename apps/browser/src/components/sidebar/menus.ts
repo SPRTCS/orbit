@@ -24,6 +24,8 @@ import { openArchive } from "../settings/windows";
 import { canShare, shareTab } from "../site/share";
 import { calendarMenuItem, newLiveFolderMenuItem, runCalendarMenu, runNewLiveFolder } from "./liveMenus";
 import { newPinnedFolderMenuItems, pinnedFolderMenuItems, runPinnedFolderMenu } from "./pinnedFolderMenus";
+import { airTrafficTabMenuItems, runAirTrafficTabMenu } from "../../lib/airTraffic/actions";
+import { aiTabMenuItems, runAiTabMenu } from "../../lib/ai/tidyTitles";
 import { openSyncedTab, syncedDevicesMenuItem } from "../../sync/menu";
 import { setSidebarUi } from "./state";
 import { toggleNewTabBar } from "../omnibox/newTabBar";
@@ -102,6 +104,7 @@ export async function openTabMenu(windowId: string, tab: Tab) {
       : []),
     { id: "rename", title: "Rename…", symbol: "character.cursor.ibeam" },
     ...(tab.customTitle ? [{ id: "resetName", title: "Reset Name", symbol: "arrow.counterclockwise" }] : []),
+    ...aiTabMenuItems(tab),
     { id: "icon", title: "Change Icon…", symbol: "face.smiling" },
     ...(tab.customIcon ? [{ id: "resetIcon", title: "Reset Icon", symbol: "arrow.counterclockwise" }] : []),
     sep,
@@ -129,6 +132,7 @@ export async function openTabMenu(windowId: string, tab: Tab) {
     { id: "bookmarkTo", title: "Add Bookmark to Folder", symbol: "folder", enabled: !!tab.url, children: bookmarkFolderItems(windowId, "folder:") },
     sep,
     { id: "moveToProfile", title: "Move to Space", symbol: "person.crop.circle", enabled: !incognito, children: moveToProfile },
+    ...airTrafficTabMenuItems(tab),
     { id: "moveToWindow", title: "Move to Window", symbol: "macwindow", enabled: !incognito, children: moveToWindowItems(windowId) },
     sep,
     { id: "close", title: "Close Tab", symbol: "xmark", ...hint("w", "command") },
@@ -140,6 +144,8 @@ export async function openTabMenu(windowId: string, tab: Tab) {
   const t = { kind: "tab" as const, id: tab.id };
   if (runCalendarMenu(choice)) return;
   if (runPinnedFolderMenu(windowId, choice, { kind: "tab", id: tab.id })) return;
+  if (runAirTrafficTabMenu(choice, tab)) return;
+  if (runAiTabMenu(choice, windowId, tab)) return;
   if (choice === "backToPin") s.returnToPinnedUrl(tab.id);
   else if (choice === "replacePin") s.setPinnedUrl(tab.id);
   else if (choice === "editPin") void editPinnedPage(windowId, tab.id);

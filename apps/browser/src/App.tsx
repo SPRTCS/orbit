@@ -7,6 +7,7 @@ import { BookmarkDialog } from "./components/bookmarks/BookmarkDialog";
 import { EditBookmarkDialog } from "./components/bookmarks/EditBookmarkDialog";
 import { ExtensionOverlays } from "./components/extensions/ExtensionOverlays";
 import { ExtensionSidePanel } from "./components/extensions/SidePanel";
+import { ChatPanel } from "./components/ai/ChatPanel";
 import { DownloadMagnet, DownloadsPopover } from "./components/Downloads";
 import { UtilityWindow } from "./components/settings/UtilityWindow";
 import { isUtilityWindowId } from "./components/settings/windows";
@@ -57,6 +58,7 @@ function BrowserWindow() {
     <>
       <ContentCard />
       {!fullscreen && <ExtensionSidePanel />}
+      {!fullscreen && <ChatPanel />}
     </>
   );
 

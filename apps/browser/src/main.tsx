@@ -10,6 +10,7 @@ import { startCliControl } from "./lib/cliControl";
 import { startAgentSpaces } from "./lib/agentSpaces";
 import { startUserScripts } from "./lib/userScripts";
 import { startBoosts } from "./lib/boosts/runtime";
+import { startAi } from "./lib/ai/start";
 import { startKillSwitches } from "./lib/killSwitchesLaunch";
 import { startMemoryTrim } from "./lib/memoryTrim";
 import { startNativeSync } from "./lib/native";
@@ -43,6 +44,7 @@ startCliControl();
 startAgentSpaces();
 afterFirstWindow(startUserScripts);
 afterFirstWindow(startBoosts);
+startAi();
 startMemoryTrim();
 if (__DEV__ || perfProbeEnabled) require("./lib/devHarness").startDevHarness();
 

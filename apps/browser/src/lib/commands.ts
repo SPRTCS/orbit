@@ -26,6 +26,9 @@ import { useClearDataRequest } from "../components/pages/ClearDataDialog";
 import { openInternalPage } from "../components/pages/urls";
 import { runBoostCommand } from "./boosts/actions";
 import { runSpaceCommand } from "../components/spaces/spaceActions";
+import { runCaptureCommand } from "./capture/capture";
+import { runAirTrafficCommand } from "./airTraffic/actions";
+import { runAiCommand } from "./ai/commands";
 import { takeSpaceFiles } from "../components/spaces/spaceFiles";
 import { isUtilityWindowId, openArchive, openImport, openSettings } from "../components/settings/windows";
 import { closePanelToHeroBar, focusHeroBar } from "../components/omnibox/barState";
@@ -63,6 +66,9 @@ export function runCommand({ command, arg, windowId: requested }: CommandEvent) 
   if (isSmall(s, requested) && runLittleArdiaCommand(command, requested!)) return;
   if (runBoostCommand(command, requested)) return;
   if (runSpaceCommand(command, arg, requested)) return;
+  if (runCaptureCommand(command, arg, requested)) return;
+  if (runAirTrafficCommand(command, arg)) return;
+  if (runAiCommand(command, arg, requested)) return;
 
   switch (command) {
     case "newWindow":

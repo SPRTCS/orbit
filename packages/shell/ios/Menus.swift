@@ -32,6 +32,7 @@ struct MenuState {
   var warnBeforeClosingWindow = false
   var downloadsInProgress = 0
   var shortcuts: [String: [String]] = [:]
+  var optionalShown = Set<String>()
   var extensions: [(id: String, title: String, icon: String?)] = []
   var fromApp = false
 
@@ -92,6 +93,7 @@ struct MenuState {
     warnBeforeClosingWindow = d["warnBeforeClosingWindow"] as? Bool ?? false
     downloadsInProgress = d["downloadsInProgress"] as? Int ?? 0
     shortcuts = d["shortcuts"] as? [String: [String]] ?? [:]
+    optionalShown = Set(strings("optionalShown"))
     fromApp = true
     extensions = (d["extensions"] as? [[String: Any]] ?? []).map {
       (id: $0["id"] as? String ?? "", title: $0["title"] as? String ?? "", icon: $0["icon"] as? String)
@@ -323,6 +325,10 @@ enum MainMenu {
       cmd("Clean Up Tabs", "cleanUpTabs", "k", [.command, .option]),
       .separator(),
       cmd("Save Page As…", "savePage"),
+      cmd("Capture…", "capture", "2", [.command, .shift]),
+      cmd("Capture…", "capture", "@", .command).hiddenShortcut(),
+      cmd("Capture Full Page", "capture", arg: "fullPage"),
+      cmd("Capture Visible Area", "capture", arg: "visible"),
       sub("Share", [], menu: shareMenu),
       cmd("Email Page Location", "emailPageLocation", "i", [.command, .shift]),
       cmd("Print…", "print", "p"),
@@ -404,6 +410,7 @@ enum MainMenu {
       cmd("Auto-Hide Tabs", "toggleSidebar", "s"),
       cmd("Auto-Hide Tabs", "toggleSidebar", "l", [.command, .shift]).hiddenShortcut(),
       cmd("Auto-Hide Tabs", "toggleSidebar", "f", [.command, .shift]).hiddenShortcut(),
+      cmd("Toggle Chat", "toggleChat"),
       .separator(),
       cmd("Open Split Pane", "openSplitPane", "=", [.control, .shift]),
       cmd("Focus Next Split Pane", "focusNextPane", "]", [.control, .shift]),
@@ -654,6 +661,7 @@ enum MainMenu {
     if state.bookmarksRevision == nil || last?.bookmarks != state.bookmarksRevision { buildBookmarkMenus(state) }
     if last?.extensions != extensionKeys { buildExtensions(state) }
     if last?.history != history { buildHistory(state) }
+    applyOptionalItems(state.optionalShown)
     applyShortcuts(state.shortcuts)
   }
 
@@ -740,6 +748,16 @@ enum MainMenu {
   private static let modifierNames: [(String, NSEvent.ModifierFlags)] = [
     ("control", .control), ("option", .option), ("shift", .shift), ("command", .command), ("function", .function),
   ]
+  private static let optionalCommands: Set<String> = ["toggleChat"]
+
+  private static func applyOptionalItems(_ shown: Set<String>) {
+    walk(NSApp.mainMenu) { item, _ in
+      guard let item = item as? CommandItem, optionalCommands.contains(item.command) else { return }
+      let hidden = !shown.contains(item.command)
+      if item.isHidden != hidden { item.isHidden = hidden }
+    }
+  }
+
   private static let dynamicCommands: Set<String> = [
     "openBookmark", "restoreClosed", "moveTabToProfile", "moveTabToWindow", "addBookmarkToFolder",
   ]
@@ -836,7 +854,7 @@ enum MainMenu {
     }
     for (id, group) in shortcutGroups() {
       let item = group.primary
-      if let command = item as? CommandItem, dynamicCommands.contains(command.command) { continue }
+      if let command = item as? CommandItem, dynamicCommands.contains(command.command) || (optionalCommands.contains(command.command) && command.isHidden) { continue }
       guard !item.defaultTitle.isEmpty else { continue }
       let current = shortcut(of: item)
       let defaultCombo = comboKey(item.defaultKey, item.defaultModifiers)

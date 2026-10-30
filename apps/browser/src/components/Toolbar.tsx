@@ -26,6 +26,7 @@ import { GlassFill, liquidGlass } from "./glass";
 import { TranslateButton } from "./site/TranslateControls";
 import { ZoomIndicator } from "./site/ZoomControls";
 import { BoostIndicator } from "./boosts/BoostIndicator";
+import { useGlassField } from "./glassSidebar/glassField";
 
 type ToolbarTab = Pick<Tab, "id" | "url" | "title" | "windowId" | "zoom">;
 const toolbarTab = (t: Tab | undefined): ToolbarTab | undefined =>
@@ -269,6 +270,7 @@ export const UrlField = memo(function UrlField({
   sidebar?: { height: number; progress: number | null; accessory?: ReactNode };
 }) {
   const theme = useTheme();
+  const glassField = useGlassField(!!sidebar);
   const showFullUrl = useSettings((s) => s.showFullUrl);
   const bookmarked = useIsBookmarked(tab.url);
   const insecure = usePage(tab.id, insecureLevel);
@@ -306,16 +308,16 @@ export const UrlField = memo(function UrlField({
         sidebar
           ? {
               height: sidebar.height,
-              borderRadius: SIDEBAR_FIELD.radius,
-              borderWidth: StyleSheet.hairlineWidth * 2,
+              borderRadius: glassField?.radius ?? SIDEBAR_FIELD.radius,
+              borderWidth: glassField ? 0 : StyleSheet.hairlineWidth * 2,
               borderColor: liquidGlass ? "transparent" : theme.pinnedRestingStroke,
-              backgroundColor: liquidGlass ? undefined : hovered ? theme.tabHover : theme.pinnedResting,
+              backgroundColor: glassField ? (hovered ? glassField.hover : glassField.fill) : liquidGlass ? undefined : hovered ? theme.tabHover : theme.pinnedResting,
               overflow: "hidden",
             }
           : { height: 30, borderRadius: 8, backgroundColor: hovered && !liquidGlass ? palette.pill : undefined },
       ]}
     >
-      {liquidGlass ? (
+      {liquidGlass && !glassField ? (
         sidebar ? (
           <GlassFill radius={SIDEBAR_FIELD.radius} border={StyleSheet.hairlineWidth * 2} fill={hovered ? theme.tabHover : theme.pinnedResting} />
         ) : (
@@ -333,7 +335,7 @@ export const UrlField = memo(function UrlField({
         </Pressable>
       )}
       <ContextMenuArea style={{ flex: 1 }} onContextMenu={() => void showUrlBarMenu(tab)}>
-      <Pressable onPress={() => openPanel(tab.url)} style={{ flex: 1, height: sidebar?.height ?? 30, justifyContent: "center", paddingLeft: insecure ? LOCK.gap : sidebar ? 10 : urlTextLeft(false) }}>
+      <Pressable onPress={() => openPanel(tab.url)} style={{ flex: 1, height: sidebar?.height ?? 30, justifyContent: "center", paddingLeft: insecure ? LOCK.gap : sidebar ? (glassField ? 13 : 10) : urlTextLeft(false) }}>
         {sidebar ? (
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 13, fontWeight: "500", color: palette.text }}>
@@ -392,6 +394,7 @@ export const UrlField = memo(function UrlField({
             <ToolbarButton palette={palette} icon="slider.horizontal.3" size={13} box={24} radius={6} onPress={toggleSiteControls} active={popover === "siteControls"} tooltip="Site Controls" />
           </>
         )}
+        {glassField && !hovered && <ToolbarButton palette={palette} icon="slider.horizontal.3" size={15} box={28} radius={14} onPress={toggleSiteControls} tooltip="Site Controls" />}
         {sidebar?.accessory}
       </View>
       {sidebar && sidebar.progress !== null ? <ProgressBar progress={sidebar.progress} color={theme.accent} /> : null}

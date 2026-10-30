@@ -1,9 +1,10 @@
 import { ContextMenuArea, FadeLabel, Symbol } from "@ardia/shell";
 import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Animated, PanResponder, Pressable, View } from "react-native";
+import { Animated, PanResponder, Pressable, Text, View } from "react-native";
 import { create, useStore, type StoreApi } from "zustand";
 import { endFolderRename, movePinnedNodes, renamePinnedFolder, setPinnedFolderCollapsed } from "../../lib/pinnedFolders";
 import { layout, useTheme } from "../../lib/theme";
+import { glassChrome, useGlassSidebar } from "../../lib/glassTheme";
 import { useBrowser, type BrowserState } from "../../store/browser";
 import { activeTabId, isIncognitoProfile, isPinnedRow } from "../../store/model";
 import {
@@ -240,6 +241,7 @@ function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; n
   const dragging = useStore(ctx.drop, (d) => d.dragging === folderId);
   const { hovered, hoverProps } = useHover();
   const pan = useFolderDrag(folderId, renaming);
+  const glass = useGlassSidebar();
   return (
     <View
       ref={(v) => void ctx.headers.set(folderId, v)}
@@ -272,7 +274,11 @@ function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; n
                 backgroundColor: into || pressed ? theme.tabPressed : hovered ? theme.tabHover : undefined,
               }}
             >
-              <Symbol name={collapsed ? "folder" : "folder.fill"} size={13} color={theme.icon} style={{ width: 16, height: 16 }} />
+              {glass ? (
+                <Symbol name="folder.fill" size={15} color={glassChrome(theme.dark).folder} style={{ width: 16, height: 16 }} />
+              ) : (
+                <Symbol name={collapsed ? "folder" : "folder.fill"} size={13} color={theme.icon} style={{ width: 16, height: 16 }} />
+              )}
               {renaming ? (
                 <RenameField
                   initial={name}
@@ -280,6 +286,10 @@ function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; n
                   color={theme.textPrimary}
                   onDone={(text) => (text === null ? endFolderRename(folderId) : renamePinnedFolder(ctx.profileId, folderId, text))}
                 />
+              ) : glass ? (
+                <Text numberOfLines={1} style={{ flexShrink: 1, marginLeft: 5, fontSize: 13, fontWeight: "600", color: theme.textPrimary }}>
+                  {name}
+                </Text>
               ) : (
                 <FadeLabel text={name} fontSize={13} color={theme.textTab} style={{ flex: 1, height: 18, marginLeft: 5 }} />
               )}
@@ -287,7 +297,8 @@ function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; n
                 style={{
                   width: 10,
                   height: 10,
-                  marginLeft: 4,
+                  marginLeft: glass ? 7 : 4,
+                  marginRight: glass && !renaming ? "auto" : undefined,
                   alignItems: "center",
                   justifyContent: "center",
                   transform: [{ rotate: open.interpolate({ inputRange: [0, 1], outputRange: ["-90deg", "0deg"] }) }],

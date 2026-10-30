@@ -15,6 +15,7 @@ import { GlassFill, liquidGlass } from "../glass";
 import { useHover } from "../primitives";
 import { GLYPH, HistoryButton, ReloadButton, UrlField, useToolbarTab } from "../Toolbar";
 import { HEADER_TOOLS, navButtonsFitting, type HeaderButton } from "../layout/dockMotion";
+import { useGlassField } from "../glassSidebar/glassField";
 
 const BUTTON = layout.toolbarButton;
 const { toggleX: TOGGLE_X, edge: EDGE, lightsRight: LIGHTS_RIGHT } = HEADER_TOOLS;
@@ -151,6 +152,7 @@ function PageField({ tab, windowId, width }: { tab: NonNullable<ReturnType<typeo
 
 function EmptyField({ windowId }: { windowId: string }) {
   const theme = useTheme();
+  const glassField = useGlassField(true);
   const { hovered, hoverProps } = useHover();
   const open = () => useBrowser.getState().openPanel(windowId, "");
   return (
@@ -159,15 +161,15 @@ function EmptyField({ windowId }: { windowId: string }) {
         <View
           style={{
             height: SIDEBAR_FIELD.height,
-            borderRadius: SIDEBAR_FIELD.radius,
-            borderWidth: StyleSheet.hairlineWidth * 2,
+            borderRadius: glassField?.radius ?? SIDEBAR_FIELD.radius,
+            borderWidth: glassField ? 0 : StyleSheet.hairlineWidth * 2,
             borderColor: liquidGlass ? "transparent" : theme.pinnedRestingStroke,
-            backgroundColor: liquidGlass ? undefined : hovered ? theme.tabHover : theme.pinnedResting,
+            backgroundColor: glassField ? (hovered ? glassField.hover : glassField.fill) : liquidGlass ? undefined : hovered ? theme.tabHover : theme.pinnedResting,
             justifyContent: "center",
-            paddingLeft: 10,
+            paddingLeft: glassField ? 13 : 10,
           }}
         >
-          {liquidGlass ? <GlassFill radius={SIDEBAR_FIELD.radius} border={StyleSheet.hairlineWidth * 2} fill={hovered ? theme.tabHover : theme.pinnedResting} /> : null}
+          {liquidGlass && !glassField ? <GlassFill radius={SIDEBAR_FIELD.radius} border={StyleSheet.hairlineWidth * 2} fill={hovered ? theme.tabHover : theme.pinnedResting} /> : null}
           <FadeLabel text="Search or enter address" fontSize={13} color={theme.placeholder} fadeWidth={14} style={{ height: 18, marginLeft: -2 }} />
         </View>
       </Pressable>

@@ -1,6 +1,7 @@
 import type { CommandAction } from "@ardia/core";
 import type { BrowserCommand } from "@ardia/shell";
 import { runCommand } from "../../lib/commands";
+import { aiBarActions } from "../../lib/ai/barActions";
 import { isBookmarked } from "../../store/bookmarks";
 import { useBrowser, type BrowserState } from "../../store/browser";
 import { activeTab, bookmarkProfileId, isPinnedRow } from "../../store/model";
@@ -67,6 +68,9 @@ const DEFS: ActionDef[] = [
     needs: page,
   },
   { command: "print", title: "Print", icon: "printer", hint: "⌘P", needs: page },
+  { command: "capture", title: "Capture…", icon: "camera.viewfinder", hint: "⇧⌘2", keywords: ["screenshot", "capture area", "snip", "screen grab"], needs: page },
+  { command: "capture", arg: "fullPage", title: "Capture Full Page", icon: "camera.viewfinder", keywords: ["screenshot", "full page screenshot", "scrolling screenshot"], needs: page },
+  { command: "capture", arg: "visible", title: "Capture Visible Area", icon: "camera.viewfinder", keywords: ["screenshot", "visible area"], needs: page },
   { command: "share", title: "Share", icon: "square.and.arrow.up", keywords: ["airdrop", "share link", "send link"], needs: page },
   { command: "zoomIn", title: "Zoom In", icon: "plus.magnifyingglass", hint: "⌘+", needs: page },
   { command: "zoomOut", title: "Zoom Out", icon: "minus.magnifyingglass", hint: "⌘-", needs: page },
@@ -79,6 +83,7 @@ const DEFS: ActionDef[] = [
   { command: "showHistory", title: "History", icon: "clock", hint: "⌘Y", keywords: ["show history"] },
   { command: "manageBookmarks", title: "Bookmarks", icon: "book", hint: "⌥⌘B", keywords: ["manage bookmarks", "show bookmarks"] },
   { command: "openSettings", title: "Settings", icon: "gearshape", hint: "⌘,", keywords: ["preferences", "prefs", "options"] },
+  { command: "openSettings", arg: "airTraffic", title: "Air Traffic Control…", icon: "airplane", keywords: ["atc", "link routing", "open links in space", "route links", "default space for links"] },
   { command: "clearBrowsingData", title: "Clear Browsing Data", icon: "trash", keywords: ["clear history", "clear cache", "clear cookies"] },
   { command: "importBrowserData", title: "Import Browser Data", icon: "square.and.arrow.down", keywords: ["import bookmarks", "import passwords"] },
   { command: "keyboardShortcuts", title: "Keyboard Shortcuts", icon: "keyboard", keywords: ["shortcuts", "hotkeys"] },
@@ -123,6 +128,7 @@ export function barActions(s: BrowserState, windowId: string): CommandAction[] {
       out.push({ id: `switchProfile:${id}`, title: `Switch to ${name}`, icon: "person.crop.circle", hint: i < 9 ? `⌃${i + 1}` : undefined, keywords: [name, "space", "profile"] });
     });
   }
+  out.push(...aiBarActions(windowId));
   return out;
 }
 

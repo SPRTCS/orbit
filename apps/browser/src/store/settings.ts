@@ -58,6 +58,7 @@ export type Settings = {
 
   appearance: "auto" | "light" | "dark";
   addressBar: "toolbar" | "sidebar";
+  sidebarStyle?: "glass" | "classic";
 
   defaultProfileId: string;
 

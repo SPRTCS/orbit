@@ -25,6 +25,8 @@ export type SettingsPane =
   | "shortcuts"
   | "liveFolders"
   | "calendar"
+  | "airTraffic"
+  | "ai"
   | "advanced";
 
 type Nav = {

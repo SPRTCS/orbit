@@ -39,6 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)startLinkTabs:(NSArray<NSString *> *)urls profile:(NSString *)profile;
 + (NSDictionary<NSString *, id> *)routeLinkTabs:(NSArray<NSString *> *)urls;
 + (void)setSearchEngineName:(NSString *)name;
++ (void)setSelectionAskName:(nullable NSString *)name;
 + (void)installScrollZoom;
 + (void)installSwitchPrewarm;
 + (NSDictionary<NSString *, id> *)devSwitchPrewarm:(int)browserId at:(NSString *)where NS_SWIFT_NAME(devSwitchPrewarm(browserId:at:));
@@ -79,6 +80,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)evaluate:(NSString *)code completion:(void (^)(NSString *_Nullable json))completion;
 - (void)capturePicture:(double)scale completion:(void (^)(NSDictionary<NSString *, id> *_Nullable picture))completion;
 - (void)devToolsTarget:(void (^)(NSDictionary<NSString *, id> *_Nullable target))completion;
+- (void)orbitCapture:(NSString *)method
+              params:(NSDictionary<NSString *, id> *)params
+                file:(nullable NSString *)path
+          completion:(void (^)(NSDictionary<NSString *, id> *result))completion
+    NS_SWIFT_NAME(orbitCapture(_:params:file:completion:));
 - (void)navigationEntries:(void (^)(NSArray<NSDictionary<NSString *, id> *> *entries))completion;
 - (void)downloadFavicon:(NSString *)url name:(nullable NSString *)name
              completion:(void (^)(NSDictionary<NSString *, id> *_Nullable result))completion

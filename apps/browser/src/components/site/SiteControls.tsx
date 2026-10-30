@@ -30,6 +30,7 @@ import { canShare, shareTab } from "./share";
 import { ActionTile, FooterChip, gridColumns, MoreButton, SectionTitle, SettingRow, SITE_PANEL, TileRow } from "./SiteControlsParts";
 import { SiteExtensions } from "./SiteExtensions";
 import { SiteBoosts } from "../boosts/SiteBoosts";
+import { startCapture } from "../../lib/capture/capture";
 import { TranslateRows } from "./TranslateControls";
 import { ZoomStepper } from "./ZoomControls";
 
@@ -285,6 +286,7 @@ function SiteControlsPanel({
           <>
             <PopoverSeparator />
             <PopoverRow icon="plus.magnifyingglass" title="Zoom" accessory={<ZoomStepper tabId={tabId} zoom={tab.zoom} />} />
+            <PopoverRow icon="camera.viewfinder" title="Capture…" onPress={() => (close(), void startCapture(tab.windowId, "region"))} />
             {origin && !castTile ? <PopoverRow icon="tv.and.mediabox" title="Cast…" onPress={cast} /> : null}
             {origin ? (
               <>

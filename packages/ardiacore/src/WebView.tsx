@@ -208,6 +208,11 @@ export type WebViewHandle = {
   navigationEntries(): Promise<NavigationEntry[]>;
   capturePicture(scale: number): Promise<{ data: string; frame: [number, number, number, number] } | null>;
   devToolsTarget(): Promise<{ targetId: string; browserContextId: string } | null>;
+  orbitCapture(
+    method: "Page.captureScreenshot" | "Page.getLayoutMetrics",
+    params: Record<string, unknown>,
+    file?: string | null,
+  ): Promise<{ result?: Record<string, unknown>; path?: string; bytes?: number; error?: string }>;
   downloadFavicon(url: string): Promise<FaviconImage | null>;
   downloadImage(url: string, maxPixels: number): Promise<FaviconImage | null>;
 
@@ -375,6 +380,10 @@ export const WebView = forwardRef<WebViewHandle, WebViewProps>(function WebView(
       navigationEntries: async () => (await call([], (n) => n.navigationEntries())).map((e) => ({ ...e, url: toAppUrl(e.url) })),
       capturePicture: (scale) => call(null, (n) => n.capturePicture(scale)),
       devToolsTarget: () => call(null, (n) => n.devToolsTarget()),
+      orbitCapture: (method, params, file) =>
+        call({ error: "no view" }, (n) =>
+          typeof n.orbitCapture === "function" ? n.orbitCapture(method, params, file ?? null) : Promise.resolve({ error: "unavailable" }),
+        ),
       downloadImage: (url, maxPixels) => call(null, (n) => n.downloadImage(url, maxPixels)),
       downloadFavicon: (url) => call(null, (n) => n.downloadFavicon(url)),
       mediaCommand: (action, seconds) => call(undefined, (n) => n.mediaCommand(action, seconds)),

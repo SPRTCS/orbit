@@ -3,6 +3,7 @@ import { memo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTheme } from "../../lib/theme";
 import { useHover } from "../primitives";
+import { TidyButton } from "../ai/TidyButton";
 import { closeAllTabs } from "./menus";
 
 const CLEAR_DIVIDER_HEIGHT = 16;
@@ -14,6 +15,7 @@ export const ClearDivider = memo(function ClearDivider({ windowId, spaced }: { w
   return (
     <View style={{ height: CLEAR_DIVIDER_HEIGHT, marginTop: spaced ? 7 : 0, flexDirection: "row", alignItems: "center", paddingLeft: 9, paddingRight: 9 }}>
       <View style={{ flex: 1, height: 1, backgroundColor: theme.divider }} />
+      <TidyButton windowId={windowId} />
       <View {...hoverProps}>
         <Pressable tooltip="Clear unpinned tabs" accessibilityRole="button" accessibilityLabel="Clear unpinned tabs" onAccessibilityTap={clear} onPress={clear}>
           {({ pressed }) => {

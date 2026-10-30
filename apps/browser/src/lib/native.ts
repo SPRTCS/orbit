@@ -35,6 +35,8 @@ import { flushPersistence, resumePersistence } from "./persist";
 import { startWindowCloseGuard } from "./windowClose";
 import { startExtensionsBridge } from "../components/extensions/bridge";
 import { extensionMenu, useExtensions } from "../components/extensions/state";
+import { aiShortcuts, aiShownMenuItems } from "./ai/menu";
+import { aiEnabled, subscribeAiSettings } from "./ai/settings";
 
 let quitting = false;
 export const isQuitting = () => quitting;
@@ -46,7 +48,7 @@ export function startNativeSync() {
   onCommand(runCommand);
   startWindowCloseGuard();
   startExtensionsBridge();
-  onOpenURLs((urls) => openExternalUrls(takeSpaceFiles(urls)));
+  onOpenURLs((urls, sourceApp) => openExternalUrls(takeSpaceFiles(urls), sourceApp));
   onDownload((d) => store.getState().upsertDownload(d));
 
   store.getState().setAppDark(Appearance.getColorScheme() === "dark");
@@ -147,6 +149,7 @@ export function startNativeSync() {
   useExtensions.subscribe((e, prev) => {
     if (e.lists !== prev.lists) menuTimer ??= setTimeout(syncMenu, 120);
   });
+  subscribeAiSettings(() => void (menuTimer ??= setTimeout(syncMenu, 120)));
   void windowIds().then((ids) => {
     const s = store.getState();
     for (const id of ids) {
@@ -284,7 +287,8 @@ export function menuState(s: BrowserState): MenuState {
     warnBeforeQuitting: s.settings.warnBeforeQuitting,
     warnBeforeClosingWindow: s.settings.warnBeforeClosingWindow,
     downloadsInProgress: s.downloads.filter((d) => d.state === "downloading").length,
-    shortcuts: s.settings.shortcuts,
+    shortcuts: aiShortcuts(s.settings.shortcuts, aiEnabled()),
+    optionalShown: aiShownMenuItems(aiEnabled()),
     extensions: extensionMenu(s, windowId),
   };
 }

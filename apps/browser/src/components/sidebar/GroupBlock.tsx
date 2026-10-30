@@ -20,6 +20,7 @@ import { capture, GhostSlot, ListMotionContext, newCapture, useGroupMotion } fro
 import { openGroupMenu } from "./menus";
 import { registerRow, useSidebarUi } from "./state";
 import { TabIcon } from "./TabIcon";
+import { NameShimmer } from "../ai/NameShimmer";
 import { RenameField, SplitRowItem, TabRowItem } from "./TabRow";
 import { GROUP_COLORS, useSidebarTokens, withAlpha } from "./tokens";
 
@@ -153,7 +154,9 @@ function GroupHeader({ groupId, windowId, collapsed, open }: { groupId: string; 
                     <Text numberOfLines={1} style={{ opacity: 0, fontSize: 13, fontWeight: "500" }}>
                       {label}
                     </Text>
+                    <NameShimmer groupId={groupId}>
                     <FadeLabel text={label} fontSize={13} weight="medium" color={tokens.groupTitle} style={{ position: "absolute", left: 0, right: 0, top: 0, height: 18 }} />
+                    </NameShimmer>
                   </View>
                   <Animated.View
                     style={{

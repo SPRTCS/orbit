@@ -19,6 +19,7 @@ import { registerRow, useSidebarUi } from "./state";
 import { TabIcon } from "./TabIcon";
 import { TabBadges } from "../media/TabBadges";
 import { useSidebarTokens } from "./tokens";
+import { useGlidingTo } from "../glassSidebar/SelectionGlide";
 
 export const clickMods = (e: GestureResponderEvent) => {
   const n = e.nativeEvent as unknown as { metaKey?: boolean; shiftKey?: boolean; altKey?: boolean };
@@ -62,12 +63,14 @@ export const TabRow = memo(function TabRow({ tabId, onto = false, shift = null }
   const { hovered, hoverProps } = useRowHover(windowId, renaming ? null : { kind: "tab", id: tabId });
   const [moved, movedRef] = useShift(shift, useCallback((v: View | null) => registerRow(windowId, tabId, v), [windowId, tabId]));
   const backToPin = useHover();
+  const gliding = useGlidingTo(windowId, tabId);
   if (!tab) return null;
+  const raised = active && !gliding;
   const resettable = isPinnedRow(tab) && awayFromPin(tab);
   const resetting = resettable && backToPin.hovered && !renaming;
   const title = resetting ? "Back to Pinned URL" : tabTitle(tab);
-  const fill = active ? theme.tabSelected : selected ? tokens.multiSelected : hovered ? theme.tabHover : "rgba(0,0,0,0)";
-  const border = active || selected ? 0.5 : 0;
+  const fill = raised ? theme.tabSelected : selected ? tokens.multiSelected : hovered ? theme.tabHover : "rgba(0,0,0,0)";
+  const border = raised || selected ? 0.5 : 0;
 
   return (
     <View
@@ -96,9 +99,9 @@ export const TabRow = memo(function TabRow({ tabId, onto = false, shift = null }
                 cornerRadius={10}
                 borderWidth={border}
                 borderColor={selected && !active ? hex(tokens.multiSelectedStroke) : undefined}
-                borderColors={active ? theme.tabSelectedBorder.map(hex) : undefined}
-                shadowColor={active ? hex(theme.tabSelectedShadow) : undefined}
-                shadowOpacity={active ? 1 : 0}
+                borderColors={raised ? theme.tabSelectedBorder.map(hex) : undefined}
+                shadowColor={raised ? hex(theme.tabSelectedShadow) : undefined}
+                shadowOpacity={raised ? 1 : 0}
                 shadowRadius={theme.tabSelectedShadowRadius}
                 shadowOffset={[0, 0.5]}
                 style={{ height: layout.rowHeight, flexDirection: "row", alignItems: "center", paddingLeft: 9 - border, paddingRight: 6 - border }}

@@ -237,6 +237,7 @@ void NoteEvent(int browserId, NSString *name, NSDictionary *payload) {
 }
 
 NSString *gSearchEngineName = @"Google";
+NSString *gSelectionAskName = nil;
 BOOL gDisplayMediaPicker = NO;
 BOOL TracingPictureInPicture() {
   static const BOOL tracing = getenv("ARDIA_TRACE_PIP") != nullptr;
@@ -1685,6 +1686,10 @@ void ArdiaCoreWebViewsSetFieldTiming(BOOL on) {
   gSearchEngineName = name.length ? [name copy] : @"Google";
 }
 
++ (void)setSelectionAskName:(NSString *)name {
+  gSelectionAskName = name.length ? [name copy] : nil;
+}
+
 + (NSInteger)devWindowNumberForBrowser:(int)browserId {
   ArdiaCoreTab *tab = ardiacore_host::TabWithBrowserId(browserId);
   ArdiaCoreWebView *view = tab ? [ArdiaCoreTabs viewForTab:tab] : nil;
@@ -2211,6 +2216,30 @@ void ArdiaCoreWebViewsSetFieldTiming(BOOL on) {
   }];
 }
 
+- (void)orbitCapture:(NSString *)method params:(NSDictionary *)params file:(NSString *)path completion:(void (^)(NSDictionary *))completion {
+  BOOL shot = [method isEqualToString:@"Page.captureScreenshot"];
+  if (!shot && ![method isEqualToString:@"Page.getLayoutMetrics"]) return completion(@{@"error" : @"unsupported"});
+  if (shot && !path.length) return completion(@{@"error" : @"no file"});
+  if (!_tab || _tab.closed || ![_tab respondsToSelector:@selector(devToolsCall:params:completion:)]) return completion(@{@"error" : @"no page"});
+  void (^done)(NSDictionary *, NSString *) = ^(NSDictionary *result, NSString *error) {
+    if (![result isKindOfClass:NSDictionary.class]) return completion(@{@"error" : error ?: @"no answer"});
+    if (!shot) return completion(@{@"result" : result});
+    NSString *data = result[@"data"];
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+      NSData *png = [data isKindOfClass:NSString.class] ? [[NSData alloc] initWithBase64EncodedString:data options:0] : nil;
+      BOOL written = png.length && [png writeToFile:path atomically:YES];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        completion(written ? @{@"path" : path, @"bytes" : @(png.length)} : @{@"error" : @"no image"});
+      });
+    });
+  };
+  SEL timed = NSSelectorFromString(@"devToolsCall:params:timeout:completion:");
+  if ([_tab respondsToSelector:timed])
+    ((void (*)(id, SEL, NSString *, NSDictionary *, NSTimeInterval, id))objc_msgSend)(_tab, timed, method, params ?: @{}, 30.0, done);
+  else
+    [_tab devToolsCall:method params:params ?: @{} completion:done];
+}
+
 - (void)navigationEntries:(void (^)(NSArray<NSDictionary<NSString *, id> *> *))completion {
   completion([_tab respondsToSelector:@selector(navigationEntries)] ? _tab.navigationEntries : @[]);
 }
@@ -2382,11 +2411,13 @@ void ArdiaCoreWebViewsSetFieldTiming(BOOL on) {
 
 - (NSArray<NSDictionary<NSString *, NSString *> *> *)tab:(ArdiaCoreTab *)tab
                            contextMenuItemsForSelection:(NSString *)text {
-  return @[ @{
+  NSDictionary *search = @{
     @"id" : @"search",
     @"title" : [NSString stringWithFormat:@"Search %@ for “%@”", gSearchEngineName, SelectionLabel(text)],
     @"replaces" : @"search",
-  } ];
+  };
+  if (!gSelectionAskName) return @[ search ];
+  return @[ search, @{@"id" : @"ask", @"title" : [NSString stringWithFormat:@"Ask %@ about “%@”", gSelectionAskName, SelectionLabel(text)]} ];
 }
 
 - (void)tab:(ArdiaCoreTab *)tab
@@ -2395,6 +2426,8 @@ void ArdiaCoreWebViewsSetFieldTiming(BOOL on) {
              modifiers:(NSDictionary<NSString *, NSNumber *> *)modifiers {
   if ([itemId isEqualToString:@"search"])
     [self emit:@"command" payload:@{@"command" : @"search", @"text" : selection ?: @"", @"modifiers" : modifiers ?: @{}}];
+  else if ([itemId isEqualToString:@"ask"])
+    [self emit:@"command" payload:@{@"command" : @"ask", @"text" : selection ?: @""}];
 }
 
 - (void)tab:(ArdiaCoreTab *)tab didShowAutofillSuggestions:(NSArray<NSDictionary<NSString *, NSString *> *> *)items {

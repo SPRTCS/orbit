@@ -7,6 +7,7 @@ import { tabLayoutOf } from "../../../store/model";
 import type { Settings } from "../../../store/settings";
 import { useHover } from "../../primitives";
 import { SectionHeader, useFormColors } from "../controls";
+import { SidebarStylePicker } from "../../glassSidebar/SidebarStylePicker";
 
 const MODES: { value: Settings["appearance"]; title: string; description: string }[] = [
   { value: "auto", title: "Automatic", description: "Follow the system appearance setting" },
@@ -29,6 +30,7 @@ export function AppearancePane() {
         ))}
       </View>
       <AddressBarPicker />
+      <SidebarStylePicker />
       <AppIconPicker />
     </View>
   );

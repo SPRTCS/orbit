@@ -14,6 +14,7 @@ import { useSidebarWidth } from "./sidebar/tokens";
 import { HoverSlot } from "./HoverSlot";
 import { PANEL, POPOVER_MOTION, PopoverSeparator, usePopoverPresence } from "./layout/controls";
 import { IconButton, useHover } from "./primitives";
+import { aiDownloadMenuItems, runAiDownloadMenu } from "../lib/ai/tidyDownloads";
 
 function formatBytes(n: number) {
   if (n < 0) return "";
@@ -70,6 +71,7 @@ export async function downloadMenu(d: Download, windowId: string) {
       : [
           { id: "open", title: "Open", enabled: exists },
           { id: "reveal", title: "Show in Finder", enabled: exists },
+          ...aiDownloadMenuItems(d),
         ];
   items.push(
     { separator: true },
@@ -80,6 +82,7 @@ export async function downloadMenu(d: Download, windowId: string) {
     { id: "remove", title: "Remove from List", enabled: d.state !== "downloading" },
   );
   const choice = await showMenu(items);
+  if (runAiDownloadMenu(choice, d, windowId)) return;
   if (choice === "whenDone") toggleOpenWhenDone(d.id);
   if (choice === "pause") void pauseDownload(d.id);
   if (choice === "resume") void resumeDownload(d.id);

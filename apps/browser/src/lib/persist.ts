@@ -13,6 +13,7 @@ import { startHistory } from "./history";
 import { startArchive } from "./archive";
 import { startPinnedFolders } from "./pinnedFolders";
 import { startOrbitSpaces } from "./spaceSessions";
+import { airTrafficRoutesLinks, useAirTraffic } from "./airTraffic/store";
 import { startProfileDataCleanup } from "./profileData";
 
 const SAVE_DELAY_MS = 800;
@@ -44,7 +45,7 @@ const DOCS: Doc[] = [
   },
   {
     name: "session.json",
-    sources: (s) => [s.profiles, s.profileOrder, s.orphanedProfileData, s.windows, s.windowOrder, s.tabs, s.groups, s.splits, s.closedTabs, s.closedWindows, s.parkedPins, s.pinChoices, s.pinSync, s.settings, s.ui.focusedWindowId, s.ui.lastProfileId, s.ui.appDark, s.closedGroups, s.deletedGroups, s.cleanedTabs],
+    sources: (s) => [s.profiles, s.profileOrder, s.orphanedProfileData, s.windows, s.windowOrder, s.tabs, s.groups, s.splits, s.closedTabs, s.closedWindows, s.parkedPins, s.pinChoices, s.pinSync, s.settings, s.ui.focusedWindowId, s.ui.lastProfileId, s.ui.appDark, s.closedGroups, s.deletedGroups, s.cleanedTabs, airTrafficRoutesLinks()],
     json: serialized((s) => {
       const windows = Object.values(s.windows).filter((w) => !w.incognito && w.kind !== "small").map(({ chromeWindow: _c, ...w }) => w);
       const kept = new Set(windows.map((w) => w.id));
@@ -61,7 +62,7 @@ const DOCS: Doc[] = [
         lastProfileId: s.ui.lastProfileId,
         launchTab: earlyLaunchTabOn() ? launchTab(s, focusedWindowId) : null,
         launchBackdrop: earlyLaunchTabOn() ? launchBackdrop(s, focusedWindowId) : null,
-        linkProfile: earlyLaunchTabOn() ? linkProfile(s) : null,
+        linkProfile: earlyLaunchTabOn() && !airTrafficRoutesLinks() ? linkProfile(s) : null,
         tabs: Object.values(s.tabs).filter((t) => kept.has(t.windowId)).map(persistedTab),
         groups: Object.values(s.groups).filter((g) => kept.has(g.windowId)),
         splits: Object.values(s.splits).filter((v) => kept.has(v.windowId)),
@@ -248,6 +249,7 @@ export function startPersistence() {
     check(s);
     if (s.windows !== prev.windows) forgetClosedIncognito(s, prev);
   });
+  const stopAirTraffic = useAirTraffic.subscribe(() => check(useBrowser.getState()));
   return () => {
     stopFavicons();
     stopHistory();
@@ -257,6 +259,7 @@ export function startPersistence() {
     stopOrbitSpaces();
     stopProfileData();
     stopSession();
+    stopAirTraffic();
   };
 }
 

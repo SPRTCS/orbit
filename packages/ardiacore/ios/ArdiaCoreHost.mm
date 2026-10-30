@@ -8,6 +8,7 @@
 #import "ArdiaCoreStartup.h"
 #import "ArdiaCoreWebView.h"
 #import "ArdiaCoreWebViewInternal.h"
+#import "OrbitAirTraffic.h"
 
 #include <cctype>
 #include <cstring>
@@ -159,7 +160,7 @@ static NSDictionary *SavedSession(NSString *dir) {
 
 static void ParkLaunchLinks(NSArray<NSURL *> *links, NSString *dir, NSDictionary *session) {
   NSString *linkProfile = [session[@"linkProfile"] isKindOfClass:NSString.class] ? session[@"linkProfile"] : nil;
-  if (!links.count || !linkProfile || LaunchTabSwitchedOff(dir)) return;
+  if (!links.count || !linkProfile || LaunchTabSwitchedOff(dir) || OrbitAirTrafficRoutesLinks(dir)) return;
   NSMutableArray<NSString *> *urls = [NSMutableArray array];
   for (NSURL *link in links)
     if (!link.isFileURL && link.absoluteString.length) [urls addObject:link.absoluteString];
@@ -333,7 +334,7 @@ static void TryEarlyLittleWindow() {
   NSString *scheme = link.scheme.lowercaseString;
   if (![scheme isEqualToString:@"http"] && ![scheme isEqualToString:@"https"]) return;
   NSString *dir = AppDataDirectory();
-  if (gLaunchedHidden || NSApp.isHidden || LaunchTabSwitchedOff(dir) || OnboardingPending(dir)) return;
+  if (gLaunchedHidden || NSApp.isHidden || LaunchTabSwitchedOff(dir) || OnboardingPending(dir) || OrbitAirTrafficRoutesLinks(dir)) return;
   NSDictionary *session = SavedSession(dir);
   NSDictionary *settings = [session[@"settings"] isKindOfClass:NSDictionary.class] ? session[@"settings"] : @{};
   if ([settings[@"openLinksInLittleArdia"] isEqual:@NO]) return;

@@ -31,6 +31,7 @@ import { patchPage, pageOf, setBrowserId, setPopover, useFullscreenTab, usePages
 import { useTabDrag } from "./layout/tabDrag";
 import { SadTab, StatusBubble } from "./layout/PaneOverlays";
 import { DropTargets, SplitDividers, SplitToast } from "./layout/SplitChrome";
+import { CapturePreview } from "./capture/CapturePreview";
 import { SplitEmptyState } from "./layout/SplitEmptyState";
 import { pagerFor } from "./layout/profilePager";
 import { openFromPage } from "./layout/openFromPage";
@@ -64,6 +65,8 @@ import { closeLittleArdiaOnEscape } from "./littleArdia/actions";
 import { PeekOverlay } from "./peek/PeekOverlay";
 import { peekFromPage } from "../lib/peek";
 import { usePeekLinks } from "../lib/peekLinks";
+import { GlassCardEdge, useCardRadius } from "./glassSidebar/GlassCard";
+import { askAboutSelection } from "../lib/ai/chat";
 
 export function ContentCard() {
   const windowId = useWindowId();
@@ -285,6 +288,7 @@ export function ContentCard() {
       {split && !fullscreenTab && <SplitDividers split={split} dividers={dividers} width={size.width} height={size.height} />}
       {!fullscreenTab && <DropTargets panes={panes} origin={origin} />}
       <SplitToast windowId={windowId} />
+      <CapturePreview windowId={windowId} />
       {size.width > 0 && <PeekOverlay windowId={windowId} width={size.width} height={size.height} />}
     </View>
   );
@@ -330,6 +334,7 @@ const TabPane = memo(function TabPane({
   windowToolbar: boolean;
 }) {
   const theme = useTheme();
+  const cardRadius = useCardRadius();
   const visible = !!rect;
   const live = visible || !!warm;
   const own = useTabValue(tabId, paneTab, shallowEqual);
@@ -368,7 +373,7 @@ const TabPane = memo(function TabPane({
       style={{
         position: "absolute",
         ...(fills ? { left: 0, top: 0, right: 0, bottom: 0 } : { left: frame.x, top: frame.y, width: frame.width, height: frame.height }),
-        borderRadius: fullscreen ? 0 : layout.cardRadius,
+        borderRadius: fullscreen ? 0 : cardRadius,
         overflow: "hidden",
         opacity: covered ? 0 : 1,
         backgroundColor: visible && !fullscreen ? theme.card : undefined,
@@ -418,6 +423,7 @@ const TabPane = memo(function TabPane({
       </Animated.View>
       {hideBar && <AutoHideBackdrop tabId={tabId} mode={mode} motion={motion} />}
       {hideBar && !windowToolbar && <AutoHideToolbar tabId={tabId} geometry={geometry} windowId={windowId} inSplit={inSplit} focused={focused || !inSplit} mode={mode} motion={motion} />}
+      <GlassCardEdge shown={visible && !fullscreen} />
     </View>
   );
 });
@@ -602,6 +608,7 @@ const TabWebView = memo(function TabWebView({ tabId, visible, warm }: { tabId: s
       onCommand={({ command, text, modifiers }) => {
         if (command === "search") searchSelection(tabId, text, modifiers);
         else if (command === "copyLinkToHighlight") void copyLinkToSelection(tabId);
+        else if (command === "ask") askAboutSelection(tabId, text);
         else if (command === "escape" && usePages.getState().popover[tabId]) setPopover(tabId, null);
         else if (command === "escape") closeLittleArdiaOnEscape(tabId);
       }}

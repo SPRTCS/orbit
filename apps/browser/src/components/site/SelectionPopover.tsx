@@ -5,6 +5,7 @@ import { hex, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { defaultSearchEngine } from "../../store/settings";
 import { useHover } from "../primitives";
+import { AskSelectionButton } from "../ai/AskSelectionButton";
 import { searchSelection, setPageSelection, usePageSelection, type ClickModifiers, type PageSelection } from "./selection";
 
 const HEIGHT = 32;
@@ -75,6 +76,7 @@ function Bar({ tabId, selection, zoom, area }: { tabId: string; selection: PageS
         <VisualEffect material="menu" cornerRadius={10} style={StyleSheet.absoluteFill} />
         <View style={{ ...StyleSheet.absoluteFillObject, borderRadius: 10, backgroundColor: theme.dark ? "rgba(38,36,37,0.72)" : "rgba(252,251,252,0.7)" }} />
         <SearchButton tabId={tabId} text={selection.text} />
+        <AskSelectionButton tabId={tabId} text={selection.text} />
       </Surface>
     </Animated.View>
   );

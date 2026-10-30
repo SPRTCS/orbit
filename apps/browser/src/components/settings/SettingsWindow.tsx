@@ -7,6 +7,8 @@ import { trackSettingsSection } from "../../telemetry/track";
 import { IconButton, useHover } from "../primitives";
 import { useFormColors } from "./controls";
 import { AdvancedPane } from "./panes/Advanced";
+import { AiPane } from "./panes/AI";
+import { AirTrafficPane } from "./panes/AirTraffic";
 import { AppearancePane } from "./panes/Appearance";
 import { CalendarPane } from "./panes/Calendar";
 import { GeneralPane } from "./panes/General";
@@ -37,6 +39,8 @@ const PANES: { id: SettingsPane; title: string; icon: string }[] = [
   { id: "shortcuts", title: "Keyboard Shortcuts", icon: "keyboard" },
   { id: "liveFolders", title: "Live Folders", icon: "dot.radiowaves.left.and.right" },
   { id: "calendar", title: "Calendar", icon: "calendar" },
+  { id: "airTraffic", title: "Air Traffic Control", icon: "airplane" },
+  { id: "ai", title: "AI", icon: "sparkles" },
   { id: "advanced", title: "Advanced", icon: "slider.horizontal.3" },
 ];
 
@@ -109,6 +113,10 @@ function Pane({ pane, profileId }: { pane: SettingsPane; profileId: string | nul
       return <LiveFoldersPane />;
     case "calendar":
       return <CalendarPane />;
+    case "airTraffic":
+      return <AirTrafficPane />;
+    case "ai":
+      return <AiPane />;
     case "advanced":
       return <AdvancedPane />;
   }
