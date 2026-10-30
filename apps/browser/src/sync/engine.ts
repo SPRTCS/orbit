@@ -43,6 +43,7 @@ import {
   type ShareRecord,
 } from "./adapters";
 import { extensionsAdapterFor, extensionSyncAvailable, probeExtensionSync, watchExtensionIntents } from "./extensions";
+import { pinnedFoldersAdapter, watchPinnedFolders } from "./pinnedFolders";
 
 type DataType = "bookmarks" | "history" | "tabs" | "pinned" | "passwords" | "extensions" | "settings";
 
@@ -284,6 +285,7 @@ function profileAdapters(profileId: string, retiring: boolean): Adapter[] {
   if (!passwords) passwordAdapters.set(profileId, (passwords = passwordsAdapter(profileId, () => forcePasswords)));
   return [
     ...(t.pinned ? [pinnedRowsAdapter(profileId), inTodaysNames(pinnedAdapter(profileId))] : []),
+    ...(t.pinned ? [pinnedFoldersAdapter(profileId, () => doc.scopes[`p:${doc.profiles[profileId]?.syncId}`]?.records)] : []),
     ...(t.bookmarks && ownsData ? [inTodaysNames(bookmarksAdapter(profileId))] : []),
     ...(t.history && ownsData ? [inTodaysNames(historyAdapter(profileId))] : []),
     inTodaysNames(deviceTabsAdapter(profileId, id, deviceName, !t.tabs)),
@@ -697,6 +699,7 @@ export function startSync() {
     if (!doc.enabled || running) return;
     if (s.bookmarks !== prev.bookmarks || s.settings !== prev.settings || s.profiles !== prev.profiles || s.groups !== prev.groups) scheduleSync();
   });
+  watchPinnedFolders(() => doc.enabled && !running && scheduleSync());
   if (__DEV__) {
     (globalThis as { acSync?: object }).acSync = {
       useSync, syncNow, turnOnSync, enterRecoveryPhrase, stopSync, setTypeSynced, setProfileSynced, addRemoteProfile, setSyncFolder, folderInfo,

@@ -6,12 +6,14 @@ import {
   applyImportPlan,
   createFolder,
   deleteFolder,
+  folderRef,
   groupRef,
   hasFolders,
   moveNodes,
   parentOf,
   pinnedRefs,
   reconcileTree,
+  refsIn,
   renameFolder,
   setFolderCollapsed,
   tabRef,
@@ -28,6 +30,28 @@ const PLAN_MS = 30_000;
 export const NEW_FOLDER_NAME = "New Folder";
 
 const lastSeen = new Map<string, string[]>();
+let started = false;
+
+export const pinnedFoldersStarted = () => started;
+export const seenPinnedRefs = () => lastSeen;
+
+const choices = new Map<string, Map<string, number>>();
+let choiceCount = 0;
+export const pinnedChoices = () => choices;
+
+function choose(profileId: string, refs: string[]) {
+  if (!refs.length) return;
+  const mine = choices.get(profileId) ?? new Map<string, number>();
+  for (const ref of refs) mine.set(ref, ++choiceCount);
+  choices.set(profileId, mine);
+}
+
+export function settlePinnedChoices(profileId: string, settled: Iterable<[string, number]>) {
+  const mine = choices.get(profileId);
+  if (!mine) return;
+  for (const [ref, n] of settled) if (mine.get(ref) === n) mine.delete(ref);
+  if (!mine.size) choices.delete(profileId);
+}
 
 function readTrees(): Record<string, PinnedTree> {
   try {
@@ -122,11 +146,13 @@ export function startPinnedFolders() {
     if (f.trees !== prev.trees) timer ??= setTimeout(save, SAVE_DELAY_MS);
   });
   reconcileFolders(useBrowser.getState());
+  started = true;
   const stopWatching = useBrowser.subscribe((s, prev) => {
     if (s.profiles !== prev.profiles && Object.keys(s.profiles).length) forgetDeletedProfiles(s);
     if (pinsMayHaveChanged(s, prev)) reconcileFolders(s);
   });
   return () => {
+    started = false;
     stopWatching();
     stopSaving();
     save();
@@ -153,7 +179,7 @@ export function shownProfile(windowId: string | null | undefined): string | null
   return id && !isIncognitoProfile(id) && !w?.incognito && w?.kind !== "small" ? id : null;
 }
 
-function updateTree(profileId: string, change: (tree: PinnedTree) => PinnedTree) {
+function updateTree(profileId: string, change: (tree: PinnedTree) => PinnedTree, chosen: (tree: PinnedTree) => string[] = () => []) {
   const s = useBrowser.getState();
   const { trees } = usePinnedFolders.getState();
   const refs = pinnedRefs(s, profileId);
@@ -161,6 +187,7 @@ function updateTree(profileId: string, change: (tree: PinnedTree) => PinnedTree)
   if (!trees[profileId] && refs.length) lastSeen.set(profileId, refs);
   const next = change(base);
   if (next === trees[profileId]) return;
+  choose(profileId, chosen(base));
   if (!hasFolders(next)) {
     const { [profileId]: _gone, ...rest } = trees;
     usePinnedFolders.setState({ trees: rest });
@@ -177,14 +204,14 @@ export function newPinnedFolder(requested: string | null, options: { target?: Fo
   const id = newId("pf");
   const contents = options.contents ?? [];
   const at = (tree: PinnedTree): FolderTarget => options.target ?? (contents.length ? { parent: parentOf(tree, contents[0]!) ?? null, before: contents[0] } : { parent: null });
-  updateTree(profileId, (tree) => createFolder(tree, id, options.name ?? NEW_FOLDER_NAME, at(tree), contents));
+  updateTree(profileId, (tree) => createFolder(tree, id, options.name ?? NEW_FOLDER_NAME, at(tree), contents), () => [folderRef(id), ...contents]);
   if (options.rename !== false && windowId) usePinnedFolders.setState({ renaming: { windowId, folderId: id } });
   return id;
 }
 
 export function renamePinnedFolder(profileId: string, folderId: string, name: string) {
   const trimmed = name.trim();
-  if (trimmed) updateTree(profileId, (tree) => renameFolder(tree, folderId, trimmed));
+  if (trimmed) updateTree(profileId, (tree) => renameFolder(tree, folderId, trimmed), () => [folderRef(folderId)]);
   endFolderRename(folderId);
 }
 
@@ -197,12 +224,12 @@ export function setPinnedFolderCollapsed(profileId: string, folderId: string, co
 }
 
 export function deletePinnedFolder(profileId: string, folderId: string) {
-  updateTree(profileId, (tree) => deleteFolder(tree, folderId));
+  updateTree(profileId, (tree) => deleteFolder(tree, folderId), (tree) => [folderRef(folderId), ...(tree.folders[folderId]?.children ?? [])]);
 }
 
 export function movePinnedNodes(profileId: string, refs: string[], target: FolderTarget) {
   if (!usePinnedFolders.getState().trees[profileId]) return;
-  updateTree(profileId, (tree) => moveNodes(tree, refs, target));
+  updateTree(profileId, (tree) => moveNodes(tree, refs, target), () => refs);
 }
 
 export function subjectRef(s: BrowserState, subject: { kind: "tab" | "group"; id: string }): string | null {
@@ -236,11 +263,29 @@ export function pinGroupIntoFolder(windowId: string, groupId: string, target: Fo
 
 export function planArcImport(profileId: string, plan: Omit<ImportPlan, "expires">, folders: { id: string; name: string; parent: string | null }[]) {
   if (isIncognitoProfile(profileId) || !folders.length) return;
-  updateTree(profileId, (tree) => folders.reduce((t, f) => createFolder(t, f.id, f.name, { parent: f.parent }), tree));
+  updateTree(profileId, (tree) => folders.reduce((t, f) => createFolder(t, f.id, f.name, { parent: f.parent }), tree), () => folders.map((f) => folderRef(f.id)));
   const { plans } = usePinnedFolders.getState();
   usePinnedFolders.setState({ plans: { ...plans, [profileId]: { ...plan, expires: Date.now() + PLAN_MS } } });
 }
 
+export function adoptSyncedTree(profileId: string, tree: PinnedTree | null) {
+  const { trees } = usePinnedFolders.getState();
+  const had = trees[profileId];
+  if (!tree || !hasFolders(tree)) {
+    if (!had) return;
+    const { [profileId]: _gone, ...rest } = trees;
+    lastSeen.delete(profileId);
+    usePinnedFolders.setState({ trees: rest });
+    return;
+  }
+  if (had && JSON.stringify(had) === JSON.stringify(tree)) return;
+  if (!had) {
+    const refs = pinnedRefs(useBrowser.getState(), profileId);
+    if (refs.length) lastSeen.set(profileId, refs);
+  }
+  usePinnedFolders.setState({ trees: { ...trees, [profileId]: tree } });
+}
+
 export function replacePinnedTree(profileId: string, tree: PinnedTree) {
-  updateTree(profileId, () => tree);
+  updateTree(profileId, () => tree, () => [...refsIn(tree), ...Object.keys(tree.folders).map(folderRef)]);
 }
