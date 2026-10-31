@@ -2,7 +2,7 @@
 # Usage: scripts/testflight.sh [--no-upload]
 #
 # Builds Orbit for iPhone and iPad and sends it to TestFlight:
-# regenerates Orbit.xcodeproj with XcodeGen, stamps a timestamp build number (YYMMDD.HHMM),
+# regenerates Orbit.xcodeproj with XcodeGen, numbers the build one above the highest build of this version in App Store Connect (1, 2, 3, …),
 # archives Release for generic/platform=iOS, exports an App Store Connect IPA and uploads it with altool.
 # The export signs with the local "Apple Distribution" certificate and the "Orbit Mobile App Store" profile,
 # which scripts/app-store-profile.swift fetches (or creates) through the App Store Connect API.
@@ -29,7 +29,6 @@ key_path="$keys_dir/AuthKey_$key_id.p8"
 work_dir="$HOME/Library/Caches/Orbit/mobile-app"
 archive_path="$work_dir/archive/Orbit.xcarchive"
 export_path="$work_dir/export"
-build_number="$(date +%y%m%d).$((10#$(date +%H%M)))"
 bundle_id="com.ais.orbit-mobile"
 profile_name="Orbit Mobile App Store"
 
@@ -39,9 +38,14 @@ cd "$mobile_dir"
 find Orbit OrbitTests scripts -name '* 2.*' -print -delete
 
 /opt/homebrew/bin/xcodegen generate --quiet
+version="$(sed -n 's/^ *MARKETING_VERSION: *//p' project.yml | head -1)"
+last_used_file="$work_dir/last-build-$version"
+remote_next="$(swift scripts/next-build-number.swift "$key_path" "$key_id" "$issuer_id" "$bundle_id" "$version")"
+local_next=$(( $(cat "$last_used_file" 2>/dev/null || print 0) + 1 ))
+build_number=$(( remote_next > local_next ? remote_next : local_next ))
 rm -rf "$archive_path" "$export_path"
 
-print "Archiving Orbit build $build_number"
+print "Archiving Orbit $version build $build_number"
 xcodebuild -project Orbit.xcodeproj -scheme Orbit -configuration Release \
   -destination 'generic/platform=iOS' \
   -derivedDataPath "$work_dir/DerivedData-Release" \
@@ -74,4 +78,5 @@ fi
 
 print "Uploading build $build_number to App Store Connect"
 API_PRIVATE_KEYS_DIR="$keys_dir" xcrun altool --upload-app -f "$ipa" -t ios --api-key "$key_id" --api-issuer "$issuer_id"
+print "$build_number" > "$last_used_file"
 print "Uploaded build $build_number. It shows up in TestFlight once processing finishes."
