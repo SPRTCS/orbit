@@ -676,6 +676,7 @@ The rest of `docs/releasing.md` (signing Chrome's framework, pruning, notarizing
   that codesign refuses. `scripts/orbit/release.sh` refuses a checkout under `~/Documents`, `~/Desktop` or iCloud.
 - `pnpm install`, `pod install` in `apps/browser/macos` and `packages/ardiacore/scripts/fetch-engine.sh`
   (`scripts/orbit/install-local.sh --build-only` does all three).
+- `uv` on `PATH` or in `~/.local/bin`: release.sh builds the CLI tarball with it (`apps/cli/scripts/build.sh`).
 - "Developer ID Application: AIS Consulting UG (haftungsbeschrankt) (MYXQKK3T2Z)" with its private key in the login
   keychain, and Xcode signed in to the team: the export creates the Developer ID provisioning profile that the
   keychain-group entitlements need (`-allowProvisioningUpdates`). Only the Account Holder can create the certificate.
@@ -706,7 +707,7 @@ under 100, and release.sh one that isn't above every build in the published feed
    published). It runs `scripts/release.sh` with the prebuilt engine and derived data in
    `~/Library/Caches/Orbit/release-build`, after checking the branding (`rebrand.mjs --check`) and the build
    number. Everything lands in `dist/<version>/`: the Developer ID export in `export/Ardia.app`, the DMG, the zip,
-   the CLI tarball, `appcast.xml`, `release-notes.md` and `provenance.txt`. It takes about half an hour with
+   the CLI tarball, `appcast.xml`, `release-notes.md` and `provenance.txt`. Tag the commit `provenance.txt` names. It takes about half an hour with
    notarization.
 4. Check it by hand (the release skill's `smoke.sh` and `update-test.sh` still expect Ardia):
    - `codesign --verify --deep --strict` and `spctl -a -vv` on `dist/<version>/export/Ardia.app`,
