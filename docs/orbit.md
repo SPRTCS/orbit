@@ -28,10 +28,40 @@ mergeable.
 | Updates | GitHub releases of SPRTCS/orbit (`appcast.xml` asset) | `Info.plist` `SUFeedURL`, `Updater.swift` |
 | Kill switches | `switches.json` in this repo (raw.githubusercontent.com) | `apps/browser/src/lib/killSwitches.ts` |
 | Telemetry | off: `LOGS_URL` is empty, so nothing is sent and the app never asks | `apps/browser/src/telemetry/config.ts` |
+| Internal pages | `orbit://settings`, `orbit://history` …; `ardia://` still opens them | `packages/core/src/appUrls.ts` (rebrand script) |
+| Command line | `orbit` (`~/.local/bin/orbit`), installed in `~/Library/Application Support/Orbit/CLI` from SPRTCS/orbit releases | `apps/cli` (rebrand script) |
 
 The Xcode project, target and file names (`Ardia.xcodeproj`, `Ardia-macOS`, `Ardia.app` in builds) and all
 internal identifiers (`ArdiaCore`, `@ardia/*`, `ARDIA_*` environment variables, native module names) stay as
 upstream has them; renaming them would turn every upstream merge into a conflict.
+
+### What `rebrand.mjs` rewrites
+
+It works line by line on its `TARGETS` (skipping comments) and, for the few rewrites that aren't one word,
+with exact `FILE_EDITS` (applied once: a file that already holds the result is left alone; a rule whose upstream
+text is gone is reported as `stale rule` and fails the run, so a merge that moved it gets noticed).
+
+- **Name:** "Ardia" → "Orbit" in the app's strings (`apps/browser/src`, `packages/shell/src`, Swift string literals
+  of `packages/{shell,import,sync}/ios`, `Ardia-macOS` plists, sdef and entitlements), except `KEEP_LINE`s. The
+  Swift `processName` → `CFBundleName` rule covers menu titles built from the process name.
+- **URLs:** ardia.dev and mantrakp04/ardia links → SPRTCS/orbit (`URLS`); the telemetry and update-check copy in
+  `telemetry/copy.ts` and the onboarding terminal example drop ardia.dev (`TEXT`).
+- **Internal page scheme** (`SCHEME`, `FILE_EDITS`): `ardia://` → `orbit://` in `apps/browser/src` and
+  `packages/core/src` (tests included). `appUrls.ts` shows and produces `orbit://` and parses both schemes
+  (`APP_PREFIX`, `isAppUrl`), `omnibox.ts` knows `orbit` as a scheme, `pages/urls.ts` (`internalPageOf`) accepts both,
+  and `legacy.ts` maps `ardia://` → `orbit://` (`LEGACY_URLS`), so stored tabs, pins, bookmarks, synced records and
+  typed `ardia://` URLs keep working and move to `orbit://`. The engine still sees only `chrome://`; its own
+  `ardia://` script source names and WebUI links to `ardia://` are unchanged and still route. Orbit-owned tests:
+  `packages/core/src/orbitScheme.test.ts`, `apps/browser/src/orbitScheme.test.mjs` (both skipped by the rules).
+- **Command line** (`apps/cli`): the command is `orbit` (`[project.scripts]`, `prog`, every message, help text,
+  `SKILL.md` with skill name `orbit`, the "Orbit Scripts" extension's name); `install.sh` downloads from
+  SPRTCS/orbit, installs into `~/Library/Application Support/Orbit/CLI` and links `~/.local/bin/orbit` (so an
+  installed Ardia CLI keeps its own `ardia`), and the tarball's launcher is `bin/orbit`; `endpoint.py` finds the
+  running app in `~/Library/Application Support/com.aisconsulting.orbit`. `CliInstaller.swift` looks for the CLI in
+  the same folder. Kept: the `ardia_cli` package, `ARDIA_*` variables, `ArdiaControl.json`, the `/ardia/active`
+  endpoint, `ardia-userscript:///` source URLs and the release asset name `ardia-cli-<version>-macos-arm64.tar.gz`.
+- **Native strings** (`FILE_EDITS`): the main window's title (`ArdiaCoreChromeWindow.mm`) and the password export's
+  default file name (`ArdiaCoreServices.mm`).
 
 ### The prebuilt engine, branded for Orbit
 
@@ -71,8 +101,9 @@ expects: check a new upstream engine against it, then update its counts.
   cookies (`docs/engine-build.md` › `chromium-safe-storage-name.patch`). brand-engine.sh checks it's untouched.
 - Identifiers, not display text: the framework's and helpers' bundle ids (`com.ardia.browser.framework`,
   `com.ardia.browser.helper…`), the keychain group names after the team id, "Chromium Helper" process names.
-- The engine's messages for the `ardia` command ("Ardia has no data folder.", "Ardia Scripts …"): the command
-  keeps its name.
+- The engine's messages for the command line ("Ardia has no data folder.", "Ardia Scripts …", "… isn't allowed for
+  the ardia command"): engine strings, unchanged until Orbit builds its own engine. The CLI prefixes them with
+  `orbit:`.
 - iCloud Keychain passkeys need Apple's `com.apple.developer.web-browser.public-key-credential` grant for
   `com.aisconsulting.orbit` (`Ardia-ICloudPasskeys.entitlements` is ready for it). Widevine stays blocked: it
   needs Google's VMP signing.
@@ -217,6 +248,10 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `apps/cli/ardia_cli/cli.py` | AI agents: `mcp_cli.add_parser(…)` after the scripts parser; `if args.command == "mcp": return mcp_cli.run(…)`. |
 | `apps/cli/requirements.in`, `requirements.lock`, `pyproject.toml` | AI agents: `mcp==2.3.0` and its locked dependencies. |
 | `packages/ardiacore/scripts/fetch-engine.sh` | Engine branding: `"$root/scripts/orbit/brand-engine.sh" "$dest/$name.framework" >&2 \|\| die …` before the final `echo`. |
+| `packages/core/src/appUrls.ts`, `omnibox.ts`, `apps/browser/src/legacy.ts`, `components/pages/urls.ts` | `orbit://` scheme (`rebrand.mjs` `FILE_EDITS`): `APP_SCHEME = "orbit"`, `(?:ardia\|orbit)` in `APP_PREFIX` and `isAppUrl`; `"orbit"` after `"ardia"` in `KNOWN_SCHEMES`; `["ardia://", "orbit://"]` last in `LEGACY_URLS`; `internalPageOf` tests `/^(?:ardia\|orbit):\/\//i` and slices after `://`. |
+| `apps/cli/ardia_cli/endpoint.py`, `pyproject.toml`, `install.sh`, `scripts/build.sh` | `orbit` command (`rebrand.mjs`): `INSTALLED_DATA_DIR` → `com.aisconsulting.orbit`; `orbit = "ardia_cli.cli:main"`; `repo=SPRTCS/orbit`, `…/Orbit/CLI`, `bin/orbit`. |
+| `packages/shell/ios/CliInstaller.swift` | `orbit` command (`rebrand.mjs`): CLI home `Library/Application Support/Orbit/CLI`. Native: rebuild. |
+| `packages/ardiacore/ios/ArdiaCoreChromeWindow.mm`, `ArdiaCoreServices.mm` | Name (`rebrand.mjs` `FILE_EDITS`): `window.title = @"Orbit"`, `@"Orbit Passwords.csv"`. Native: rebuild. |
 | `Ardia-macOS/Ardia.entitlements`, `Ardia-ICloudPasskeys.entitlements` | Engine branding: keychain groups `$(AppIdentifierPrefix)com.ardia.browser.<group>` (`rebrand.mjs` writes them). |
 | `components/littleArdia/actions.ts` | Air Traffic Control: import; `sourceApp` threaded through `openExternalUrls` / `openRoutedUrls` / `openUrlsFromApps`, which loops over `airTrafficFlights(…)`; the old body is `openFlight(urls, routed, little?)`, where `little` overrides the Little Orbit setting. |
 | `lib/native.ts` | Air Traffic Control: `onOpenURLs((urls, sourceApp) => openExternalUrls(takeSpaceFiles(urls), sourceApp))`. |
@@ -308,7 +343,7 @@ and every tab, with no engine change.
   `<style data-orbit-boost>` (re-attached if a page removes it) and, when allowed, one at `document_end` running the
   user's JavaScript with `chrome`/`browser` shadowed. Private windows: the extension is enabled in incognito only
   when some boost allows it, and every other boost's script returns on `chrome.extension.inIncognitoContext`. It's
-  separate from the CLI's `Scripts/extension`, so `ardia scripts` and "Let the ardia command control Orbit" are
+  separate from the CLI's `Scripts/extension`, so `orbit scripts` and "Let the orbit command control Orbit" are
   unaffected, and it's hidden from the extensions lists.
 - **Live edits**: open tabs get CSS changes and on/off at once (`liveStyleScript` through `webview.evaluate`
   rewrites or disables the `style[data-orbit-boost]` elements); JavaScript changes apply on reload.
@@ -422,7 +457,7 @@ the Mac. Nothing reads the Keychain at launch either; keys are read the first ti
   - **Tidy Titles**: "Tidy Title" in a pinned tab's menu, "Tidy Titles" in a pinned folder's menu (every pinned
     tab in it and its subfolders), "Tidy Pinned Tab Titles" in the command bar. Sends titles and hosts, sets
     `customTitle` (Reset Name or Rename… take it back); the toast's Undo restores the previous custom titles.
-  - **Tidy Downloads**: "Rename with AI" in a finished download's menu (popover and `ardia://downloads`), and
+  - **Tidy Downloads**: "Rename with AI" in a finished download's menu (popover and `orbit://downloads`), and
     Settings › AI › "Rename downloads with AI" (default off) for each download that finishes. Sends the file name,
     the download's host and, when known, the title of the tab that was in front when it started; never the file.
     The name is sanitized (no `/ \ : * ? " < > |`, control or bidi characters, leading dots; ≤ 80 characters) and
@@ -476,12 +511,12 @@ Retina display, 600 × 450 at 150 % zoom).
 
 ## AI agents (MCP)
 
-`ardia mcp` serves Orbit to AI agents over MCP; user and design docs: `docs/mcp.md`. Orbit-owned files:
+`orbit mcp` serves Orbit to AI agents over MCP; user and design docs: `docs/mcp.md`. Orbit-owned files:
 `apps/cli/ardia_cli/{mcp_cli,mcp_server,mcp_install,agent_browser,agent_policy,agent_scripts,agent_data}.py`,
 `apps/cli/tests/test_mcp.py`, `apps/browser/src/lib/agentSpaces.ts` (+ test), and
 `components/settings/panes/Agents.tsx`. The app publishes the allowed spaces' browser contexts in
-`<data dir>/agent-spaces.json`; the server filters every target by it. Upstream's CLI still defaults to
-`com.ardia.browser` for the data dir; `ardia mcp` looks for Orbit's (`com.aisconsulting.orbit`) first.
+`<data dir>/agent-spaces.json`; the server filters every target by it. The data dir defaults to Orbit's
+(`com.aisconsulting.orbit`, `endpoint.py`'s `INSTALLED_DATA_DIR`, set by the rebrand script).
 
 ## Glass sidebar (Orbit)
 
@@ -490,8 +525,9 @@ Classic every hook takes upstream's path). Glass is modelled on the Radian brows
 `lib/glassTheme.ts` (setting, gradient themes, tokens, metrics) and `components/glassSidebar/*`.
 
 - **Window**: a space without a custom theme gets a synthesized one (`glassSpaceTheme`): peach top-left, a lighter
-  peach bottom-right and a cream wash toward the bottom, translucency 0.25, rotated in OKLab hue to the space's
-  colour (Plum, the default, is the peach). A dark counterpart of each lives in the theme's `dark` look. A space's own
+  peach bottom-right and a cream wash toward the bottom, intensity 0.3 and translucency 1 (a 37% tint over the
+  window's behind-window blur, so the desktop shows through), rotated in OKLab hue to the space's colour (Plum, the
+  default, is the peach at 45% chroma). A dark counterpart of each lives in the theme's `dark` look. A space's own
   theme (Edit Space › Theme) is used as is. The page card gets a 14 pt radius and a hairline edge.
 - **Tokens** (`withGlassTokens`): selected row `rgba(255,255,255,0.24)` with a white top / 10% black bottom hairline
   and a 6 pt shadow; URL field `rgba(0,0,0,0.055)`. The space's accent and power-up colours stay the preset's.
@@ -501,7 +537,7 @@ Classic every hook takes upstream's path). Glass is modelled on the Radian brows
 - **URL field**: a 34 pt capsule, the Site Controls sliders always shown.
 - **Folders** (`PinnedFolders.tsx`): blue filled folder, semibold name, chevron right after it.
 - **Footer** (42 pt): the space avatar (`ProfileBadge`: icon, emoji or initial on the space colour) in a glass ring,
-  a dots capsule (38 × 19 pt, 5 pt dots, click to switch, right click for the space menu, ⌃1–9 unchanged) and a
+  a dots capsule only when there are two or more spaces (38 × 19 pt, 5 pt dots, click to switch, right click for the space menu, ⌃1–9 unchanged) and a
   Downloads circle (address bar in the sidebar only). The avatar opens a menu: New Window, New Private Window, the
   spaces with a check, Add Space, History, What's New, Settings.
 - **Motion** (measured at 30 fps from the reference video): the menu grows from the avatar (bottom-left anchor),

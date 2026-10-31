@@ -1,19 +1,19 @@
 #!/bin/sh
-# Installs the ardia command, which controls a running Ardia from the terminal.
+# Installs the orbit command, which controls a running Orbit from the terminal.
 #
 #   install.sh [--version V] [--sha256 DIGEST] [--uninstall]
 #   install.sh -h | --help
 #
 # --version V        install that release (default: the latest release that ships the CLI).
 # --sha256 DIGEST    the tarball's digest; required for a download (the app passes the one pinned in its signed bundle).
-# --uninstall        remove the installed CLI and its ardia link.
+# --uninstall        remove the installed CLI and its orbit link.
 #
-# Installs into ${ARDIA_CLI_HOME:-~/Library/Application Support/Ardia/CLI}/<version>, points its `current` link
-# there and links ${ARDIA_CLI_BIN_DIR:-~/.local/bin}/ardia to current/bin/ardia. When the default bin dir isn't on
+# Installs into ${ARDIA_CLI_HOME:-~/Library/Application Support/Orbit/CLI}/<version>, points its `current` link
+# there and links ${ARDIA_CLI_BIN_DIR:-~/.local/bin}/orbit to current/bin/orbit. When the default bin dir isn't on
 # the login shell's PATH, it adds one PATH line to ~/.zprofile (~/.bash_profile for bash), once.
 # Re-running it upgrades: a version that is already current is left alone; a new one is verified, staged in
-# <version>.partial, renamed, and `current` is swapped atomically (a running ardia keeps its old dir). It keeps the
-# current and the previous version and prunes the rest, except versions a running ardia uses (it leaves a lease in
+# <version>.partial, renamed, and `current` is swapped atomically (a running orbit keeps its old dir). It keeps the
+# current and the previous version and prunes the rest, except versions a running orbit uses (it leaves a lease in
 # <version>/.leases/<pid>, live while that pid runs and started before the lease was written). Two runs never overlap:
 # each holds a flock on $ARDIA_CLI_HOME/.lock (lockf), which the kernel drops when the run exits.
 # The installed version is `basename "$(readlink "$ARDIA_CLI_HOME/current")"`.
@@ -26,10 +26,10 @@
 set -eu
 umask 022
 
-repo=mantrakp04/ardia
+repo=SPRTCS/orbit
 asset_suffix=-macos-arm64.tar.gz
 version_pattern='^[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}(-[a-z]{1,16}\.[0-9]{1,4})?$'
-cli_home=${ARDIA_CLI_HOME:-$HOME/Library/Application Support/Ardia/CLI}
+cli_home=${ARDIA_CLI_HOME:-$HOME/Library/Application Support/Orbit/CLI}
 default_bin_dir=$HOME/.local/bin
 bin_dir=${ARDIA_CLI_BIN_DIR:-$default_bin_dir}
 version=
@@ -109,19 +109,19 @@ points_into_cli_home() {
 }
 
 check_bin_free() {
-  if { [ -e "$bin_dir/ardia" ] || [ -L "$bin_dir/ardia" ]; } && ! points_into_cli_home "$bin_dir/ardia"; then
-    fail "$bin_dir/ardia already exists and isn't this CLI's link; move it away and run this again"
+  if { [ -e "$bin_dir/orbit" ] || [ -L "$bin_dir/orbit" ]; } && ! points_into_cli_home "$bin_dir/orbit"; then
+    fail "$bin_dir/orbit already exists and isn't this CLI's link; move it away and run this again"
   fi
 }
 
 link_bin() {
-  target=$cli_home/current/bin/ardia
-  [ -L "$bin_dir/ardia" ] && [ "$(readlink "$bin_dir/ardia")" = "$target" ] && return 0
+  target=$cli_home/current/bin/orbit
+  [ -L "$bin_dir/orbit" ] && [ "$(readlink "$bin_dir/orbit")" = "$target" ] && return 0
   printf 'step link\n'
   mkdir -p "$bin_dir" || fail "couldn't create $bin_dir"
   check_bin_free
-  ln -sfh "$target" "$bin_dir/.ardia.$$" || fail "couldn't create the ardia link"
-  mv -fh "$bin_dir/.ardia.$$" "$bin_dir/ardia" || { rm -f "$bin_dir/.ardia.$$"; fail "couldn't link $bin_dir/ardia"; }
+  ln -sfh "$target" "$bin_dir/.orbit.$$" || fail "couldn't create the orbit link"
+  mv -fh "$bin_dir/.orbit.$$" "$bin_dir/orbit" || { rm -f "$bin_dir/.orbit.$$"; fail "couldn't link $bin_dir/orbit"; }
 }
 
 lease_live() {
@@ -192,8 +192,8 @@ check_tree() {
 
 if [ "$uninstall" -eq 1 ]; then
   printf 'step uninstall\n'
-  if points_into_cli_home "$bin_dir/ardia"; then
-    rm -f "$bin_dir/ardia" || fail "couldn't remove $bin_dir/ardia"
+  if points_into_cli_home "$bin_dir/orbit"; then
+    rm -f "$bin_dir/orbit" || fail "couldn't remove $bin_dir/orbit"
   fi
   if [ -d "$cli_home" ]; then
     take_lock
@@ -212,8 +212,8 @@ if [ "$uninstall" -eq 1 ]; then
   exit 0
 fi
 
-[ "$(uname -s)" = Darwin ] || fail "the ardia CLI runs on macOS only"
-[ "$(uname -m)" = arm64 ] || fail "the ardia CLI needs an Apple silicon Mac"
+[ "$(uname -s)" = Darwin ] || fail "the orbit CLI runs on macOS only"
+[ "$(uname -m)" = arm64 ] || fail "the orbit CLI needs an Apple silicon Mac"
 
 printf 'step resolve\n'
 if [ -n "${ARDIA_CLI_URL:-}" ]; then
@@ -231,7 +231,7 @@ else
   if [ -z "$url" ]; then
     url=$(fetch "https://api.github.com/repos/$repo/releases?per_page=30" 2>/dev/null | grep -o "$pattern" | head -n 1 || true)
   fi
-  [ -n "$url" ] || fail "no Ardia release ships the CLI yet (or GitHub is unreachable)"
+  [ -n "$url" ] || fail "no Orbit release ships the CLI yet (or GitHub is unreachable)"
   name=${url##*/}
   version=${name#ardia-cli-}
   version=${version%"$asset_suffix"}
@@ -239,7 +239,7 @@ fi
 is_version "$version" || fail "bad version: $version"
 case $url in
   file://*) ;;
-  *) [ -n "$pinned_sha" ] || fail "no --sha256: install the ardia command from Ardia (Settings › Advanced), which pins its digest" ;;
+  *) [ -n "$pinned_sha" ] || fail "no --sha256: install the orbit command from Orbit (Settings › Advanced), which pins its digest" ;;
 esac
 printf 'version %s\n' "$version"
 check_bin_free
@@ -250,10 +250,10 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/ardia-cli-install.XXXXXX") || fail "couldn't c
 chmod 700 "$work"
 
 previous=$(readlink "$cli_home/current" 2>/dev/null || true)
-if [ "$previous" = "$version" ] && [ -x "$cli_home/$version/bin/ardia" ]; then
+if [ "$previous" = "$version" ] && [ -x "$cli_home/$version/bin/orbit" ]; then
   link_bin
   reported=1
-  printf 'installed %s\n' "$bin_dir/ardia"
+  printf 'installed %s\n' "$bin_dir/orbit"
   exit 0
 fi
 is_version "$previous" || previous=
@@ -280,10 +280,10 @@ mkdir "$staged" || fail "couldn't create $staged"
 tar -xzf "$work/cli.tar.gz" -C "$staged" --strip-components 1 --no-same-owner "ardia-cli-$version" \
   || fail "couldn't extract ardia-cli-$version from the tarball"
 check_tree "$staged"
-[ -x "$staged/bin/ardia" ] || fail "the tarball has no ardia-cli-$version/bin/ardia"
+[ -x "$staged/bin/orbit" ] || fail "the tarball has no ardia-cli-$version/bin/orbit"
 xattr -dr com.apple.quarantine "$staged" 2>/dev/null || true
-"$staged/bin/ardia" --version >"$work/check.out" 2>&1 9>&- || fail "the downloaded ardia doesn't run: $(tail -n 1 "$work/check.out")"
-if [ -d "$dest" ] && ! [ -L "$dest" ] && [ -x "$dest/bin/ardia" ] && in_use "$dest"; then
+"$staged/bin/orbit" --version >"$work/check.out" 2>&1 9>&- || fail "the downloaded orbit doesn't run: $(tail -n 1 "$work/check.out")"
+if [ -d "$dest" ] && ! [ -L "$dest" ] && [ -x "$dest/bin/orbit" ] && in_use "$dest"; then
   rm -rf "$staged"
 else
   if [ -e "$dest" ] || [ -L "$dest" ]; then
@@ -329,4 +329,4 @@ if [ "$bin_dir" = "$default_bin_dir" ]; then
 fi
 
 reported=1
-printf 'installed %s\n' "$bin_dir/ardia"
+printf 'installed %s\n' "$bin_dir/orbit"

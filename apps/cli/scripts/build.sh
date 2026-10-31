@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the ardia CLI tarball: a relocatable CPython 3.13 with ardia_cli, its pinned dependencies and esbuild.
+# Builds the orbit CLI tarball: a relocatable CPython 3.13 with ardia_cli, its pinned dependencies and esbuild.
 #
 #   apps/cli/scripts/build.sh <version> <out dir>
 #   apps/cli/scripts/build.sh -h | --help
@@ -91,7 +91,7 @@ find "$root" -type l | while IFS= read -r link; do
 done
 "$python" -I -c 'import ardia_cli.cli, ardia_cli.scripts_cli, ardia_cli.scripts_test, ardia_cli.scripts_store, ardia_cli.browsing, pydoll, sqlite3, ssl, zoneinfo, ctypes, lzma; from ardia_cli.userscript import find_esbuild; assert find_esbuild().endswith("ardia_cli/bin/esbuild")' >/dev/null
 
-cat >"$root/bin/ardia" <<'EOF'
+cat >"$root/bin/orbit" <<'EOF'
 #!/bin/sh
 self=$0
 while [ -L "$self" ]; do
@@ -104,9 +104,9 @@ done
 root=$(cd -P "$(dirname "$self")/.." && pwd -P)
 exec "$root/python/bin/python3" -I -m ardia_cli "$@"
 EOF
-chmod 755 "$root/bin/ardia"
+chmod 755 "$root/bin/orbit"
 mkdir "$root/.leases"
-"$root/bin/ardia" --version >/dev/null
+"$root/bin/orbit" --version >/dev/null
 find "$root" -name __pycache__ -type d -prune -exec rm -rf {} +
 
 tarball=ardia-cli-$version-macos-arm64.tar.gz

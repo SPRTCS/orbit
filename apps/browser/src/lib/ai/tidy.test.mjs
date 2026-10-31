@@ -163,7 +163,7 @@ test("hostOf", () => {
   assert.equal(t.hostOf("https://www.Example.com:8080/a?b"), "example.com");
   assert.equal(t.hostOf("https://user:pw@mail.google.com/"), "mail.google.com");
   assert.equal(t.hostOf("about:blank"), "");
-  assert.equal(t.hostOf("ardia://downloads"), "downloads");
+  assert.equal(t.hostOf("orbit://downloads"), "downloads");
 });
 
 test("tidy settings: group naming on, download renaming off by default; bad values fall back", async () => {

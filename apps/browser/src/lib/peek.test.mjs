@@ -30,7 +30,7 @@ test("sites are registrable domains: subdomains, shared suffixes, ports, IPs", (
   assert.equal(siteOf("https://foo.github.io/bar"), "foo.github.io");
   assert.equal(siteOf("http://192.168.1.10:8080/"), "192.168.1.10");
   assert.equal(siteOf("http://localhost:3000/"), "localhost");
-  assert.equal(siteOf("ardia://settings"), "");
+  assert.equal(siteOf("orbit://settings"), "");
 });
 
 test("the page's copy of the site rule agrees with the app's", () => {

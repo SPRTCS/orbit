@@ -10,7 +10,7 @@ class ForbiddenCommand(RuntimeError):
 def check_method(method) -> None:
     name = getattr(method, "value", method)
     if name in FORBIDDEN_METHODS:
-        raise ForbiddenCommand(f"ardia exec never sends {name}: it's the user's browser")
+        raise ForbiddenCommand(f"orbit exec never sends {name}: it's the user's browser")
 
 
 def check_command(command) -> None:
@@ -26,7 +26,7 @@ def check_message(message) -> None:
     try:
         payload = json.loads(message)
     except ValueError:
-        raise ForbiddenCommand("ardia exec only sends JSON commands") from None
+        raise ForbiddenCommand("orbit exec only sends JSON commands") from None
     for command in payload if isinstance(payload, list) else [payload]:
         check_command(command)
 
@@ -40,7 +40,7 @@ async def direct_connect(uri, **kwargs):
 
     async def guarded_send(message, *args, **send_kwargs):
         if not isinstance(message, (str, bytes, bytearray, memoryview)):
-            raise ForbiddenCommand("ardia exec only sends whole messages, not fragments")
+            raise ForbiddenCommand("orbit exec only sends whole messages, not fragments")
         check_message(message)
         return await send(message, *args, **send_kwargs)
 

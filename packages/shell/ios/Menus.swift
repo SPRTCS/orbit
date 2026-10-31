@@ -253,7 +253,7 @@ enum MainMenu {
   private static var extensionIcons: [String: NSImage] = [:]
 
   static func build() -> NSMenu {
-    let appName = ProcessInfo.processInfo.processName
+    let appName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? ProcessInfo.processInfo.processName)
     let main = NSMenu()
     moveToProfile = NSMenu(title: "Move to Space")
     moveToWindow = NSMenu(title: "Move to Window")

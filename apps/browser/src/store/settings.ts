@@ -59,6 +59,7 @@ export type Settings = {
   appearance: "auto" | "light" | "dark";
   addressBar: "toolbar" | "sidebar";
   sidebarStyle?: "glass" | "classic";
+  showSyncedDevices?: boolean;
 
   defaultProfileId: string;
 

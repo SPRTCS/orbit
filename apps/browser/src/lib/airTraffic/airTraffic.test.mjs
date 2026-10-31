@@ -171,6 +171,6 @@ test("the store saves air-traffic.json and 'Always open in this Space' replaces 
 test("site rules come from http(s) pages only", () => {
   assert.equal(rules.siteDomain("https://www.youtube.com/watch?v=1"), "youtube.com");
   assert.equal(rules.siteDomain("http://localhost:3000/"), "localhost");
-  assert.equal(rules.siteDomain("ardia://newtab"), null);
+  assert.equal(rules.siteDomain("orbit://newtab"), null);
   assert.equal(rules.siteDomain("file:///Users/x"), null);
 });

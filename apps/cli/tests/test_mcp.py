@@ -230,7 +230,7 @@ class AgentTools(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(t["url"] == "https://example.com/" for t in self.fake.targets.values()))
 
     async def test_open_tab_refuses_other_schemes(self):
-        for url in ("file:///etc/passwd", "chrome://settings", "javascript:alert(1)", "ardia://history"):
+        for url in ("file:///etc/passwd", "chrome://settings", "javascript:alert(1)", "ardia://history", "orbit://history"):
             with self.assertRaisesRegex(AgentError, "http"):
                 await self.browser.open_tab(url)
         self.assertNotIn("Target.createTarget", self.fake.methods())

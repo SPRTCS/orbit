@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 
 SCRIPTS_DESCRIPTION = """\
-Write userscripts in TypeScript or JavaScript, test them against real pages, and install them so Ardia runs them.
+Write userscripts in TypeScript or JavaScript, test them against real pages, and install them so Orbit runs them.
 
 A script is a .ts or .js file (a .user.js from Violentmonkey or Tampermonkey works as is) that starts with a
-// ==UserScript== block. Keys Ardia reads:
+// ==UserScript== block. Keys Orbit reads:
   @name @namespace @version @description
   @match, @exclude-match        Chrome match patterns (https://*.example.com/*, <all_urls>)
   @include, @exclude            globs over the whole URL: * any run, ? zero or one character, \\ escapes (http(s) only)
@@ -15,12 +15,12 @@ A script is a .ts or .js file (a .user.js from Violentmonkey or Tampermonkey wor
   @noframes                     top frame only (default: every frame)
 @grant other than none, @require and @resource are ignored with a warning: there are no GM_* APIs, and relative
 imports are bundled by esbuild instead (one IIFE, recent Chrome, not minified; types are stripped, not checked; no
-tsconfig.json is read). Imports must stay inside the script's own folder, and nothing from Ardia's data folder.
+tsconfig.json is read). Imports must stay inside the script's own folder, and nothing from Orbit's data folder.
 
 Commands:
   new NAME           scaffold NAME.user.ts in the current directory
   test FILE          run it once in a background tab of its own and report what it did
-  install FILE       build it and have Ardia run it (needs "Let the ardia command control Ardia" on)
+  install FILE       build it and have Orbit run it (needs "Let the orbit command control Orbit" on)
   uninstall NAME     remove an installed script by @name or id
   list               the installed scripts
 """
@@ -34,29 +34,29 @@ and in iframes, and the --expect value. After the script ran and the page loaded
 reports an unhandled promise rejection about a second late), retrying --expect (a JavaScript expression, awaited,
 in the page's world) until it's truthy. The tab closes at the end unless --keep.
 
-@inject-into content runs in the page's world here (ardia command connections can't create isolated worlds), with
+@inject-into content runs in the page's world here (orbit command connections can't create isolated worlds), with
 a warning.
 
 Exit status: 0 the script ran without uncaught exceptions and --expect was truthy, 1 otherwise (build error, the
-page didn't match, an exception, a falsy --expect), 2 Ardia can't be reached.
+page didn't match, an exception, a falsy --expect), 2 Orbit can't be reached.
 
 Examples:
-  ardia scripts test hide-sidebar.user.ts
-  ardia scripts test dark.user.ts --url https://github.com/ --expect 'document.documentElement.dataset.dark'
-  ardia scripts test x.user.ts --wait 5 --screenshot /tmp/x.png --json
+  orbit scripts test hide-sidebar.user.ts
+  orbit scripts test dark.user.ts --url https://github.com/ --expect 'document.documentElement.dataset.dark'
+  orbit scripts test x.user.ts --wait 5 --screenshot /tmp/x.png --json
 """
 INSTALL_DESCRIPTION = """\
 Build FILE and install it: the CLI keeps a copy under <data dir>/Scripts/scripts/<id>/ and regenerates the
-Ardia Scripts extension (<data dir>/Scripts/extension/), which Ardia loads into every profile. Installing a script
-with the same @name again updates it. Then it waits up to 10 s for Ardia to report each profile.
+Orbit Scripts extension (<data dir>/Scripts/extension/), which Orbit loads into every profile. Installing a script
+with the same @name again updates it. Then it waits up to 10 s for Orbit to report each profile.
 
-Exit status: 0 loaded (or Ardia quit and loads it on its next launch), 1 a build or load error, 2 Ardia isn't
-running or "Let the ardia command control Ardia" is off, 3 Ardia didn't answer in 10 s (the outcome is unknown).
+Exit status: 0 loaded (or Orbit quit and loads it on its next launch), 1 a build or load error, 2 Orbit isn't
+running or "Let the orbit command control Orbit" is off, 3 Orbit didn't answer in 10 s (the outcome is unknown).
 """
 NEW_TEMPLATE = """\
 // ==UserScript==
 // @name        {name}
-// @namespace   ardia
+// @namespace   orbit
 // @version     0.1.0
 // @description {name}
 {matches}// @run-at      document-end
@@ -67,7 +67,7 @@ console.log({quoted}, "ran on", location.href);
 """
 ENDPOINT_EPILOG = """\
 Endpoint: --ws, else --port (plain DevTools servers only), else $ARDIA_CDP_URL, else
-<data dir>/Chromium/ArdiaControl.json with --data-dir or $ARDIA_DATA_DIR, else the installed Ardia's.
+<data dir>/Chromium/ArdiaControl.json with --data-dir or $ARDIA_DATA_DIR, else the installed Orbit's.
 """
 UNKNOWN_EXIT = 3
 
@@ -95,22 +95,22 @@ def add_parser(commands, formatter):
     test.add_argument("--json", action="store_true", help="print the report as JSON")
     add_endpoint_arguments(test)
 
-    install = sub.add_parser("install", help="install a script so Ardia runs it", description=INSTALL_DESCRIPTION, formatter_class=formatter)
+    install = sub.add_parser("install", help="install a script so Orbit runs it", description=INSTALL_DESCRIPTION, formatter_class=formatter)
     install.add_argument("file", metavar="FILE", help="the .ts or .js userscript")
-    install.add_argument("--data-dir", metavar="DIR", help="the Ardia data dir (default: $ARDIA_DATA_DIR, else the installed app's)")
+    install.add_argument("--data-dir", metavar="DIR", help="the Orbit data dir (default: $ARDIA_DATA_DIR, else the installed app's)")
 
     uninstall = sub.add_parser("uninstall", help="remove an installed script", description="Remove an installed script by its @name or id. Exit status as for install.")
-    uninstall.add_argument("name", metavar="NAME", help="the script's @name or id (see ardia scripts list)")
-    uninstall.add_argument("--data-dir", metavar="DIR", help="the Ardia data dir (default: $ARDIA_DATA_DIR, else the installed app's)")
+    uninstall.add_argument("name", metavar="NAME", help="the script's @name or id (see orbit scripts list)")
+    uninstall.add_argument("--data-dir", metavar="DIR", help="the Orbit data dir (default: $ARDIA_DATA_DIR, else the installed app's)")
 
-    listing = sub.add_parser("list", help="list the installed scripts", description="List the installed scripts and what Ardia last reported about them.")
+    listing = sub.add_parser("list", help="list the installed scripts", description="List the installed scripts and what Orbit last reported about them.")
     listing.add_argument("--json", action="store_true", help="print JSON")
-    listing.add_argument("--data-dir", metavar="DIR", help="the Ardia data dir (default: $ARDIA_DATA_DIR, else the installed app's)")
+    listing.add_argument("--data-dir", metavar="DIR", help="the Orbit data dir (default: $ARDIA_DATA_DIR, else the installed app's)")
     return scripts
 
 
 def add_endpoint_arguments(parser):
-    parser.add_argument("--data-dir", metavar="DIR", help="the Ardia data dir to find (default: $ARDIA_DATA_DIR, else the installed app's)")
+    parser.add_argument("--data-dir", metavar="DIR", help="the Orbit data dir to find (default: $ARDIA_DATA_DIR, else the installed app's)")
     parser.add_argument("--port", type=int, metavar="N", help="a plain DevTools server on 127.0.0.1:N (testing)")
     parser.add_argument("--ws", metavar="URL", help="a browser WebSocket URL")
 
@@ -154,7 +154,7 @@ def new(args) -> int:
 
     name = args.name.strip()
     if not name or "\n" in name:
-        complain("ardia scripts new: give the script a name")
+        complain("orbit scripts new: give the script a name")
         return 1
     stem = name if all(c.isalnum() or c in "-_." for c in name) else slug(name)
     path = Path.cwd() / f"{stem}.user.ts"
@@ -163,17 +163,17 @@ def new(args) -> int:
         for pattern in patterns:
             check_match(pattern, "match")
     except ScriptError as error:
-        complain(f"ardia scripts new: {error}")
+        complain(f"orbit scripts new: {error}")
         return 1
     matches = "".join(f"// @match       {pattern}\n" for pattern in patterns)
     try:
         with open(path, "x", encoding="utf-8") as handle:
             handle.write(NEW_TEMPLATE.format(name=name, matches=matches, quoted=json.dumps(name)))
     except FileExistsError:
-        complain(f"ardia scripts new: {path} already exists")
+        complain(f"orbit scripts new: {path} already exists")
         return 1
     except OSError as error:
-        complain(f"ardia scripts new: {error}")
+        complain(f"orbit scripts new: {error}")
         return 1
     say(str(path))
     return 0
@@ -201,13 +201,13 @@ def test(args) -> int:
         endpoint = resolve(ws=args.ws, port=args.port, data_dir=args.data_dir)
         report = asyncio.run(scripts_test.run_test(built, url, endpoint, args.expect, args.wait, args.screenshot, args.keep))
     except EndpointError as error:
-        complain(f"ardia: {error}")
+        complain(f"orbit: {error}")
         return 2
     except KeyboardInterrupt:
-        complain("ardia scripts test: interrupted")
+        complain("orbit scripts test: interrupted")
         return 130
     except asyncio.CancelledError:
-        complain("ardia scripts test: terminated")
+        complain("orbit scripts test: terminated")
         return 143
     if args.json:
         say(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
@@ -220,7 +220,7 @@ def report_build_error(args, message: str) -> int:
     if getattr(args, "json", False):
         say(json.dumps({"ok": False, "ran": False, "script": args.file, "error": message}, indent=2, ensure_ascii=False))
     else:
-        complain(f"ardia scripts: {message}")
+        complain(f"orbit scripts: {message}")
     return 1
 
 
@@ -235,17 +235,17 @@ def change(args) -> int:
         try:
             built = build(args.file, data_dirs=[root])
         except ScriptError as error:
-            complain(f"ardia scripts: {error}")
+            complain(f"orbit scripts: {error}")
             return 1
         for warning in built.meta.warnings + built.warnings:
             say(f"warning: {warning}")
         if not built.meta.matches and not built.meta.includes:
-            complain("ardia scripts: add an @match or @include line so the script runs somewhere")
+            complain("orbit scripts: add an @match or @include line so the script runs somewhere")
             return 1
     try:
         require_control(root)
     except EndpointError as error:
-        complain(f"ardia: {error}")
+        complain(f"orbit: {error}")
         return 2
     store = Store(root)
     try:
@@ -257,7 +257,7 @@ def change(args) -> int:
                 found = store.find(args.name)
                 if found is None:
                     names = ", ".join(m.get("name", m["id"]) for m in store.installed()) or "none"
-                    complain(f"ardia scripts: no installed script is named {args.name!r} (installed: {names})")
+                    complain(f"orbit scripts: no installed script is named {args.name!r} (installed: {names})")
                     return 1
                 record, generation = store.apply(remove=found["id"])
                 summary = f"uninstalled {record.get('name')} ({record['id']})"
@@ -274,18 +274,18 @@ def change(args) -> int:
 
         outcome, status = store.wait_status(generation, alive)
     except (StoreError, OSError) as error:
-        complain(f"ardia scripts: {error}")
+        complain(f"orbit scripts: {error}")
         return 1
     finally:
         store.close()
     if outcome == "quit":
-        say("Ardia quit (or control was turned off) before applying it; it applies the change on its next launch")
+        say("Orbit quit (or control was turned off) before applying it; it applies the change on its next launch")
         return 0
     if outcome == "timeout":
-        say(f"Ardia hasn't reported generation {generation} after 10 s: the outcome is unknown, it may still be applying it (see ardia scripts list)")
+        say(f"Orbit hasn't reported generation {generation} after 10 s: the outcome is unknown, it may still be applying it (see orbit scripts list)")
         return UNKNOWN_EXIT
     if outcome == "superseded":
-        say(f"a newer change (generation {status.get('generation')}) replaced this one; Ardia reported that one:")
+        say(f"a newer change (generation {status.get('generation')}) replaced this one; Orbit reported that one:")
         removed_all = False
     return print_profiles(status, removed_all)
 
@@ -300,7 +300,7 @@ def profile_lines(status: dict, removed: bool = False) -> tuple[list[str], bool]
     profiles = status.get("profiles") if isinstance(status, dict) else None
     lines, failed = [], False
     if not isinstance(profiles, dict) or not profiles:
-        return ["Ardia reported no profiles"], False
+        return ["Orbit reported no profiles"], False
     for name, result in profiles.items():
         if not isinstance(result, dict):
             lines.append(f"{name}: unknown result")
@@ -342,7 +342,7 @@ def listing(args) -> int:
         try:
             note = repair_if_present(root)
         except (StoreError, OSError) as error:
-            complain(f"ardia scripts: can't check the installed scripts ({error})")
+            complain(f"orbit scripts: can't check the installed scripts ({error})")
             return 1
         if note and not args.json:
             say(f"repaired: {note}")
@@ -354,7 +354,7 @@ def listing(args) -> int:
         status = store.status()
         removed = generation > 0 and not store.extension_present()
     except (StoreError, OSError) as error:
-        complain(f"ardia scripts: {error}")
+        complain(f"orbit scripts: {error}")
         return 1
     finally:
         store.close()
@@ -370,9 +370,9 @@ def listing(args) -> int:
         reported = status.get("generation") if status else None
         if reported == generation:
             lines, _ = profile_lines(status, removed)
-            say(f"generation {generation}, reported by Ardia:")
+            say(f"generation {generation}, reported by Orbit:")
             for line in lines:
                 say(f"  {line}")
         else:
-            say(f"generation {generation}, not reported by Ardia yet" + (f" (it last reported {reported})" if reported else ""))
+            say(f"generation {generation}, not reported by Orbit yet" + (f" (it last reported {reported})" if reported else ""))
     return 0

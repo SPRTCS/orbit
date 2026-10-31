@@ -104,7 +104,7 @@ def parse_meta(source: str, filename: str) -> Meta:
             meta.warnings.append(f"@{key} {value} is ignored: import the code instead (esbuild bundles relative imports)")
     for grant in grants:
         if grant != "none":
-            meta.warnings.append(f"@grant {grant} is ignored: Ardia runs userscripts without GM_* APIs")
+            meta.warnings.append(f"@grant {grant} is ignored: Orbit runs userscripts without GM_* APIs")
     if not meta.matches and not meta.includes:
         meta.warnings.append("no @match or @include: the script runs nowhere")
     return meta
@@ -263,7 +263,7 @@ def lineage(path: Path) -> list[tuple[int, int] | None]:
 def check_file(real: Path, forbidden: set, label: str) -> list:
     chain = lineage(real)
     if any(item in forbidden for item in chain if item):
-        raise ScriptError(f"refusing to bundle {real}: it's in Ardia's data folder")
+        raise ScriptError(f"refusing to bundle {real}: it's in Orbit's data folder")
     try:
         info = os.stat(real)
     except OSError as error:
@@ -307,7 +307,7 @@ def build(path: str | Path, sourcemap: bool = False, data_dirs=()) -> Build:
     meta = parse_meta(source, path.name)
     esbuild = find_esbuild()
     if not esbuild:
-        hint = "reinstall the ardia command" if installed() else "run pnpm install, or put esbuild on PATH"
+        hint = "reinstall the orbit command" if installed() else "run pnpm install, or put esbuild on PATH"
         raise ScriptError(f"esbuild isn't available: {hint}")
     entry = Path(os.path.realpath(path))
     check_file(entry, {item for item in (identity(root) for root in forbidden_roots(data_dirs)) if item}, "a script")

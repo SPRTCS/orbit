@@ -36,7 +36,7 @@ test("another profile's tab names that profile's engine profile", () => {
 });
 
 test("nothing for a page the engine doesn't load at launch", () => {
-  for (const url of ["", "about:blank", "ardia://history", "chrome://settings", "file:///tmp/x.html", "javascript:alert(1)"]) {
+  for (const url of ["", "about:blank", "orbit://history", "chrome://settings", "file:///tmp/x.html", "javascript:alert(1)"]) {
     hydrate([win("w1", ["a"], "a")], [tab("a", "w1", url)], { focusedWindowId: "w1" });
     assert.equal(launchTab(S(), "w1"), null, url);
   }
@@ -110,7 +110,7 @@ test("staleness: a navigation, a switch, a close and a window change all move th
   assert.equal(savedHint().id, "a", "closed: the tab shown next");
   S().setFocusedWindow("w2");
   assert.equal(savedHint().id, "c", "another window in front");
-  S().updateTab("c", { url: "ardia://history" });
+  S().updateTab("c", { url: "orbit://history" });
   assert.equal(savedHint(), null, "now one of the app's own pages");
 });
 

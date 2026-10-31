@@ -37,7 +37,7 @@ function setup() {
 test("only regular, unpinned web tabs are archivable", () => {
   assert.equal(archive.archivable(closed("1", "https://a.com")), true);
   assert.equal(archive.archivable(closed("2", "")), false, "blank tab");
-  assert.equal(archive.archivable(closed("3", "ardia://settings")), false, "internal page");
+  assert.equal(archive.archivable(closed("3", "orbit://settings")), false, "internal page");
   assert.equal(archive.archivable(closed("4", "https://a.com", { pinnedTile: true })), false, "unloaded pin");
   const secret = closed("5", "https://a.com");
   secret.tab.profileId = "incognito:1";

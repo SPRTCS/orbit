@@ -1,32 +1,32 @@
 # Orbit for AI agents (MCP)
 
-`ardia mcp` is an [MCP](https://modelcontextprotocol.io) server that lets AI agents (Claude Code, Claude Desktop,
+`orbit mcp` is an [MCP](https://modelcontextprotocol.io) server that lets AI agents (Claude Code, Claude Desktop,
 Codex, Cursor) use the user's own Orbit: list and open tabs, read pages, click, type, take screenshots and search
-history. It is opt-in twice over: the master switch "Let the ardia command control Orbit" must be on, and each space
+history. It is opt-in twice over: the master switch "Let the orbit command control Orbit" must be on, and each space
 (Orbit's profiles) must be allowed on its own. Nothing is allowed by default.
 
 ## Setup
 
-1. In Orbit: Settings › Advanced › Command line › turn on "Let the ardia command control Orbit".
+1. In Orbit: Settings › Advanced › Command line › turn on "Let the orbit command control Orbit".
 2. Same pane, "AI agents (MCP)": turn on "Allow AI agents in <space>" for each space agents may use.
 3. In Terminal, add the server to your agent (the row "Connect an agent" copies the command):
 
 | Agent | Command | File it edits |
 | --- | --- | --- |
-| Claude Code | `ardia mcp install --target claude-code` | `~/.claude.json` (`--project`: `./.mcp.json`) |
-| Claude Desktop | `ardia mcp install --target claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` |
-| Cursor | `ardia mcp install --target cursor` | `~/.cursor/mcp.json` (`--project`: `./.cursor/mcp.json`) |
-| Codex | `ardia mcp install --target codex` | `~/.codex/config.toml` |
+| Claude Code | `orbit mcp install --target claude-code` | `~/.claude.json` (`--project`: `./.mcp.json`) |
+| Claude Desktop | `orbit mcp install --target claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Cursor | `orbit mcp install --target cursor` | `~/.cursor/mcp.json` (`--project`: `./.cursor/mcp.json`) |
+| Codex | `orbit mcp install --target codex` | `~/.codex/config.toml` |
 
 `--target` repeats. Only the `orbit` entry (`mcpServers.orbit`, or `[mcp_servers.orbit]` in Codex's TOML) changes;
 the file is copied to `<file>.orbit-backup-<time>` first and replaced atomically, and a file that doesn't parse or is
-a symbolic link is left alone. `ardia mcp uninstall --target …` removes the entry. `--data-dir DIR` pins the server
+a symbolic link is left alone. `orbit mcp uninstall --target …` removes the entry. `--data-dir DIR` pins the server
 to one data dir (test instances). Restart the agent afterwards.
 
-The entry runs the installed launcher (`~/.local/bin/ardia mcp`); from a repo checkout it runs
+The entry runs the installed launcher (`~/.local/bin/orbit mcp`); from a repo checkout it runs
 `<python> -m ardia_cli mcp` with `PYTHONPATH` set to `apps/cli`, so it works before a CLI release exists.
 
-By hand, any MCP client: command `ardia`, args `["mcp"]`, stdio transport.
+By hand, any MCP client: command `orbit`, args `["mcp"]`, stdio transport.
 
 ## Tools
 
@@ -56,7 +56,7 @@ running, a password field, and so on).
 
 ## Permissions
 
-- **Master switch.** The server connects only through `ArdiaControl.json` (the same checks as `ardia exec`: regular
+- **Master switch.** The server connects only through `ArdiaControl.json` (the same checks as `orbit exec`: regular
   file, owned by the user, mode 0600, live pid). With the switch off it answers "Orbit isn't running, or … is off".
 - **Spaces.** The app publishes `<data dir>/agent-spaces.json` (`lib/agentSpaces.ts`): the user's choices
   (`allowed`, `closeAnyTab`) and, while control is on, the DevTools browser context id of each allowed space plus
@@ -82,7 +82,7 @@ running, a password field, and so on).
 - Page scripts run in an isolated world (`Page.createIsolatedWorld`), so a page can't tamper with them.
 - Input events go to a tab only while it's visible; a background tab gets script clicks and value setting instead, so
   no queued click fires later when the user opens it.
-- Output is redacted like `ardia exec` (the control token never appears).
+- Output is redacted like `orbit exec` (the control token never appears).
 - The connection is opened per call and dropped after 20 s idle, so Orbit's "controlling" bar (`CliControlBar`)
   shows while an agent works, and its Stop button turns the master switch off.
 - Page content is untrusted: the server's instructions tell the agent to treat it as data.

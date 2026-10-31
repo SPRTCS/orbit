@@ -165,7 +165,7 @@ public final class AppUpdater: NSObject {
 
   private func showNotSetUp() {
     let alert = NSAlert()
-    let name = ProcessInfo.processInfo.processName
+    let name = (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? ProcessInfo.processInfo.processName)
     alert.messageText = "Updates aren't set up for this build"
     alert.informativeText = "This copy of \(name) doesn't have an update feed, so it can't check for new versions. Get newer versions from wherever you got this one."
     alert.addButton(withTitle: "OK")

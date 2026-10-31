@@ -32,6 +32,7 @@ export function GlassFooter({ windowId, width, downloads }: { windowId: string; 
   const setOpen = (value: boolean) => useAvatarMenu.setState({ [windowId]: value });
   const closedAt = useRef(0);
   const incognito = useIsIncognito();
+  const manySpaces = useBrowser((s) => s.profileOrder.filter((id) => s.profiles[id]).length > 1);
   const close = () => {
     closedAt.current = Date.now();
     setOpen(false);
@@ -48,7 +49,7 @@ export function GlassFooter({ windowId, width, downloads }: { windowId: string; 
             setOpen(!open);
           }}
         />
-        {incognito ? null : <SpaceDots windowId={windowId} />}
+        {incognito || !manySpaces ? null : <SpaceDots windowId={windowId} />}
         {downloads ? <DownloadsCircle windowId={windowId} /> : null}
       </View>
       <AvatarMenu windowId={windowId} width={width} open={open} onClose={close} />

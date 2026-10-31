@@ -11,13 +11,13 @@ export const INTERNAL_PAGES: Record<InternalPageId, { title: string }> = {
   downloads: { title: "Downloads" },
 };
 
-const SCHEME = "ardia://";
+const SCHEME = "orbit://";
 
 const internalUrl = (page: InternalPageId, query?: string) => `${SCHEME}${page}${query ? `?q=${encodeURIComponent(query)}` : ""}`;
 
 export function internalPageOf(url: string | null | undefined): InternalPageId | null {
-  if (!url?.toLowerCase().startsWith(SCHEME)) return null;
-  const page = url.slice(SCHEME.length).split(/[/?#]/)[0]!.toLowerCase();
+  if (!url || !/^(?:ardia|orbit):\/\//i.test(url)) return null;
+  const page = url.slice(url.indexOf("://") + 3).split(/[/?#]/)[0]!.toLowerCase();
   return page in INTERNAL_PAGES ? (page as InternalPageId) : null;
 }
 

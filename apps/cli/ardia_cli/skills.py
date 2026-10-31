@@ -3,7 +3,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-SKILL_NAME = "ardia"
+SKILL_NAME = "orbit"
 TARGETS = {
     "general": (".agents/skills", ".agents/skills"),
     "codex": (".agents/skills", ".agents/skills"),
@@ -22,7 +22,7 @@ def is_ours(folder: Path) -> bool:
         head = (folder / "SKILL.md").read_text(encoding="utf-8")[:200]
     except OSError:
         return False
-    return head.startswith("---\nname: ardia\n")
+    return head.startswith("---\nname: orbit\n")
 
 
 def destination(target: str, project: bool) -> Path:
@@ -34,7 +34,7 @@ def destination(target: str, project: bool) -> Path:
 def install_into(folder: Path) -> None:
     folder.parent.mkdir(parents=True, exist_ok=True)
     if folder.is_symlink() or (folder.exists() and not is_ours(folder)):
-        raise FileExistsError(f"{folder} exists and isn't the ardia skill; move it away first")
+        raise FileExistsError(f"{folder} exists and isn't the orbit skill; move it away first")
     staging = Path(tempfile.mkdtemp(prefix=".ardia-skill-", dir=folder.parent))
     try:
         fresh = staging / SKILL_NAME

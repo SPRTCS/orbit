@@ -10,10 +10,10 @@ from urllib.parse import parse_qs, quote, urlsplit
 from ardia_cli.redact import add_secret
 
 NOT_REACHABLE = (
-    "Ardia isn't running, or \"Let the ardia command control Ardia\" is off in Settings."
+    "Orbit isn't running, or \"Let the orbit command control Orbit\" is off in Settings."
 )
 CONTROL_FILE = "ArdiaControl.json"
-INSTALLED_DATA_DIR = Path.home() / "Library" / "Application Support" / "com.ardia.browser"
+INSTALLED_DATA_DIR = Path.home() / "Library" / "Application Support" / "com.aisconsulting.orbit"
 _BROWSER_PATH = re.compile(r"^/devtools/browser/[0-9A-Za-z-]{1,128}$")
 _TOKEN = re.compile(r"^[\x21-\x7e]{16,1024}$")
 _MAX_CONTROL_FILE = 64 * 1024

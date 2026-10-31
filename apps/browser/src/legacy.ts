@@ -1,9 +1,10 @@
 export const LEGACY_BOOKMARK_SEED = "netnyahoo-bookmark:";
 
 export const LEGACY_URLS: [string, string][] = [
-  ["netnyahoo://yahu", "ardia://game"],
+  ["netnyahoo://yahu", "orbit://game"],
   ["chrome://yahu", "chrome://game"],
-  ["netnyahoo://", "ardia://"],
+  ["netnyahoo://", "orbit://"],
+  ["ardia://", "orbit://"],
 ];
 
 export const LEGACY_KEYS: Record<string, string> = {

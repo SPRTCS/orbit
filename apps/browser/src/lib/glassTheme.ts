@@ -43,7 +43,7 @@ const DARK_STOPS: Stop[] = [
   { hex: "#2D2A21", alpha: 0.7, x: 0.5, y: 0.95 },
 ];
 
-const LOOK = { intensity: 0.6, grain: 0, texture: "grain", translucency: 0.25 } as const;
+const LOOK = { intensity: 0.3, grain: 0, texture: "grain", translucency: 1 } as const;
 
 const hueOf = (hex: string) => {
   const [, a, b] = oklab(hexColor(hex));
@@ -71,7 +71,7 @@ export function glassSpaceTheme(color: ProfileColor): ProfileTheme {
   if (!theme) {
     const swatch = SWATCH_HUES[color];
     const turn = swatch ? hueOf(swatch) - PEACH_HUE : 0;
-    const chroma = color === "neutral" ? 0.2 : 1;
+    const chroma = color === "neutral" ? 0.2 : swatch ? 1 : 0.45;
     theme = { ...look(LIGHT_STOPS, turn, chroma), mode: "auto", dark: look(DARK_STOPS, turn, chroma) };
     spaceThemes.set(color, theme);
   }

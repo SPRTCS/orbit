@@ -7,7 +7,7 @@ tabs of the spaces the user opened to them in Orbit (Settings › Advanced › A
 Tools: list_spaces, list_tabs, open_tab, navigate, activate_tab, close_tab, read_page, find_in_page, click, type,
 scroll, wait_for, screenshot, search_history, pinned.
 
-It needs "Let the ardia command control Orbit" on. It connects only while it works (and 20 s after), never closes
+It needs "Let the orbit command control Orbit" on. It connects only while it works (and 20 s after), never closes
 Orbit, sees no private windows and never reads cookies, passwords or saved logins.
 """
 INSTALL_DESCRIPTION = """\

@@ -8,11 +8,10 @@ from pathlib import Path
 from ardia_cli.endpoint import INSTALLED_DATA_DIR, explicit_data_root
 
 POLICY_FILE = "agent-spaces.json"
-ORBIT_DATA_DIR = Path.home() / "Library" / "Application Support" / "com.aisconsulting.orbit"
 MAX_POLICY_BYTES = 8 * 1024 * 1024
 NOTHING_ALLOWED = (
     "No space is open to AI agents. In Orbit, open Settings › Advanced › AI agents (MCP) and turn on "
-    "\"Allow AI agents\" for a space (with \"Let the ardia command control Orbit\" on)."
+    "\"Allow AI agents\" for a space (with \"Let the orbit command control Orbit\" on)."
 )
 
 
@@ -80,8 +79,6 @@ def default_data_root(data_dir: str | None = None) -> Path:
     explicit = explicit_data_root(data_dir)
     if explicit is not None:
         return explicit
-    if ORBIT_DATA_DIR.is_dir():
-        return ORBIT_DATA_DIR
     return INSTALLED_DATA_DIR
 
 

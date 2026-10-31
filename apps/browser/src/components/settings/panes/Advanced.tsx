@@ -131,11 +131,11 @@ function CommandLineSection() {
     <>
       <SectionHeader title="Command line" />
       <Group>
-        <Row title="Let the ardia command control Orbit" description={serverNote}>
+        <Row title="Let the orbit command control Orbit" description={serverNote}>
           <Toggle value={on} onChange={(v) => update({ cliControl: v })} />
         </Row>
         <Row
-          title="The ardia command"
+          title="The orbit command"
           description={
             <Text selectable style={{ fontSize: 11.5, marginTop: 2, lineHeight: 15, color: cli.error && !cli.installing ? colors.destructive : theme.textSecondary }}>
               {describeCliInstall(cli)}

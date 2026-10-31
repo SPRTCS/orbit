@@ -20,8 +20,8 @@ MAX_MANIFEST = 256 * 1024
 MAX_ENTRIES = 256
 MAX_FILES_PER_ENTRY = 256
 MAX_FILES = 512
-EXTENSION_NAME = "Ardia Scripts"
-EXTENSION_DESCRIPTION = "Userscripts installed with the ardia command."
+EXTENSION_NAME = "Orbit Scripts"
+EXTENSION_DESCRIPTION = "Userscripts installed with the orbit command."
 EXTENSION = "extension"
 GENERATION = "generation"
 STATUS = "status.json"
@@ -46,7 +46,7 @@ def open_dir(parent_fd: int | None, name: str, create: bool) -> int:
         fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd)
     except OSError as error:
         if error.errno in (errno.ELOOP, errno.ENOTDIR):
-            raise StoreError(f"{name} is a symbolic link or not a folder; the ardia command only uses real folders") from None
+            raise StoreError(f"{name} is a symbolic link or not a folder; the orbit command only uses real folders") from None
         raise
     info = os.fstat(fd)
     if info.st_uid != os.getuid():
@@ -198,7 +198,7 @@ class Store:
             except BlockingIOError:
                 if time.monotonic() >= deadline:
                     os.close(fd)
-                    raise StoreError(f"another ardia scripts command or Ardia has held {self.path / '.lock'} for {LOCK_TIMEOUT}s") from None
+                    raise StoreError(f"another orbit scripts command or Orbit has held {self.path / '.lock'} for {LOCK_TIMEOUT}s") from None
                 time.sleep(0.05)
         self.lock_fd = fd
 
@@ -350,7 +350,7 @@ class Store:
         if present:
             info = os.stat(EXTENSION, dir_fd=self.root_fd, follow_symlinks=False)
             if not stat.S_ISDIR(info.st_mode):
-                raise StoreError(f"{self.path / EXTENSION} isn't a folder the ardia command made; move it away first")
+                raise StoreError(f"{self.path / EXTENSION} isn't a folder the orbit command made; move it away first")
         if staged is None:
             if not present:
                 return None
@@ -423,7 +423,7 @@ class Store:
         if exists(self.records_fd, record_id):
             info = os.stat(record_id, dir_fd=self.records_fd, follow_symlinks=False)
             if not stat.S_ISDIR(info.st_mode):
-                raise StoreError(f"{self.path / 'scripts' / record_id} isn't a folder the ardia command made")
+                raise StoreError(f"{self.path / 'scripts' / record_id} isn't a folder the orbit command made")
             swap(self.records_fd, staged, record_id)
             remove_tree(self.records_fd, staged)
         else:
@@ -485,7 +485,7 @@ class Store:
         still_loaded = any(isinstance(result, dict) and result.get("ok") for result in profiles.values())
         if isinstance(reported, int) and not isinstance(reported, bool) and reported >= current and still_loaded:
             _, generation = self.apply()
-            return f"the last uninstall stopped before telling Ardia; published generation {generation}"
+            return f"the last uninstall stopped before telling Orbit; published generation {generation}"
         return None
 
     def wait_status(self, generation: int, alive) -> tuple[str, dict | None]:
@@ -523,10 +523,10 @@ def validate_manifest(manifest: dict, js_files: set[str]) -> None:
     if not isinstance(entries, list) or not entries:
         fail("no content scripts")
     if len(entries) > MAX_ENTRIES:
-        fail(f"{len(entries)} content script entries, over Ardia's limit of {MAX_ENTRIES}; uninstall some scripts")
+        fail(f"{len(entries)} content script entries, over Orbit's limit of {MAX_ENTRIES}; uninstall some scripts")
     files = {js for entry in entries if isinstance(entry, dict) and isinstance(entry.get("js"), list) for js in entry["js"]}
     if len(files) > MAX_FILES:
-        fail(f"{len(files)} script files, over Ardia's limit of {MAX_FILES}; uninstall some scripts")
+        fail(f"{len(files)} script files, over Orbit's limit of {MAX_FILES}; uninstall some scripts")
     for entry in entries:
         if not isinstance(entry, dict) or set(entry) != ENTRY_KEYS:
             fail("a content script has unexpected keys")

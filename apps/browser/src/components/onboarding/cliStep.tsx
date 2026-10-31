@@ -28,9 +28,9 @@ export function CliStep() {
     : installing
       ? "Installing in the background. You can keep going."
       : failed
-        ? "Couldn't download the ardia command. Try again from Settings › Advanced."
+        ? "Couldn't download the orbit command. Try again from Settings › Advanced."
         : installed
-          ? "Installed. Open a new Terminal window and run ardia --help."
+          ? "Installed. Open a new Terminal window and run orbit --help."
           : null;
 
   return (
@@ -50,20 +50,20 @@ export function CliStep() {
       <Reveal delay={60}>
         <StepTitle
           title="Drive Orbit from the terminal"
-          subtitle="The ardia command lets scripts and coding agents open tabs, click, type and read pages in Orbit."
+          subtitle="The orbit command lets scripts and coding agents open tabs, click, type and read pages in Orbit."
         />
       </Reveal>
       <Reveal delay={140} style={{ gap: 12 }}>
         <CheckRow
           icon="terminal"
-          title="Let the ardia command control Orbit"
+          title="Let the orbit command control Orbit"
           subtitle="Stays on after you quit. Turn it off in Settings."
           value={control}
           disabled={started}
           onChange={setControl}
         />
         <Text style={{ fontSize: 11.5, lineHeight: 16, color: colors.footnote }}>
-          {"While it's on, the command can open, read and act in every page you're signed in to. ardia exec runs any Python you give it."}
+          {"While it's on, the command can open, read and act in every page you're signed in to. orbit exec runs any Python you give it."}
         </Text>
         {status ? <Text style={{ fontSize: 12.5, lineHeight: 17, color: colors.subtitle }}>{status}</Text> : null}
       </Reveal>
@@ -104,7 +104,7 @@ function Terminal() {
         <Text style={{ flex: 1, textAlign: "center", marginRight: 39, fontSize: 11, color: colors.steps }}>zsh</Text>
       </View>
       <View style={{ paddingHorizontal: 12, paddingVertical: 12, gap: 2 }}>
-        {line(`$ ardia exec 'await tab.go_to("https://ardia.dev")'`, colors.title)}
+        {line(`$ orbit exec 'await tab.go_to("https://example.com")'`, colors.title)}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
           {line("$", colors.title)}
           <View style={{ width: 7, height: 13, marginLeft: 4, backgroundColor: colors.title, opacity: 0.6 }} />

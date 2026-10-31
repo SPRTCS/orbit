@@ -41,7 +41,7 @@ final class CliInstaller {
     if let path = setting("ARDIA_CLI_HOME") { return URL(fileURLWithPath: path, isDirectory: true) }
     if isolated { return nil }
     return FileManager.default.homeDirectoryForCurrentUser
-      .appendingPathComponent("Library/Application Support/Ardia/CLI", isDirectory: true)
+      .appendingPathComponent("Library/Application Support/Orbit/CLI", isDirectory: true)
   }
 
   static func installedVersion() -> String? {
@@ -98,7 +98,7 @@ final class CliInstaller {
     }
     let version = Self.appVersion
     guard version.range(of: Self.versionPattern, options: .regularExpression) != nil else {
-      return finish(failure("This build's version (\(version)) has no ardia command release."))
+      return finish(failure("This build's version (\(version)) has no orbit command release."))
     }
     guard let script = Self.script(), FileManager.default.isReadableFile(atPath: script.path) else {
       return finish(failure("The installer isn't in this build of Orbit."))

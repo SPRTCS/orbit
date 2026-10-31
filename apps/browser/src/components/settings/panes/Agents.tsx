@@ -6,7 +6,7 @@ import { useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { Button, Group, Row, SectionHeader, Toggle } from "../controls";
 
-export const MCP_INSTALL_COMMAND = "ardia mcp install --target claude-code";
+export const MCP_INSTALL_COMMAND = "orbit mcp install --target claude-code";
 
 export function AgentsSection() {
   const theme = useTheme();
@@ -19,11 +19,11 @@ export function AgentsSection() {
   const effective = effectiveSpaces(spaces, choices.allowed);
   const name = (id: string) => profiles[id]?.name ?? id;
   const status = !control
-    ? "Off: turn on \"Let the ardia command control Orbit\" first. It's the master switch."
+    ? "Off: turn on \"Let the orbit command control Orbit\" first. It's the master switch."
     : effective.size === 0
       ? "On, but no space is allowed yet, so agents see no tabs."
       : connections
-        ? "An agent or the ardia command is connected now."
+        ? "An agent or the orbit command is connected now."
         : "Ready. Agents see only the tabs of the spaces allowed below, never private windows.";
   return (
     <>
@@ -33,7 +33,7 @@ export function AgentsSection() {
           title="Connect an agent"
           description={
             <Text selectable style={{ fontSize: 11.5, marginTop: 2, lineHeight: 15, color: theme.textSecondary }}>
-              {`Claude Code, Claude Desktop, Codex and Cursor can use Orbit through the ardia command's MCP server. Run once in Terminal: ${MCP_INSTALL_COMMAND} (or claude-desktop, codex, cursor).`}
+              {`Claude Code, Claude Desktop, Codex and Cursor can use Orbit through the orbit command's MCP server. Run once in Terminal: ${MCP_INSTALL_COMMAND} (or claude-desktop, codex, cursor).`}
             </Text>
           }
         >
@@ -41,7 +41,7 @@ export function AgentsSection() {
         </Row>
         <Row title="Status" description={status} />
       </Group>
-      <Group>
+      <Group style={{ marginTop: 14 }}>
         {spaceIds(spaces).map((id) => {
           const partners = dataPartners(spaces, id);
           const allowed = choices.allowed.includes(id);

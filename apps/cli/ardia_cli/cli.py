@@ -2,43 +2,43 @@ import sys
 
 from ardia_cli import __version__
 
-DESCRIPTION = "Control a running Ardia from the terminal."
+DESCRIPTION = "Control a running Orbit from the terminal."
 EXEC_DESCRIPTION = """\
-Run Python against the running Ardia, with top-level await.
+Run Python against the running Orbit, with top-level await.
 
 In scope:
-  browser        pydoll Chrome attached to Ardia (closing it only drops the connection)
+  browser        pydoll Chrome attached to Orbit (closing it only drops the connection)
   tab            the web page the user is looking at; NoPageTab on first use when there is none (New Tab)
   tabs           every web page tab (http, https, about, data, blob), plus the ones new_tab opens
   new_tab(url, background=True)   open a tab and return it once the page has loaded
   js(expression, tab=None)        evaluate JavaScript in tab (else the user's tab, else the last new_tab) and return its value
-  await pinned() the user's favorites and pinned tabs from Ardia's saved session, as dicts
+  await pinned() the user's favorites and pinned tabs from Orbit's saved session, as dicts
                  (title, url, pinned_url, kind favorite|pinned, folder, profile, parked); no incognito
   await history(days=1, limit=200, profile=None, domains=False)
                  recent history per URL, newest first: url, title, visits (in the window), total_visits,
                  last_visit (ISO, local time), profile; domains=True rolls it up per domain.
                  profile is a profile name or its folder under Chromium/ (default: all). Only http(s) pages.
-                 Both read Ardia's data dir (the token path's, or --data-dir/$ARDIA_DATA_DIR) and need control on.
+                 Both read Orbit's data dir (the token path's, or --data-dir/$ARDIA_DATA_DIR) and need control on.
   By, Key, asyncio and pydoll's exports (Tab, WebElement, PageEvent, NetworkEvent, ...)
 
 The value of the last expression is printed (strings as is, other values as repr, or JSON with --json).
-Ardia keeps running after every exec.
+Orbit keeps running after every exec.
 
-Exit status: 0 done, 1 the code raised or timed out, 2 Ardia can't be reached or closed the connection, 130 interrupted.
+Exit status: 0 done, 1 the code raised or timed out, 2 Orbit can't be reached or closed the connection, 130 interrupted.
 
 Examples:
-  ardia exec 'await tab.title()'
-  ardia exec 't = await new_tab("https://example.com"); await t.title()'
-  ardia exec -f script.py --json
-  echo 'len(tabs)' | ardia exec -
-  ardia exec 'await history(days=1, domains=True)' --json
+  orbit exec 'await tab.title()'
+  orbit exec 't = await new_tab("https://example.com"); await t.title()'
+  orbit exec -f script.py --json
+  echo 'len(tabs)' | orbit exec -
+  orbit exec 'await history(days=1, domains=True)' --json
 """
 EXEC_EPILOG = """\
 Endpoint: --ws, else --port (plain DevTools servers only), else $ARDIA_CDP_URL, else
-<data dir>/Chromium/ArdiaControl.json with --data-dir or $ARDIA_DATA_DIR, else the installed Ardia's.
+<data dir>/Chromium/ArdiaControl.json with --data-dir or $ARDIA_DATA_DIR, else the installed Orbit's.
 """
 SKILLS_DESCRIPTION = """\
-Install the ardia agent skill (SKILL.md and a pydoll reference) so coding agents know how to drive Ardia.
+Install the orbit agent skill (SKILL.md and a pydoll reference) so coding agents know how to drive Orbit.
 
 Targets and where they install (user level; --project uses the current directory):
   general       ~/.agents/skills            ./.agents/skills
@@ -52,26 +52,26 @@ Targets and where they install (user level; --project uses the current directory
 def build_parser():
     import argparse
 
-    parser = argparse.ArgumentParser(prog="ardia", description=DESCRIPTION)
-    parser.add_argument("--version", action="version", version=f"ardia {__version__}")
+    parser = argparse.ArgumentParser(prog="orbit", description=DESCRIPTION)
+    parser.add_argument("--version", action="version", version=f"orbit {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="<command>")
 
     run = commands.add_parser(
         "exec",
-        help="run Python against the running Ardia",
+        help="run Python against the running Orbit",
         description=EXEC_DESCRIPTION,
         epilog=EXEC_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     run.add_argument("code", nargs="?", metavar="CODE", help="Python code, or - to read it from stdin")
     run.add_argument("-f", "--file", metavar="FILE", help="read the code from FILE")
-    run.add_argument("--data-dir", metavar="DIR", help="the Ardia data dir to find (default: $ARDIA_DATA_DIR, else the installed app's)")
+    run.add_argument("--data-dir", metavar="DIR", help="the Orbit data dir to find (default: $ARDIA_DATA_DIR, else the installed app's)")
     run.add_argument("--port", type=int, metavar="N", help="a plain DevTools server on 127.0.0.1:N (testing)")
     run.add_argument("--ws", metavar="URL", help="a browser WebSocket URL")
     run.add_argument("--timeout", type=float, default=300, metavar="SECONDS", help="stop the code after this long (default 300, 0 for none)")
     run.add_argument("--json", action="store_true", help="print the last value as JSON")
 
-    skills = commands.add_parser("skills", help="install the ardia agent skill")
+    skills = commands.add_parser("skills", help="install the orbit agent skill")
     skill_commands = skills.add_subparsers(dest="skills_command", metavar="<command>")
     install = skill_commands.add_parser(
         "install",
@@ -96,7 +96,7 @@ def build_parser():
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     if argv == ["--version"]:
-        print(f"ardia {__version__}")
+        print(f"orbit {__version__}")
         return 0
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -123,14 +123,14 @@ def main(argv: list[str] | None = None) -> int:
 def read_source(args) -> tuple[str, str]:
     if args.file:
         if args.code not in (None,):
-            raise SystemExit("ardia exec: give CODE or -f FILE, not both")
+            raise SystemExit("orbit exec: give CODE or -f FILE, not both")
         if args.file == "-":
             return sys.stdin.read(), "<stdin>"
         with open(args.file, encoding="utf-8") as handle:
             return handle.read(), args.file
     if args.code is None or args.code == "-":
         if args.code is None and sys.stdin.isatty():
-            raise SystemExit("ardia exec: give CODE, - (stdin) or -f FILE")
+            raise SystemExit("orbit exec: give CODE, - (stdin) or -f FILE")
         return sys.stdin.read(), "<stdin>"
     return args.code, "<exec>"
 
@@ -156,7 +156,7 @@ def _run_exec(args) -> int:
     try:
         source, filename = read_source(args)
     except OSError as error:
-        sys.stderr.write(f"ardia exec: {error}\n")
+        sys.stderr.write(f"orbit exec: {error}\n")
         return 1
 
     from ardia_cli import runner
@@ -171,24 +171,24 @@ def _run_exec(args) -> int:
         root = explicit_data_root(args.data_dir) if endpoint.explicit else data_root(args.data_dir)
         value = asyncio.run(runner.run_code(source, filename, endpoint, args.timeout or None, root))
     except EndpointError as error:
-        runner.print_err(f"ardia: {error}")
+        runner.print_err(f"orbit: {error}")
         return 2
     except runner.UserCodeError as error:
         runner.print_err(runner.format_user_error(error))
         return 1
     except runner.ExecTimeout as error:
-        runner.print_err(f"ardia exec: {error}")
+        runner.print_err(f"orbit exec: {error}")
         return 1
     except KeyboardInterrupt:
-        runner.print_err("ardia exec: interrupted")
+        runner.print_err("orbit exec: interrupted")
         return 130
     except asyncio.CancelledError:
-        runner.print_err("ardia exec: terminated")
+        runner.print_err("orbit exec: terminated")
         return 143
     try:
         text = runner.format_value(value, args.json)
     except (TypeError, ValueError) as error:
-        runner.print_err(f"ardia exec: can't print the result as JSON ({error})")
+        runner.print_err(f"orbit exec: can't print the result as JSON ({error})")
         return 1
     if text is not None:
         sys.stdout.write(text + "\n")

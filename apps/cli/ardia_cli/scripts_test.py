@@ -139,7 +139,7 @@ class Run:
 
     def mapped(self, line: int, column: int) -> str:
         if line not in self.body:
-            return "ardia test wrapper"
+            return "orbit test wrapper"
         found = self.map.lookup(line, column)
         if found:
             return f"{found[0]}:{found[1]}:{found[2]}"
@@ -264,7 +264,7 @@ async def run_test(build: Build, url: str, endpoint: Endpoint, expect: str | Non
     report.warnings.extend(build.meta.warnings + build.warnings)
     if build.meta.world == "ISOLATED":
         report.warnings.append(
-            "@inject-into content: this test runs the script in the page's world (ardia command connections can't "
+            "@inject-into content: this test runs the script in the page's world (orbit command connections can't "
             "create isolated worlds); installed, it runs in an isolated world and can't see page globals"
         )
     loop = asyncio.get_running_loop()
@@ -350,7 +350,7 @@ async def check_frames(cdp: Cdp, session: str, report: Report):
     if frames > reported:
         report.warnings.append(
             f"{frames - reported} of the page's {frames} iframes never reported back: they hadn't loaded, or they show "
-            "an extension's or the browser's own page, which Ardia's control connection never reaches (a --port test "
+            "an extension's or the browser's own page, which Orbit's control connection never reaches (a --port test "
             "server does)"
         )
 

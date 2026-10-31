@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ardia_cli.mcp_server import SERVER_NAME
 
-CLI_HOME = Path(os.environ.get("ARDIA_CLI_HOME") or Path.home() / "Library" / "Application Support" / "Ardia" / "CLI")
+CLI_HOME = Path(os.environ.get("ARDIA_CLI_HOME") or Path.home() / "Library" / "Application Support" / "Orbit" / "CLI")
 TARGETS = ("claude-code", "claude-desktop", "cursor", "codex")
 PROJECT_TARGETS = ("claude-code", "cursor")
 
@@ -40,8 +40,8 @@ def launch_command(data_dir: str | None) -> tuple[str, list[str], dict[str, str]
     except OSError:
         installed = False
     if installed:
-        launcher = shutil.which("ardia")
-        stable = Path(launcher) if launcher else Path.home() / ".local" / "bin" / "ardia"
+        launcher = shutil.which("orbit")
+        stable = Path(launcher) if launcher else Path.home() / ".local" / "bin" / "orbit"
         return str(stable), ["mcp", *extra], {}
     return sys.executable, ["-m", "ardia_cli", "mcp", *extra], {"PYTHONPATH": str(package.parent)}
 

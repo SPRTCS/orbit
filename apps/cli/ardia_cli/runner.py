@@ -28,9 +28,9 @@ EXCEPTIONS = (
 )
 
 
-NO_PAGE_TAB = "the user isn't on a web page (New Tab or another Ardia view); open one with new_tab(url) or pick one from tabs"
+NO_PAGE_TAB = "the user isn't on a web page (New Tab or another Orbit view); open one with new_tab(url) or pick one from tabs"
 NO_VISIBLE_TAB = (
-    "no web page is visible (New Tab, another Ardia view, or a hidden window); "
+    "no web page is visible (New Tab, another Orbit view, or a hidden window); "
     "open one with new_tab(url) or pick one from tabs"
 )
 
@@ -78,7 +78,7 @@ def compile_code(source: str, filename: str):
 
 
 def _refuse_stop(*_args, **_kwargs):
-    raise RuntimeError("ardia exec never stops Ardia: it's the user's browser")
+    raise RuntimeError("orbit exec never stops Orbit: it's the user's browser")
 
 
 async def _refuse_stop_async(*_args, **_kwargs):
