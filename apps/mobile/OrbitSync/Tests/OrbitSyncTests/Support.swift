@@ -199,13 +199,18 @@ final class MacDevice {
 }
 
 final class MemoryKeyStore: OrbitSync.SyncKeyStore, @unchecked Sendable {
-  var items: [String: Data] = [:]
-  func load(account: String) -> Data? { items[account] }
+  private let lock = NSLock()
+  private var stored: [String: Data] = [:]
+  var items: [String: Data] {
+    get { lock.withLock { stored } }
+    set { lock.withLock { stored = newValue } }
+  }
+  func load(account: String) -> Data? { lock.withLock { stored[account] } }
   func save(_ secret: Data, account: String) -> Bool {
-    items[account] = secret
+    lock.withLock { stored[account] = secret }
     return true
   }
-  func delete(account: String) { items[account] = nil }
+  func delete(account: String) { lock.withLock { stored[account] = nil } }
 }
 
 extension JSONValue {

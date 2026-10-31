@@ -410,15 +410,27 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   file in the Mac's format (fresh random name, `NNS1`, AAD, padding, coordinated move from a temporary file).
 - **It never snapshots or compacts.** The Macs' snapshots cover the phone's logs and their compaction removes
   them, so a phone that stops syncing leaves only its two records behind.
-- **Seqs are never reused.** A batch is journalled (sealed, `journal.nns`) before it's written and sent again byte
-  for byte until it lands. The highest seq per chain and scope is kept in `writer.json` with the device id,
-  apart from the disposable cache (`state.nns`), so losing the cache while the phone's own newest file is still
-  downloading can't make it number a new batch like an old one. Losing `writer.json` means a new device id (a
-  new incarnation); a journal left by the old id is still sent under that id.
-- **Retirement.** Disconnecting writes tombstones for `dev:<id>` and `tabs:<id>`, then forgets the key, cache,
-  journal and bookmark and starts a new device id. When the tombstones can't be written (offline, folder gone),
-  the old identity's key, journal, cache and bookmark are kept under `retiring/<id>` and retried at each launch
-  and after each successful cycle, and the key is deleted only once they land.
+- **Identity and seqs.** The phone's device id and its highest seq per chain and scope live in `writer.json` and,
+  mirrored, in a this-device-only Keychain item (`identity`); the next seq is above both, above the journal and
+  above whatever the folder shows. The app's data folder is excluded from backups. So a lost cache, an old
+  `writer.json` put back, or a batch whose file is still downloading can't number a new batch like an old one.
+  When the two don't name the same device (a clone, a restore, a lost `writer.json`, a build from before the
+  Keychain mirror), the phone starts a new device id and retires the old one; the sync key moves to the new id,
+  so it stays connected.
+- **Journal.** A batch is journalled (sealed, `journal.nns`) before it's written, its seq is made durable before
+  any journal is sent, and it's sent again byte for byte until it lands. A journal that can't be read is moved to
+  `quarantine/`, and any value this phone published optimistically whose batch isn't confirmed or journalled is
+  dropped from the cache, so it goes out again under a new seq.
+- **Retirement.** Disconnecting first saves a retirement record (`retiring/<id>.json`, one atomic file), then
+  shows "not set up", forgets the cache, journal and bookmark and starts a new device id. The record's tombstones
+  for `dev:<id>` and `tabs:<id>` (in every space) are written by a fresh one-shot writer id with its own seqs,
+  never by the retiring id, so the retiring id never writes again, its unsent live batches are dropped without
+  leaving a seq gap on the Macs, and no stale seq can hide the tombstones. The retiring id's key stays in the
+  Keychain until the tombstones are written and a full read of the folder shows nothing left (or a day has
+  passed with files still pending); records are retried at launch and after each successful cycle. A disconnect
+  whose cleanup never ran (the app was killed) is finished at the next launch before anything is unlocked.
+  Displaced ids (above) retire the same way, using the active folder when their own bookmark is gone; one whose
+  key isn't on this device (a clone) is dropped without tombstones.
 - **Known residuals.** A phone lost without disconnecting stays in every Mac's device list and snapshot, as a
   lost Mac does. The iOS File Provider's behaviour with folders it hasn't listed yet (the phone asks for a
   metadata read and a download of each scope folder before listing it) and the first full read of a large
@@ -427,7 +439,9 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   of 40 random three-Mac histories (late, half-copied and stuck files, compaction, clock jumps), with and without
   the key filter; a round trip with the real engine and adapters on two Macs (spaces, pins and folders as the
   Mac sidebar shows them, devices, the phone in `remoteTabs` and the overflow menu, snapshots after
-  compaction); journal retries, seq durability, phrase re-entry, disconnect races and retirement.
+  compaction); journal retries and quarantine, seq durability after cache loss, restore and clone, phrase
+  re-entry, disconnect races, a disconnect killed before its cleanup, and retirement (tombstones only, retried
+  until written, keys deleted after).
 
 ## Tests
 

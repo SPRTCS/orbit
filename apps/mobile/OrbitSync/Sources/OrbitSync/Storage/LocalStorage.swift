@@ -30,6 +30,67 @@ struct WriterRecord: Equatable, Sendable {
       seqs[chain] = scopes.object?.compactMapValues { $0.number.map { Int($0) } }
     }
   }
+
+  init?(data: Data?) {
+    guard let data, let json = try? JSONValue.parse(data) else { return nil }
+    self.init(json: json)
+  }
+
+  func merged(with other: WriterRecord?) -> WriterRecord {
+    guard let other, other.device == device else { return self }
+    var out = self
+    for (chain, scopes) in other.seqs {
+      for (scope, seq) in scopes { out.raise(chain: chain, scope: scope, to: seq) }
+    }
+    return out
+  }
+}
+
+struct RetirementRecord: Equatable, Sendable {
+  var device: String
+  var retirer: String
+  var bookmark: Data?
+  var created: Double
+  var seqs: [String: Int] = [:]
+  var batches: [Batch] = []
+
+  struct Batch: Equatable, Sendable {
+    var scope: String
+    var payload: String
+  }
+
+  init(device: String, bookmark: Data?, created: Double) {
+    self.device = device
+    retirer = SyncKeys.newFileId()
+    self.bookmark = bookmark
+    self.created = created
+  }
+
+  var json: JSONValue {
+    var object: [String: JSONValue] = [
+      "v": .number(1),
+      "device": .string(device),
+      "retirer": .string(retirer),
+      "created": .number(created),
+      "seqs": .object(seqs.mapValues { .number(Double($0)) }),
+      "batches": .array(batches.map { .object(["scope": .string($0.scope), "payload": .string($0.payload)]) }),
+    ]
+    if let bookmark { object["bookmark"] = .string(bookmark.base64EncodedString()) }
+    return .object(object)
+  }
+
+  init?(json: JSONValue) {
+    guard let device = json["device"]?.string, let retirer = json["retirer"]?.string else { return nil }
+    self.device = device
+    self.retirer = retirer
+    bookmark = json["bookmark"]?.string.flatMap { Data(base64Encoded: $0) }
+    created = json["created"]?.number ?? 0
+    seqs = json["seqs"]?.object?.compactMapValues { $0.number.map { Int($0) } } ?? [:]
+    batches = (json["batches"]?.array ?? []).compactMap { item in
+      guard let scope = item["scope"]?.string, let payload = item["payload"]?.string else { return nil }
+      return Batch(scope: scope, payload: payload)
+    }
+  }
 }
 
 struct LocalStorage: Sendable {
@@ -75,33 +136,36 @@ struct LocalStorage: Sendable {
     try write(writer.json.data, to: .writer)
   }
 
-  func newWriter() -> WriterRecord {
-    let writer = WriterRecord(device: SyncKeys.newFileId())
-    try? saveWriter(writer)
-    return writer
-  }
-
   var retiringRoot: URL { directory.appendingPathComponent("retiring", isDirectory: true) }
 
-  func retiring(_ device: String) -> LocalStorage {
-    LocalStorage(directory: retiringRoot.appendingPathComponent(device, isDirectory: true))
-  }
-
-  var retirements: [LocalStorage] {
+  var retirements: [RetirementRecord] {
     let names = (try? FileManager.default.contentsOfDirectory(atPath: retiringRoot.path)) ?? []
-    return names.filter { !$0.hasPrefix(".") }.sorted().map { LocalStorage(directory: retiringRoot.appendingPathComponent($0, isDirectory: true)) }
-  }
-
-  func move(_ items: [Item], to other: LocalStorage) throws {
-    try FileManager.default.createDirectory(at: other.directory, withIntermediateDirectories: true)
-    for item in items where exists(item) {
-      other.remove(item)
-      try FileManager.default.moveItem(at: url(item), to: other.url(item))
+    return names.filter { $0.hasSuffix(".json") }.sorted().compactMap { name in
+      (try? Data(contentsOf: retiringRoot.appendingPathComponent(name))).flatMap { try? JSONValue.parse($0) }.flatMap(RetirementRecord.init(json:))
     }
   }
 
-  func removeAll() {
-    try? FileManager.default.removeItem(at: directory)
+  func saveRetirement(_ record: RetirementRecord) throws {
+    try FileManager.default.createDirectory(at: retiringRoot, withIntermediateDirectories: true)
+    try record.json.data.write(to: retiringRoot.appendingPathComponent("\(record.device).json"), options: [.atomic])
+  }
+
+  func removeRetirement(_ device: String) {
+    try? FileManager.default.removeItem(at: retiringRoot.appendingPathComponent("\(device).json"))
+  }
+
+  func quarantine(_ item: Item) {
+    let folder = directory.appendingPathComponent("quarantine", isDirectory: true)
+    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try? FileManager.default.moveItem(at: url(item), to: folder.appendingPathComponent("\(UUID().uuidString)-\(item.rawValue)"))
+  }
+
+  func excludeFromBackup() {
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    var url = directory
+    var values = URLResourceValues()
+    values.isExcludedFromBackup = true
+    try? url.setResourceValues(values)
   }
 
   func readSealed(_ item: Item, keys: SyncKeys) -> JSONValue? {

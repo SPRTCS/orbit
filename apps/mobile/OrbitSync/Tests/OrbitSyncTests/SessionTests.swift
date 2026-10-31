@@ -124,6 +124,44 @@ final class SessionTests: XCTestCase {
     XCTAssertEqual(try phoneFiles("app").map(\.seq), [1])
   }
 
+  func testTheSeqHighWaterMarkIsDurableBeforeAnyBatchIsSent() throws {
+    let session = try session()
+    session.openTabs = [SyncedTab(url: URL(string: "https://one.example/")!, title: "One")]
+    session.saveIdentity = { _ in throw CocoaError(.fileWriteNoPermission) }
+    XCTAssertThrowsError(try session.cycle())
+    XCTAssertEqual(try phoneFiles("p:personal").count, 0)
+    XCTAssertThrowsError(try session.cycle(), "a batch whose seq isn't durable stays unsent")
+    XCTAssertEqual(try phoneFiles("p:personal").count, 0)
+    session.saveIdentity = { [storage] in try LocalStorage(directory: storage!).saveWriter($0) }
+    _ = try session.cycle()
+    XCTAssertEqual(try phoneFiles("p:personal").map(\.seq), [1])
+    let chain = ArdiaSyncCore.SyncKeys(entropy: entropy).chainTag
+    XCTAssertEqual(LocalStorage(directory: storage).loadWriter()?.seq(chain: chain, scope: "p:personal"), 1)
+  }
+
+  func testAnUnreadableJournalIsQuarantinedAndItsValuesAreSentAgain() throws {
+    let first = try session()
+    first.openTabs = [SyncedTab(url: URL(string: "https://one.example/")!, title: "One")]
+    first.writeFile = { vault, scope, payload in
+      guard scope == "app" else { throw CocoaError(.fileWriteNoPermission) }
+      return try vault.write(scope: scope, payload: payload)
+    }
+    XCTAssertThrowsError(try first.cycle())
+    XCTAssertEqual(first.journal.map(\.scope), ["p:personal"])
+    let journal = storage.appendingPathComponent("journal.nns")
+    let sealed = try Data(contentsOf: journal)
+    try sealed.prefix(sealed.count - 40).write(to: journal)
+
+    let second = try session()
+    second.openTabs = [SyncedTab(url: URL(string: "https://one.example/")!, title: "One")]
+    _ = try second.cycle()
+    let tabs = try phoneFiles("p:personal")
+    XCTAssertEqual(tabs.count, 1, "the tabs whose batch was lost are sent again")
+    XCTAssertGreaterThanOrEqual(tabs.first?.seq ?? 0, 1)
+    let quarantine = storage.appendingPathComponent("quarantine")
+    XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: quarantine.path))?.count, 1, "the damaged journal is kept aside")
+  }
+
   func testAWriteThatLandedButReportedFailureDuplicatesTheSameBatchOnly() throws {
     let first = try session()
     first.writeFile = { vault, scope, payload in

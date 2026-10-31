@@ -35,6 +35,7 @@ final class SyncSession {
   let storage: LocalStorage
   let now: () -> Date
   var writeFile: (FolderVault, String, Data) throws -> String = { vault, scope, payload in try vault.write(scope: scope, payload: payload) }
+  lazy var saveIdentity: (WriterRecord) throws -> Void = { [storage] in try storage.saveWriter($0) }
 
   private(set) var deviceId: String
   var deviceName: String
@@ -48,8 +49,9 @@ final class SyncSession {
   private(set) var journal: [JournalEntry] = []
   private(set) var lastSync: Date?
   private(set) var writer: WriterRecord
+  private(set) var quarantinedJournals = 0
 
-  init(storage: LocalStorage, deviceId: String, deviceName: String, deviceKind: String, bookmark: Data?, now: @escaping () -> Date = Date.init) {
+  init(storage: LocalStorage, deviceId: String, deviceName: String, deviceKind: String, bookmark: Data?, writer: WriterRecord? = nil, now: @escaping () -> Date = Date.init) {
     self.storage = storage
     self.deviceId = deviceId
     self.deviceName = deviceName
@@ -57,19 +59,8 @@ final class SyncSession {
     self.bookmark = bookmark
     self.now = now
     clock = HybridClock(device: deviceId)
-    writer = Self.writer(for: deviceId, in: storage)
-  }
-
-  static func writer(for deviceId: String, in storage: LocalStorage) -> WriterRecord {
-    if let saved = storage.loadWriter(), saved.device == deviceId { return saved }
-    return WriterRecord(device: deviceId)
-  }
-
-  static func retire(_ storage: LocalStorage, entropy: Data, now: @escaping () -> Date = Date.init) throws {
-    guard let writer = storage.loadWriter(), let bookmark = storage.read(.bookmark) else { return }
-    let session = SyncSession(storage: storage, deviceId: writer.device, deviceName: "", deviceKind: "", bookmark: bookmark, now: now)
-    session.unlock(entropy: entropy)
-    try session.retire()
+    let saved = storage.loadWriter()
+    self.writer = (writer ?? WriterRecord(device: deviceId)).merged(with: saved)
   }
 
   private var nowMs: Double { (now().timeIntervalSince1970 * 1000).rounded(.down) }
@@ -79,16 +70,15 @@ final class SyncSession {
     loadState()
   }
 
-  func connect(bookmark: Data, deviceId: String) throws {
-    if deviceId != self.deviceId { adoptIdentity(deviceId) }
+  func connect(bookmark: Data) throws {
     try storage.write(bookmark, to: .bookmark)
     self.bookmark = bookmark
   }
 
-  func adoptIdentity(_ deviceId: String) {
+  func adoptIdentity(_ writer: WriterRecord) {
     keys = nil
-    self.deviceId = deviceId
-    writer = Self.writer(for: deviceId, in: storage)
+    deviceId = writer.device
+    self.writer = writer
     forgetData()
   }
 
@@ -125,18 +115,6 @@ final class SyncSession {
     storage.remove(.bookmark)
   }
 
-  func detachForRetirement() throws {
-    if keys != nil { try? saveState() }
-    try storage.move([.state, .journal, .bookmark, .writer], to: storage.retiring(deviceId))
-    keys = nil
-    bookmark = nil
-    openTabs = nil
-    app = ScopeReplica()
-    spaces = [:]
-    journal = []
-    lastSync = nil
-  }
-
   var views: SyncedViews {
     let ids = Set(SpaceKeys.spaceIds(in: app))
     return ViewBuilder.build(app: app, spaces: spaces.filter { ids.contains($0.key) }, me: deviceId)
@@ -167,20 +145,6 @@ final class SyncSession {
       lastSync = now()
       try saveState()
       return views
-    }
-  }
-
-  func retire() throws {
-    try withFolder { vault in
-      guard vault.chainExists() else { return }
-      try flushJournal(vault)
-      pull(vault)
-      var batches: [String: [SyncOp]] = [:]
-      put(.null, key: SpaceKeys.device + deviceId, scope: SpaceKeys.appScope, into: &batches)
-      for id in spaces.keys.sorted(by: jsLess) {
-        put(.null, key: SpaceKeys.tabs + deviceId, scope: SpaceKeys.scope(ofSpace: id), into: &batches)
-      }
-      try commit(batches, vault)
     }
   }
 
@@ -259,7 +223,7 @@ final class SyncSession {
       raised.raise(chain: keys.chainTag, scope: entry.scope, to: entry.batch.seq)
     }
     guard raised != writer else { return }
-    try storage.saveWriter(raised)
+    try saveIdentity(raised)
     writer = raised
   }
 
@@ -282,6 +246,7 @@ final class SyncSession {
 
   private func flushJournal(_ vault: FolderVault) throws {
     guard !journal.isEmpty else { return }
+    try recordSeqs(journal)
     var failure: Error?
     var written: [Int] = []
     for (index, entry) in journal.enumerated() {
@@ -329,9 +294,7 @@ final class SyncSession {
 
   private func loadState() {
     guard let keys else { return }
-    for item in [LocalStorage.Item.state, .journal] where !storage.opensSealed(item, keys: keys) {
-      storage.remove(item)
-    }
+    if !storage.opensSealed(.state, keys: keys) { storage.remove(.state) }
     app = ScopeReplica()
     spaces = [:]
     journal = []
@@ -349,17 +312,41 @@ final class SyncSession {
       }
       lastSync = state["lastSync"]?.number.map { Date(timeIntervalSince1970: $0 / 1000) }
     }
-    if let saved = storage.readSealed(.journal, keys: keys) {
-      for item in saved["journal"]?.array ?? [] {
-        guard let scope = item["scope"]?.string, let payload = item["payload"]?.string,
-              let parsed = try? JSONValue.parse(Data(payload.utf8)), let batch = LogFile(json: parsed) else { continue }
-        journal.append(JournalEntry(scope: scope, batch: batch, payload: payload))
+    if storage.exists(.journal) {
+      if let entries = readJournal(keys) {
+        journal = entries.filter { $0.batch.device == deviceId }
+        journal.sort { $0.scope == $1.scope ? $0.batch.seq < $1.batch.seq : jsLess($0.scope, $1.scope) }
+        for entry in journal {
+          update(entry.scope) { $0.restore(entry.batch, clock: &clock) }
+        }
+      } else {
+        storage.quarantine(.journal)
+        quarantinedJournals += 1
       }
-      journal.sort { $0.scope == $1.scope ? $0.batch.seq < $1.batch.seq : jsLess($0.scope, $1.scope) }
-      for entry in journal where entry.batch.device == deviceId {
-        update(entry.scope) { $0.restore(entry.batch, clock: &clock) }
-      }
-      try? recordSeqs(journal)
     }
+    dropUnconfirmedValues()
+  }
+
+  private func readJournal(_ keys: SyncKeys) -> [JournalEntry]? {
+    guard let saved = storage.readSealed(.journal, keys: keys), let items = saved["journal"]?.array else { return nil }
+    var entries: [JournalEntry] = []
+    for item in items {
+      guard let scope = item["scope"]?.string, let payload = item["payload"]?.string,
+            let parsed = try? JSONValue.parse(Data(payload.utf8)), let batch = LogFile(json: parsed) else { return nil }
+      entries.append(JournalEntry(scope: scope, batch: batch, payload: payload))
+    }
+    return entries
+  }
+
+  private func dropUnconfirmedValues() {
+    let journalled = Set(journal.map { "\($0.scope) \($0.batch.seq)" })
+    let me = deviceId
+    func clean(_ replica: inout ScopeReplica, _ scope: String) {
+      for (key, record) in replica.records where record.o.device == me && !replica.isApplied(record.o) && !journalled.contains("\(scope) \(record.o.seq)") {
+        replica.records[key] = nil
+      }
+    }
+    clean(&app, SpaceKeys.appScope)
+    for id in Array(spaces.keys) { update(SpaceKeys.scope(ofSpace: id)) { clean(&$0, SpaceKeys.scope(ofSpace: id)) } }
   }
 }
