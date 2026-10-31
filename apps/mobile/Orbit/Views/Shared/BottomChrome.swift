@@ -5,6 +5,12 @@ struct ChromeMetrics {
   let barBottomPadding: CGFloat
   let pillBottomPadding: CGFloat
   let pillWidth: CGFloat
+  var horizontalPadding: CGFloat = 14
+
+  static func edgeGap(displayCornerRadius: CGFloat, controlSize: CGFloat, safeBottom: CGFloat) -> CGFloat {
+    guard safeBottom > 0 else { return 12 }
+    return max(displayCornerRadius - controlSize / 2, safeBottom + 2, 12)
+  }
 
   var expandedObscured: CGFloat { barBottomPadding + barHeight + 8 }
   var collapsedObscured: CGFloat { pillBottomPadding + MinimizedAddressPill.height + 6 }
@@ -17,21 +23,30 @@ struct ChromeMetrics {
     collapsed ? collapsedObscured : expandedObscured
   }
 
-  static func compact(safeBottom: CGFloat, width: CGFloat) -> ChromeMetrics {
+  static func compact(
+    safeBottom: CGFloat, width: CGFloat, displayCornerRadius: CGFloat = 0, safeLeading: CGFloat = 0,
+    safeTrailing: CGFloat = 0
+  ) -> ChromeMetrics {
+    let barHeight: CGFloat = 50
+    let gap = edgeGap(displayCornerRadius: displayCornerRadius, controlSize: barHeight, safeBottom: safeBottom)
     let hasHomeIndicator = safeBottom > 0
     return ChromeMetrics(
-      barHeight: 50,
-      barBottomPadding: safeBottom + (hasHomeIndicator ? 2 : 10),
+      barHeight: barHeight,
+      barBottomPadding: hasHomeIndicator ? gap : 10,
       pillBottomPadding: hasHomeIndicator ? max(18, safeBottom - 14) : 6,
-      pillWidth: min(max(width * 0.45, 150), 300))
+      pillWidth: min(max(width * 0.45, 150), 300),
+      horizontalPadding: hasHomeIndicator ? max(gap, safeLeading, safeTrailing) : 14)
   }
 
-  static func regular(homeIndicatorOverlap: CGFloat, width: CGFloat) -> ChromeMetrics {
+  static let regularControlSize: CGFloat = 46
+
+  static func regular(edgeGap: CGFloat, cardInset: CGFloat, safeBottom: CGFloat, width: CGFloat) -> ChromeMetrics {
     ChromeMetrics(
-      barHeight: 46,
-      barBottomPadding: homeIndicatorOverlap + 10,
-      pillBottomPadding: max(6, homeIndicatorOverlap - 4),
-      pillWidth: min(max(width * 0.32, 180), 320))
+      barHeight: regularControlSize,
+      barBottomPadding: max(edgeGap - cardInset, 6),
+      pillBottomPadding: max(6, safeBottom - cardInset - 6),
+      pillWidth: min(max(width * 0.32, 180), 320),
+      horizontalPadding: max(edgeGap - cardInset, 6))
   }
 }
 
@@ -68,7 +83,7 @@ struct BottomChrome: View {
         .modifier(OverviewSwipeModifier(gesture: style == .compact ? overviewSwipe : nil))
       }
     }
-    .padding(.horizontal, 14)
+    .padding(.horizontal, metrics.horizontalPadding)
     .padding(.bottom, metrics.bottomPadding(collapsed: browser.chromeCollapsed))
     .opacity(browser.entry.isPresented ? 0 : 1)
   }

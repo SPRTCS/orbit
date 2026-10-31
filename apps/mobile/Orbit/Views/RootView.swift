@@ -13,6 +13,11 @@ struct RootView: View {
         CompactBrowserView()
       }
     }
+    .background {
+      DisplayCornerReader { radius in
+        if browser.morph.displayCornerRadius != radius { browser.morph.displayCornerRadius = radius }
+      }
+    }
     .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
       browser.isCompactLayout = sizeClass != .regular
     }

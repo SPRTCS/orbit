@@ -14,17 +14,20 @@ struct RegularBrowserView: View {
       let windowWidth = proxy.size.width + safeArea.leading + safeArea.trailing
       let range = SidebarWidth.range(windowWidth: windowWidth)
       let sidebarWidth = min(max(storedWidth, range.lowerBound), range.upperBound)
+      let edgeGap = ChromeMetrics.edgeGap(
+        displayCornerRadius: browser.morph.displayCornerRadius, controlSize: ChromeMetrics.regularControlSize,
+        safeBottom: safeArea.bottom)
       ZStack {
         OrbitBackdrop(tint: browser.currentSpace?.tint)
         HStack(spacing: 0) {
           if browser.isSidebarVisible {
-            SidebarView(width: sidebarWidth, safeArea: safeArea)
+            SidebarView(width: sidebarWidth, safeArea: safeArea, edgeGap: edgeGap)
               .frame(width: sidebarWidth)
               .transition(.move(edge: .leading).combined(with: .opacity))
             SidebarResizeHandle(width: widthBinding, range: range)
           }
           contentColumn(
-            safeArea: safeArea,
+            safeArea: safeArea, edgeGap: edgeGap,
             contentWidth: windowWidth - (browser.isSidebarVisible ? sidebarWidth + SidebarResizeHandle.width : cardInset) - cardInset)
         }
         .animation(.snappy(duration: 0.3), value: browser.isSidebarVisible)
@@ -34,6 +37,8 @@ struct RegularBrowserView: View {
             .transition(.opacity)
             .zIndex(1)
         }
+        OverviewMorphLayer()
+          .zIndex(1.5)
         if browser.entry.isPresented {
           let besideSidebar = browser.isSidebarVisible && !browser.isShowingTabSwitcher
           AddressEntryOverlay(
@@ -61,17 +66,21 @@ struct RegularBrowserView: View {
       })
   }
 
-  private func contentColumn(safeArea: EdgeInsets, contentWidth: CGFloat) -> some View {
+  private func contentColumn(safeArea: EdgeInsets, edgeGap: CGFloat, contentWidth: CGFloat) -> some View {
     let inset = cardInset
     let metrics = ChromeMetrics.regular(
-      homeIndicatorOverlap: max(0, safeArea.bottom - inset), width: contentWidth)
-    let cornerRadius: CGFloat = 14
+      edgeGap: edgeGap, cardInset: inset, safeBottom: safeArea.bottom, width: contentWidth)
+    let cardShape = PageCardShape.shape(besideSidebar: browser.isSidebarVisible)
     return ZStack(alignment: .bottom) {
-      BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed))
+      BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed), ignoresSafeArea: true)
       BottomChrome(style: .regular, metrics: metrics)
     }
-    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-    .shadow(color: .black.opacity(0.22), radius: 10, y: 3)
+    .clipShape(cardShape)
+    .background(cardShape.fill(.background).shadow(color: .black.opacity(0.22), radius: 10, y: 3))
+    .reportsGlobalFrame { frame in
+      browser.morph.pageFrame = frame
+      browser.morph.pageCornerRadius = PageCardShape.sidebarCornerRadius
+    }
     .ignoresSafeArea(.keyboard)
     .padding(.vertical, inset)
     .padding(.trailing, inset)
@@ -254,5 +263,17 @@ struct LayoutRegionInsetsReader: UIViewRepresentable {
       let edgeInsets = EdgeInsets(top: insets.top, leading: insets.left, bottom: insets.bottom, trailing: insets.right)
       DispatchQueue.main.async { callback?(edgeInsets) }
     }
+  }
+}
+
+enum PageCardShape {
+  static let sidebarCornerRadius: CGFloat = 14
+
+  static func shape(besideSidebar: Bool) -> ConcentricRectangle {
+    let displayCorner: Edge.Corner.Style = .concentric(minimum: .fixed(10))
+    let sidebarCorner: Edge.Corner.Style = besideSidebar ? .fixed(sidebarCornerRadius) : displayCorner
+    return ConcentricRectangle(
+      topLeadingCorner: sidebarCorner, topTrailingCorner: displayCorner, bottomLeadingCorner: sidebarCorner,
+      bottomTrailingCorner: displayCorner)
   }
 }

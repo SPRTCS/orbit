@@ -5,6 +5,7 @@ struct WebViewContainer: UIViewRepresentable {
   let browser: BrowserModel
   let tab: BrowserTab
   var bottomObscured: CGFloat
+  var ignoresSafeArea = false
 
   func makeUIView(context: Context) -> WebHostView {
     WebHostView()
@@ -13,6 +14,7 @@ struct WebViewContainer: UIViewRepresentable {
   func updateUIView(_ host: WebHostView, context: Context) {
     let webView = tab.webView ?? browser.ensureLive(tab)
     host.show(webView)
+    (webView as? OrbitWebView)?.ignoresSafeArea = ignoresSafeArea
     let insets = UIEdgeInsets(top: 0, left: 0, bottom: bottomObscured, right: 0)
     if webView.obscuredContentInsets != insets { webView.obscuredContentInsets = insets }
   }

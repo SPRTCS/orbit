@@ -286,7 +286,7 @@ final class BrowserModel {
   }
 
   var usesOverviewMorph: Bool {
-    isCompactLayout && !UIAccessibility.isReduceMotionEnabled
+    !UIAccessibility.isReduceMotionEnabled
   }
 
   func showTabSwitcher() {
@@ -308,6 +308,7 @@ final class BrowserModel {
       await Task.yield()
       withAnimation(OverviewMorph.animation) {
         morph.progress = 1
+        morph.cardReveal = 1
       } completion: {
         morph.finish()
       }
@@ -333,6 +334,7 @@ final class BrowserModel {
     select(tab, keepingOverview: true)
     withAnimation(OverviewMorph.animation) {
       morph.progress = 0
+      morph.cardReveal = 0
     } completion: { [weak self] in
       self?.isShowingTabSwitcher = false
       self?.morph.finish()
@@ -340,7 +342,7 @@ final class BrowserModel {
   }
 
   func beginInteractiveOverview() -> Bool {
-    guard usesOverviewMorph, !isShowingTabSwitcher, !morph.isActive, !entry.isPresented,
+    guard usesOverviewMorph, isCompactLayout, !isShowingTabSwitcher, !morph.isActive, !entry.isPresented,
       let tab = selectedTab, tab.webView != nil
     else { return false }
     loadSnapshotIfNeeded(tab)
@@ -357,12 +359,14 @@ final class BrowserModel {
   func updateInteractiveOverview(_ progress: CGFloat) {
     guard morph.phase == .interactive else { return }
     morph.progress = min(max(progress, 0), 1)
+    morph.cardReveal = morph.progress
   }
 
   func endInteractiveOverview(commit: Bool) {
     guard morph.phase == .interactive else { return }
     withAnimation(OverviewMorph.animation) {
       morph.progress = commit ? 1 : 0
+      morph.cardReveal = commit ? 1 : 0
     } completion: { [weak self] in
       guard let self else { return }
       if !commit { self.isShowingTabSwitcher = false }
@@ -384,7 +388,7 @@ final class BrowserModel {
     guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return nil }
     let configuration = WKSnapshotConfiguration()
     configuration.snapshotWidth = NSNumber(value: Double(min(webView.bounds.width, 440)))
-    configuration.afterScreenUpdates = false
+    configuration.afterScreenUpdates = true
     guard let image = try? await webView.takeSnapshot(configuration: configuration) else { return nil }
     tab.snapshot = image
     tab.snapshotLoaded = true
@@ -479,7 +483,7 @@ final class BrowserModel {
     guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return }
     let configuration = WKSnapshotConfiguration()
     configuration.snapshotWidth = NSNumber(value: Double(min(webView.bounds.width, 440)))
-    configuration.afterScreenUpdates = false
+    configuration.afterScreenUpdates = true
     Task { [weak self, weak tab] in
       guard let image = try? await webView.takeSnapshot(configuration: configuration), let self, let tab else { return }
       tab.snapshot = image

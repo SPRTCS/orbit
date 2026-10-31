@@ -3,10 +3,11 @@ import SwiftUI
 struct BrowserContent: View {
   @Environment(BrowserModel.self) private var browser
   var bottomObscured: CGFloat
+  var ignoresSafeArea = false
 
   var body: some View {
     if let tab = browser.selectedTab, !tab.isBlank {
-      WebViewContainer(browser: browser, tab: tab, bottomObscured: bottomObscured)
+      WebViewContainer(browser: browser, tab: tab, bottomObscured: bottomObscured, ignoresSafeArea: ignoresSafeArea)
         .overlay {
           if let error = tab.loadError {
             LoadErrorView(message: error, url: tab.failedURL ?? tab.url) { browser.reload() }

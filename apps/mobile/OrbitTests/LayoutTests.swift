@@ -26,10 +26,21 @@ struct LayoutTests {
     #expect(homeButton.barBottomPadding == 10)
   }
 
-  @Test func regularBarFloatsAboveTheHomeIndicator() {
-    let metrics = ChromeMetrics.regular(homeIndicatorOverlap: 12, width: 900)
-    #expect(metrics.barBottomPadding == 22)
-    #expect(metrics.pillWidth == 288)
+  @Test func bottomRowSitsAtTheSameGapFromBottomAndSides() {
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 55, controlSize: 50, safeBottom: 34) == 36)
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 70, controlSize: 50, safeBottom: 34) == 45)
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 18, controlSize: 46, safeBottom: 20) == 22)
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 0, controlSize: 50, safeBottom: 0) == 12)
+
+    let phone = ChromeMetrics.compact(safeBottom: 34, width: 402, displayCornerRadius: 55)
+    #expect(phone.barBottomPadding == 36)
+    #expect(phone.horizontalPadding == 36)
+
+    let pad = ChromeMetrics.regular(edgeGap: 22, cardInset: 8, safeBottom: 20, width: 900)
+    #expect(pad.barHeight == ChromeMetrics.regularControlSize)
+    #expect(pad.barBottomPadding + 8 == 22)
+    #expect(pad.horizontalPadding + 8 == 22)
+    #expect(pad.pillWidth == 288)
   }
 
   @Test func morphTargetsTheCardOrThePlusButton() {

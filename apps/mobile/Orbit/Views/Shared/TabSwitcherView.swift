@@ -5,37 +5,46 @@ struct TabSwitcherView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   var body: some View {
-    ZStack(alignment: .bottom) {
-      OrbitBackdrop(tint: browser.currentSpace?.tint)
-        .ignoresSafeArea()
-      if browser.tabs.isEmpty {
-        emptyState
-      } else {
-        grid
+    GeometryReader { proxy in
+      let safeArea = proxy.safeAreaInsets
+      let isRegular = horizontalSizeClass == .regular
+      let buttonSize: CGFloat = isRegular ? ChromeMetrics.regularControlSize : 50
+      let gap = ChromeMetrics.edgeGap(
+        displayCornerRadius: browser.morph.displayCornerRadius, controlSize: buttonSize, safeBottom: safeArea.bottom)
+      let horizontalGap = isRegular ? gap : max(gap, safeArea.leading, safeArea.trailing)
+      ZStack(alignment: .bottom) {
+        OrbitBackdrop(tint: browser.currentSpace?.tint)
+        if browser.tabs.isEmpty {
+          emptyState
+        } else {
+          grid(safeArea: safeArea, isRegular: isRegular, bottomInset: gap + buttonSize + 20)
+        }
+        SwitcherBottomBar(buttonSize: buttonSize)
+          .padding(.horizontal, horizontalGap)
+          .padding(.bottom, gap)
       }
-      SwitcherBottomBar()
-        .padding(.horizontal, 14)
-        .padding(.bottom, 4)
+      .ignoresSafeArea(.container)
     }
     .opacity(browser.morph.overviewOpacity)
-    .scaleEffect(browser.morph.isActive ? 1.06 - 0.06 * browser.morph.progress : 1)
   }
 
-  private var grid: some View {
-    ScrollViewReader { proxy in
+  private func grid(safeArea: EdgeInsets, isRegular: Bool, bottomInset: CGFloat) -> some View {
+    let cardAspect = isRegular ? min(max(browser.morph.pageAspectRatio, 0.75), 1.6) : 0.74
+    let columns = [
+      GridItem(.adaptive(minimum: isRegular ? 250 : 150, maximum: isRegular ? 380 : 260), spacing: isRegular ? 22 : 16)
+    ]
+    return ScrollViewReader { proxy in
       ScrollView {
-        LazyVGrid(
-          columns: [GridItem(.adaptive(minimum: horizontalSizeClass == .regular ? 200 : 150, maximum: 260), spacing: 16)],
-          spacing: 20
-        ) {
+        LazyVGrid(columns: columns, spacing: isRegular ? 26 : 20) {
           ForEach(browser.tabs) { tab in
-            TabCard(tab: tab, isSelected: tab.id == browser.selectedTabID)
+            TabCard(tab: tab, isSelected: tab.id == browser.selectedTabID, aspectRatio: cardAspect)
               .id(tab.id)
           }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 110)
+        .padding(.leading, max(16, safeArea.leading + 8))
+        .padding(.trailing, max(16, safeArea.trailing + 8))
+        .padding(.top, safeArea.top + 16)
+        .padding(.bottom, bottomInset)
       }
       .onAppear {
         if let id = browser.selectedTabID { proxy.scrollTo(id, anchor: .center) }
@@ -58,36 +67,39 @@ struct TabSwitcherView: View {
 
 struct SwitcherBottomBar: View {
   @Environment(BrowserModel.self) private var browser
+  var buttonSize: CGFloat = 50
 
   var body: some View {
     GlassEffectContainer(spacing: 10) {
-      HStack(spacing: 10) {
-        GlassCircleButton(systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces") {
-          browser.isShowingDevices = true
+      ZStack {
+        HStack(spacing: 10) {
+          GlassCircleButton(systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces", size: buttonSize) {
+            browser.isShowingDevices = true
+          }
+          GlassCircleButton(systemImage: "gearshape", label: "Settings", size: buttonSize) {
+            browser.isShowingSettings = true
+          }
+          Spacer(minLength: 0)
+          GlassCircleButton(systemImage: "plus", label: "New Tab", size: buttonSize) {
+            browser.beginNewTab()
+          }
+          .reportsGlobalFrame { browser.morph.plusFrame = $0 }
         }
-        GlassCircleButton(systemImage: "gearshape", label: "Settings") {
-          browser.isShowingSettings = true
-        }
-        Spacer(minLength: 0)
         if browser.selectedTab != nil {
           Button {
             browser.hideTabSwitcher()
           } label: {
             Text("Done")
               .font(.system(size: 16, weight: .semibold))
-              .padding(.horizontal, 22)
-              .frame(height: 50)
+              .padding(.horizontal, 24)
+              .frame(height: buttonSize)
               .contentShape(.capsule)
           }
           .buttonStyle(.plain)
           .glassEffect(.regular.interactive(), in: .capsule)
+          .hoverEffect(.lift)
           .keyboardShortcut(.cancelAction)
         }
-        Spacer(minLength: 0)
-        GlassCircleButton(systemImage: "plus", label: "New Tab") {
-          browser.beginNewTab()
-        }
-        .reportsGlobalFrame { browser.morph.plusFrame = $0 }
       }
     }
   }
@@ -97,6 +109,7 @@ struct TabCard: View {
   @Environment(BrowserModel.self) private var browser
   let tab: BrowserTab
   let isSelected: Bool
+  var aspectRatio: CGFloat = 0.74
   @State private var dragOffset: CGFloat = 0
 
   var body: some View {
@@ -109,7 +122,7 @@ struct TabCard: View {
       }
       .padding(.horizontal, 4)
       Color.clear
-        .aspectRatio(0.74, contentMode: .fit)
+        .aspectRatio(aspectRatio, contentMode: .fit)
         .overlay {
           if let snapshot = tab.snapshot {
             TopAlignedSnapshot(image: snapshot)
@@ -149,6 +162,13 @@ struct TabCard: View {
         .opacity(browser.morph.hidesCard(of: tab.id) ? 0 : 1)
     }
     .contentShape(.rect)
+    .opacity(Double(browser.morph.cardReveal))
+    .scaleEffect(0.9 + 0.1 * browser.morph.cardReveal)
+    .animation(
+      browser.morph.phase == .interactive
+        ? nil : OverviewMorph.animation.delay(browser.morph.revealDelay(for: tab.id)),
+      value: browser.morph.cardReveal
+    )
     .offset(x: dragOffset)
     .opacity(1 - min(abs(dragOffset) / 260, 0.7))
     .onTapGesture { browser.openFromOverview(tab) }

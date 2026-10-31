@@ -6,9 +6,16 @@ struct CompactBrowserView: View {
   var body: some View {
     ZStack(alignment: .bottom) {
       GeometryReader { proxy in
-        let metrics = ChromeMetrics.compact(safeBottom: proxy.safeAreaInsets.bottom, width: proxy.size.width)
+        let metrics = ChromeMetrics.compact(
+          safeBottom: proxy.safeAreaInsets.bottom, width: proxy.size.width,
+          displayCornerRadius: browser.morph.displayCornerRadius, safeLeading: proxy.safeAreaInsets.leading,
+          safeTrailing: proxy.safeAreaInsets.trailing)
         ZStack(alignment: .bottom) {
           BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed))
+            .reportsGlobalFrame { frame in
+              browser.morph.pageFrame = frame
+              browser.morph.pageCornerRadius = browser.morph.displayCornerRadius
+            }
           BottomChrome(style: .compact, metrics: metrics)
         }
         .ignoresSafeArea(.container)

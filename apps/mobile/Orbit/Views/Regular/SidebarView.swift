@@ -5,6 +5,7 @@ struct SidebarView: View {
   @Environment(BrowserModel.self) private var browser
   let width: CGFloat
   let safeArea: EdgeInsets
+  let edgeGap: CGFloat
   @State private var topRowInsets = EdgeInsets(top: 24, leading: 20, bottom: 0, trailing: 0)
 
   var body: some View {
@@ -53,10 +54,10 @@ struct SidebarView: View {
       .scrollIndicators(.hidden)
       .refreshable { await browser.sync.refresh() }
       SidebarFooter()
-        .padding(.leading, safeArea.leading + 10)
+        .padding(.leading, max(edgeGap, safeArea.leading + 8))
         .padding(.trailing, 10)
         .padding(.top, 6)
-        .padding(.bottom, max(12, safeArea.bottom + 6))
+        .padding(.bottom, edgeGap)
     }
   }
 }
@@ -370,17 +371,24 @@ struct SidebarFooter: View {
   @Environment(BrowserModel.self) private var browser
   @Namespace private var glass
 
-  private let buttonSize: CGFloat = 46
+  private let buttonSize = ChromeMetrics.regularControlSize
 
   var body: some View {
-    let sync = browser.sync
     VStack(alignment: .leading, spacing: 8) {
-      if sync.isConnected {
-        Text(sync.statusText)
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .lineLimit(1)
-          .padding(.leading, 4)
+      if case .failed(let message) = browser.sync.client.state {
+        Button {
+          browser.isShowingSettings = true
+        } label: {
+          Label(message, systemImage: "exclamationmark.triangle.fill")
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .accessibilityHint("Opens Settings")
       }
       GlassEffectContainer(spacing: 10) {
         HStack(spacing: 10) {
@@ -391,19 +399,6 @@ struct SidebarFooter: View {
             browser.showTabSwitcher()
           }
           Spacer(minLength: 0)
-          if sync.isConnected {
-            GlassCircleButton(
-              systemImage: "arrow.triangle.2.circlepath", label: "Sync Now", size: buttonSize, glassNamespace: glass,
-              isSymbolEffectActive: sync.isSyncing
-            ) {
-              sync.refreshInBackground()
-            }
-            .help(sync.statusText)
-            .contextMenu {
-              Text(sync.statusText)
-              Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { sync.refreshInBackground() }
-            }
-          }
           GlassCircleButton(
             systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces", size: buttonSize, glassNamespace: glass
           ) {

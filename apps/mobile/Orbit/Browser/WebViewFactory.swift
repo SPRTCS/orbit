@@ -23,7 +23,7 @@ final class WebViewFactory {
       schedulePrewarm()
       return spare
     }
-    let webView = WKWebView(frame: .zero, configuration: configuration ?? makeConfiguration())
+    let webView = OrbitWebView(frame: .zero, configuration: configuration ?? makeConfiguration())
     configure(webView)
     if configuration == nil { schedulePrewarm() }
     return webView
@@ -36,7 +36,7 @@ final class WebViewFactory {
       guard let self, !Task.isCancelled else { return }
       self.prewarmTask = nil
       guard self.spare == nil else { return }
-      let webView = WKWebView(frame: .zero, configuration: self.makeConfiguration())
+      let webView = OrbitWebView(frame: .zero, configuration: self.makeConfiguration())
       self.configure(webView)
       self.spare = webView
     }
@@ -57,5 +57,20 @@ final class WebViewFactory {
     #if DEBUG
       webView.isInspectable = true
     #endif
+  }
+}
+
+final class OrbitWebView: WKWebView {
+  var ignoresSafeArea = false {
+    didSet {
+      guard oldValue != ignoresSafeArea else { return }
+      scrollView.contentInsetAdjustmentBehavior = ignoresSafeArea ? .never : .automatic
+      safeAreaInsetsDidChange()
+      setNeedsLayout()
+    }
+  }
+
+  override var safeAreaInsets: UIEdgeInsets {
+    ignoresSafeArea ? .zero : super.safeAreaInsets
   }
 }

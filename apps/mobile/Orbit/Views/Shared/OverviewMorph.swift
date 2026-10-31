@@ -11,16 +11,34 @@ final class OverviewMorph {
     case growing
   }
 
-  static let animation: Animation = .spring(duration: 0.4, bounce: 0)
+  static let animation: Animation = .spring(duration: 0.45, bounce: 0)
   static let cardCornerRadius: CGFloat = 22
+  static let maximumStagger: Double = 0.12
 
   var phase: Phase = .idle
   var tabID: UUID?
   var image: UIImage?
   var progress: CGFloat = 0
   var sourceFrame: CGRect?
+  var cardReveal: CGFloat = 1
   var cardFrames: [UUID: CGRect] = [:]
+  var displayCornerRadius: CGFloat = 0
   @ObservationIgnored var plusFrame: CGRect?
+  @ObservationIgnored var pageFrame: CGRect?
+  @ObservationIgnored var pageCornerRadius: CGFloat = 0
+
+  var pageAspectRatio: CGFloat {
+    guard let pageFrame, pageFrame.height > 0 else { return 4 / 3 }
+    return pageFrame.width / pageFrame.height
+  }
+
+  func revealDelay(for id: UUID) -> Double {
+    guard isActive, phase != .interactive, id != tabID, let card = cardFrames[id], let target = targetFrame else { return 0 }
+    let distance = hypot(card.midX - target.midX, card.midY - target.midY)
+    let reach = max(hypot(pageFrame?.width ?? 1000, pageFrame?.height ?? 1000), 1)
+    let fraction = min(Double(distance / reach), 1)
+    return phase == .closing ? (1 - fraction) * Self.maximumStagger * 0.5 : fraction * Self.maximumStagger
+  }
 
   var isActive: Bool { phase != .idle }
 
@@ -47,6 +65,7 @@ final class OverviewMorph {
     self.image = image
     self.progress = progress
     self.sourceFrame = sourceFrame
+    if phase != .growing { cardReveal = progress }
   }
 
   func finish() {
@@ -54,6 +73,7 @@ final class OverviewMorph {
     tabID = nil
     image = nil
     sourceFrame = nil
+    cardReveal = 1
   }
 }
 
@@ -66,12 +86,12 @@ struct OverviewMorphLayer: View {
       GeometryReader { proxy in
         let origin = proxy.frame(in: .global).origin
         let full = CGRect(origin: .zero, size: proxy.size)
-        let target = morph.targetFrame.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) } ?? full
-        let displayRadius: CGFloat = proxy.safeAreaInsets.bottom > 0 ? 55 : 0
+        let page = morph.pageFrame.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) } ?? full
+        let target = morph.targetFrame.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) } ?? page
         MorphSnapshot(image: morph.image)
           .modifier(
             MorphGeometry(
-              progress: morph.progress, from: full, to: target, fromRadius: displayRadius,
+              progress: morph.progress, from: page, to: target, fromRadius: morph.pageCornerRadius,
               toRadius: morph.phase == .growing ? target.height / 2 : OverviewMorph.cardCornerRadius))
       }
       .ignoresSafeArea()
@@ -102,7 +122,7 @@ struct TopAlignedSnapshot: View {
         Image(uiImage: image)
           .resizable()
           .frame(width: image.size.width * scale, height: image.size.height * scale)
-          .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+          .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
       }
     }
     .clipped()
@@ -182,5 +202,30 @@ struct VerticalSwipeGesture: UIGestureRecognizerRepresentable {
 extension View {
   func reportsGlobalFrame(_ update: @escaping (CGRect) -> Void) -> some View {
     onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { update($0) }
+  }
+}
+
+struct DisplayCornerReader: View {
+  let onChange: (CGFloat) -> Void
+
+  var body: some View {
+    GeometryReader { proxy in
+      let radius = Self.displayCornerRadius(proxy)
+      Color.clear
+        .onAppear { onChange(radius) }
+        .onChange(of: radius) { _, value in onChange(value) }
+    }
+    .ignoresSafeArea()
+    .allowsHitTesting(false)
+  }
+
+  private static func displayCornerRadius(_ proxy: GeometryProxy) -> CGFloat {
+    if #available(iOS 27.0, *),
+      let radii = proxy.concentricCornerRadii(in: CGRect(origin: .zero, size: proxy.size))
+    {
+      return max(radii.bottomLeading, radii.bottomTrailing)
+    }
+    guard proxy.safeAreaInsets.bottom > 0 else { return 0 }
+    return UIDevice.current.userInterfaceIdiom == .pad ? 18 : 55
   }
 }
