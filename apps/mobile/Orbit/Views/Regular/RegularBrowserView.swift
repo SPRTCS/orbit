@@ -77,6 +77,7 @@ struct RegularBrowserView: View {
       browser.morph.pageFrame = frame
       browser.morph.pageCornerRadius = PageCardShape.sidebarCornerRadius
     }
+    .opacity(browser.morph.hidesPage ? 0 : 1)
     .ignoresSafeArea(.keyboard)
     .padding(.vertical, inset)
     .padding(.trailing, inset)

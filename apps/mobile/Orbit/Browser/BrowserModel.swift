@@ -298,17 +298,14 @@ final class BrowserModel {
       withAnimation(.smooth(duration: 0.3)) { isShowingTabSwitcher = true }
       return
     }
-    Task { [weak self] in
-      guard let self else { return }
-      let image = await self.freshSnapshot(of: tab) ?? tab.snapshot
-      guard !self.isShowingTabSwitcher, !self.morph.isActive, self.selectedTabID == tab.id else { return }
-      let morph = self.morph
-      morph.start(.opening, tabID: tab.id, image: image, progress: 0)
-      self.isShowingTabSwitcher = true
-      self.animateMorph(to: 1, reveal: 1) {
-        morph.finish()
-      }
+    let image = instantSnapshot(of: tab)
+    morph.start(.opening, tabID: tab.id, image: image, progress: 0)
+    isShowingTabSwitcher = true
+    let morph = self.morph
+    animateMorph(to: 1, reveal: 1) {
+      morph.finish()
     }
+    captureSnapshot(of: tab)
   }
 
   func hideTabSwitcher() {
@@ -335,36 +332,50 @@ final class BrowserModel {
   }
 
   func beginInteractiveOverview() -> Bool {
-    guard usesOverviewMorph, isCompactLayout, !isShowingTabSwitcher, !morph.isActive, !entry.isPresented,
+    guard usesOverviewMorph, !isShowingTabSwitcher, !morph.isActive, !entry.isPresented,
       let tab = selectedTab, tab.webView != nil
     else { return false }
-    loadSnapshotIfNeeded(tab)
-    morph.start(.interactive, tabID: tab.id, image: tab.snapshot, progress: 0)
+    let image = instantSnapshot(of: tab)
+    morph.start(.interactive, tabID: tab.id, image: image, progress: 0)
     isShowingTabSwitcher = true
-    Task { [weak self] in
-      guard let self, let image = await self.freshSnapshot(of: tab) else { return }
-      guard self.morph.phase == .interactive, self.morph.tabID == tab.id else { return }
-      self.morph.image = image
-    }
     return true
   }
 
-  func updateInteractiveOverview(_ progress: CGFloat) {
+  func updateInteractiveOverview(_ progress: CGFloat, translation: CGSize = .zero) {
     guard morph.phase == .interactive else { return }
     morph.progress = min(max(progress, 0), 1)
     morph.cardReveal = morph.progress
+    morph.translation = translation
   }
 
   func endInteractiveOverview(commit: Bool) {
     guard morph.phase == .interactive else { return }
+    let morph = self.morph
     withAnimation(OverviewMorph.animation) {
       morph.progress = commit ? 1 : 0
       morph.cardReveal = commit ? 1 : 0
+      morph.translation = .zero
     } completion: { [weak self] in
       guard let self else { return }
       if !commit { self.isShowingTabSwitcher = false }
-      self.morph.finish()
+      morph.finish()
+      if commit, let tab = self.selectedTab { self.captureSnapshot(of: tab) }
     }
+  }
+
+  private func instantSnapshot(of tab: BrowserTab) -> UIImage? {
+    guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return tab.snapshot }
+    let format = UIGraphicsImageRendererFormat.preferred()
+    format.scale = min(webView.traitCollection.displayScale, 2)
+    format.opaque = true
+    var drawn = false
+    let image = UIGraphicsImageRenderer(bounds: webView.bounds, format: format).image { _ in
+      drawn = webView.drawHierarchy(in: webView.bounds, afterScreenUpdates: false)
+    }
+    guard drawn else { return tab.snapshot }
+    tab.snapshot = image
+    tab.snapshotLoaded = true
+    return image
   }
 
   private func growNewTabFromPlusButton(_ tab: BrowserTab) {
@@ -388,17 +399,7 @@ final class BrowserModel {
     }
   }
 
-  private func freshSnapshot(of tab: BrowserTab) async -> UIImage? {
-    guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return nil }
-    let configuration = WKSnapshotConfiguration()
-    configuration.snapshotWidth = NSNumber(value: Double(min(webView.bounds.width, 440)))
-    configuration.afterScreenUpdates = true
-    guard let image = try? await webView.takeSnapshot(configuration: configuration) else { return nil }
-    tab.snapshot = image
-    tab.snapshotLoaded = true
-    if let data = image.jpegData(compressionQuality: 0.72) { persistence.saveSnapshot(data, for: tab.id) }
-    return image
-  }
+
 
   func beginNewTab() {
     setChromeCollapsed(false)

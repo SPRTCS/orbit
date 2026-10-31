@@ -11,7 +11,8 @@ final class OverviewMorph {
     case growing
   }
 
-  static let animation: Animation = .spring(duration: 0.45, bounce: 0)
+  static let animation: Animation = .spring(duration: 0.38, bounce: 0)
+  static let commitProgress: CGFloat = 0.35
   static let cardCornerRadius: CGFloat = 22
   static let maximumStagger: Double = 0.12
 
@@ -21,6 +22,7 @@ final class OverviewMorph {
   var progress: CGFloat = 0
   var sourceFrame: CGRect?
   var cardReveal: CGFloat = 1
+  var translation: CGSize = .zero
   var cardFrames: [UUID: CGRect] = [:]
   var displayCornerRadius: CGFloat = 0
   @ObservationIgnored var plusFrame: CGRect?
@@ -41,6 +43,36 @@ final class OverviewMorph {
   }
 
   var isActive: Bool { phase != .idle }
+
+  var hidesPage: Bool { isActive }
+
+  var pinchTargetScale: CGFloat {
+    guard let pageFrame, let target = targetFrame, pageFrame.width > 0 else { return 0.3 }
+    return min(max(target.width / pageFrame.width, 0.1), 0.9)
+  }
+
+  static let pinchStartScale: CGFloat = 0.95
+
+  static func pinchStartsOverview(scale: CGFloat) -> Bool {
+    scale < pinchStartScale
+  }
+
+  static func pinchProgress(scale: CGFloat, targetScale: CGFloat) -> CGFloat {
+    guard targetScale < 1 else { return 0 }
+    return min(max((1 - scale) / (1 - targetScale), 0), 1)
+  }
+
+  static let swipeDistance: CGFloat = 320
+
+  static func swipeProgress(translation: CGFloat) -> CGFloat {
+    min(max(-translation / swipeDistance, 0), 1)
+  }
+
+  static func shouldCommit(progress: CGFloat, velocity: CGFloat) -> Bool {
+    if velocity > 0.8 { return true }
+    if velocity < -0.8 { return false }
+    return progress > commitProgress
+  }
 
   var targetFrame: CGRect? {
     if phase == .growing { return sourceFrame }
@@ -65,6 +97,7 @@ final class OverviewMorph {
     self.image = image
     self.progress = progress
     self.sourceFrame = sourceFrame
+    translation = .zero
     if phase != .growing { cardReveal = progress }
   }
 
@@ -74,6 +107,7 @@ final class OverviewMorph {
     image = nil
     sourceFrame = nil
     cardReveal = 1
+    translation = .zero
   }
 }
 
@@ -92,7 +126,8 @@ struct OverviewMorphLayer: View {
           .modifier(
             MorphGeometry(
               progress: morph.progress, from: page, to: target, fromRadius: morph.pageCornerRadius,
-              toRadius: morph.phase == .growing ? target.height / 2 : OverviewMorph.cardCornerRadius))
+              toRadius: morph.phase == .growing ? target.height / 2 : OverviewMorph.cardCornerRadius,
+              offset: morph.translation))
       }
       .ignoresSafeArea()
       .allowsHitTesting(false)
@@ -135,10 +170,14 @@ struct MorphGeometry: ViewModifier, Animatable {
   let to: CGRect
   let fromRadius: CGFloat
   let toRadius: CGFloat
+  var offset: CGSize = .zero
 
-  var animatableData: CGFloat {
-    get { progress }
-    set { progress = newValue }
+  var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
+    get { AnimatablePair(progress, AnimatablePair(offset.width, offset.height)) }
+    set {
+      progress = newValue.first
+      offset = CGSize(width: newValue.second.first, height: newValue.second.second)
+    }
   }
 
   func body(content: Content) -> some View {
@@ -151,7 +190,7 @@ struct MorphGeometry: ViewModifier, Animatable {
       .frame(width: max(rect.width, 1), height: max(rect.height, 1))
       .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
       .shadow(color: .black.opacity(0.3 * Double(t)), radius: 12, y: 6)
-      .position(x: rect.midX, y: rect.midY)
+      .position(x: rect.midX + offset.width, y: rect.midY + offset.height)
   }
 }
 

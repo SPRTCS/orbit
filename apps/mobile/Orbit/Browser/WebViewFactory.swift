@@ -71,6 +71,11 @@ final class OrbitWebView: WKWebView {
   }
 
   override var safeAreaInsets: UIEdgeInsets {
-    ignoresSafeArea ? .zero : super.safeAreaInsets
+    ignoresSafeArea ? .zero : Self.sharedHorizontalInsets(super.safeAreaInsets)
+  }
+
+  static func sharedHorizontalInsets(_ insets: UIEdgeInsets) -> UIEdgeInsets {
+    let horizontal = min(insets.left, insets.right)
+    return UIEdgeInsets(top: insets.top, left: horizontal, bottom: insets.bottom, right: horizontal)
   }
 }

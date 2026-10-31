@@ -18,6 +18,7 @@ struct CompactBrowserView: View {
             }
           BottomChrome(style: .compact, metrics: metrics)
         }
+        .opacity(browser.morph.hidesPage ? 0 : 1)
         .ignoresSafeArea(.container)
       }
       .ignoresSafeArea(.keyboard)

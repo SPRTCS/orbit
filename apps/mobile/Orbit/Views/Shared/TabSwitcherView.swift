@@ -12,7 +12,9 @@ struct TabSwitcherView: View {
       let buttonSize: CGFloat = isRegular ? ChromeMetrics.regularControlSize : 50
       let gap = ChromeMetrics.edgeGap(
         displayCornerRadius: browser.morph.displayCornerRadius, controlSize: buttonSize, safeBottom: safeArea.bottom)
-      let horizontalGap = isRegular ? gap : max(gap, safeArea.leading, safeArea.trailing)
+      let horizontalGap = ChromeMetrics.horizontalInset(
+        edgeGap: gap, safeLeading: safeArea.leading, safeTrailing: safeArea.trailing)
+      let barWidth = proxy.size.width + safeArea.leading + safeArea.trailing - 2 * horizontalGap
       ZStack(alignment: .bottom) {
         OrbitBackdrop(tint: browser.currentSpace?.tint)
         if browser.tabs.isEmpty {
@@ -20,7 +22,9 @@ struct TabSwitcherView: View {
         } else {
           grid(safeArea: safeArea, isRegular: isRegular, bottomInset: gap + buttonSize + 20)
         }
-        SwitcherBottomBar(buttonSize: buttonSize)
+        SwitcherBottomBar(
+          buttonSize: buttonSize,
+          centersDone: OverviewBarLayout.centersDone(barWidth: barWidth, buttonSize: buttonSize))
           .padding(.horizontal, horizontalGap)
           .padding(.bottom, gap)
       }
@@ -42,8 +46,7 @@ struct TabSwitcherView: View {
               .id(tab.id)
           }
         }
-        .padding(.leading, max(16, safeArea.leading + 8))
-        .padding(.trailing, max(16, safeArea.trailing + 8))
+        .padding(.horizontal, max(16, min(safeArea.leading, safeArea.trailing) + 8))
         .padding(.top, safeArea.top + 16)
         .padding(.bottom, bottomInset)
       }
@@ -66,42 +69,81 @@ struct TabSwitcherView: View {
   }
 }
 
+enum OverviewBarLayout {
+  static let spacing: CGFloat = 12
+  static let doneWidth: CGFloat = 86
+  static let clearance: CGFloat = 12
+
+  static func centersDone(barWidth: CGFloat, buttonSize: CGFloat) -> Bool {
+    let leadingGroup = 2 * buttonSize + spacing
+    return leadingGroup + clearance <= (barWidth - doneWidth) / 2
+  }
+}
+
 struct SwitcherBottomBar: View {
   @Environment(BrowserModel.self) private var browser
   var buttonSize: CGFloat = 50
+  var centersDone = true
 
   var body: some View {
-    GlassEffectContainer(spacing: 10) {
-      ZStack {
-        HStack(spacing: 10) {
-          GlassCircleButton(systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces", size: buttonSize) {
-            browser.isShowingDevices = true
+    GlassEffectContainer(spacing: 4) {
+      if centersDone {
+        ZStack {
+          HStack(spacing: OverviewBarLayout.spacing) {
+            devicesButton
+            settingsButton
+            Spacer(minLength: 0)
+            plusButton
           }
-          GlassCircleButton(systemImage: "gearshape", label: "Settings", size: buttonSize) {
-            browser.isShowingSettings = true
-          }
-          Spacer(minLength: 0)
-          GlassCircleButton(systemImage: "plus", label: "New Tab", size: buttonSize) {
-            browser.beginNewTab()
-          }
-          .reportsGlobalFrame { browser.morph.plusFrame = $0 }
+          doneButton
         }
-        if browser.selectedTab != nil {
-          Button {
-            browser.hideTabSwitcher()
-          } label: {
-            Text("Done")
-              .font(.system(size: 16, weight: .semibold))
-              .padding(.horizontal, 24)
-              .frame(height: buttonSize)
-              .contentShape(.capsule)
-          }
-          .buttonStyle(.plain)
-          .glassEffect(.regular.interactive(), in: .capsule)
-          .hoverEffect(.lift)
-          .keyboardShortcut(.cancelAction)
+      } else {
+        HStack(spacing: OverviewBarLayout.spacing) {
+          devicesButton
+          settingsButton
+          Spacer(minLength: OverviewBarLayout.clearance)
+          doneButton
+          Spacer(minLength: OverviewBarLayout.clearance)
+          plusButton
         }
       }
+    }
+  }
+
+  private var devicesButton: some View {
+    GlassCircleButton(systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces", size: buttonSize) {
+      browser.isShowingDevices = true
+    }
+  }
+
+  private var settingsButton: some View {
+    GlassCircleButton(systemImage: "gearshape", label: "Settings", size: buttonSize) {
+      browser.isShowingSettings = true
+    }
+  }
+
+  private var plusButton: some View {
+    GlassCircleButton(systemImage: "plus", label: "New Tab", size: buttonSize) {
+      browser.beginNewTab()
+    }
+    .reportsGlobalFrame { browser.morph.plusFrame = $0 }
+  }
+
+  @ViewBuilder
+  private var doneButton: some View {
+    if browser.selectedTab != nil {
+      Button {
+        browser.hideTabSwitcher()
+      } label: {
+        Text("Done")
+          .font(.system(size: 16, weight: .semibold))
+          .frame(width: OverviewBarLayout.doneWidth, height: buttonSize)
+          .contentShape(.capsule)
+      }
+      .buttonStyle(.plain)
+      .glassEffect(.regular.interactive(), in: .capsule)
+      .hoverEffect(.lift)
+      .keyboardShortcut(.cancelAction)
     }
   }
 }
@@ -113,6 +155,10 @@ struct TabCard: View {
   var aspectRatio: CGFloat = 0.74
   @State private var dragOffset: CGFloat = 0
 
+  private var isMorphTarget: Bool {
+    browser.morph.isActive && browser.morph.tabID == tab.id
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 6) {
@@ -122,6 +168,7 @@ struct TabCard: View {
           .lineLimit(1)
       }
       .padding(.horizontal, 4)
+      .opacity(isMorphTarget ? Double(max(0, browser.morph.cardReveal - 0.6) / 0.4) : 1)
       Color.clear
         .aspectRatio(aspectRatio, contentMode: .fit)
         .overlay {
@@ -163,8 +210,8 @@ struct TabCard: View {
         .opacity(browser.morph.hidesCard(of: tab.id) ? 0 : 1)
     }
     .contentShape(.rect)
-    .opacity(Double(browser.morph.cardReveal))
-    .scaleEffect(0.9 + 0.1 * browser.morph.cardReveal)
+    .opacity(isMorphTarget ? 1 : Double(browser.morph.cardReveal))
+    .scaleEffect(isMorphTarget ? 1 : 0.9 + 0.1 * browser.morph.cardReveal)
     .animation(
       browser.morph.phase == .interactive
         ? nil : OverviewMorph.animation.delay(browser.morph.revealDelay(for: tab.id)),

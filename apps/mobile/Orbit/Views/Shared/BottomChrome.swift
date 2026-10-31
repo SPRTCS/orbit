@@ -14,11 +14,17 @@ struct ChromeMetrics {
     return isPad ? 18 : 55
   }
 
+  static let minimumEdgeGap: CGFloat = 20
+
   static func edgeGap(displayCornerRadius: CGFloat, controlSize: CGFloat, safeBottom: CGFloat) -> CGFloat {
-    guard safeBottom > 0 else { return 12 }
+    guard safeBottom > 0 else { return minimumEdgeGap }
     let radius = min(max(displayCornerRadius, 0), maximumDisplayCornerRadius)
     let homeIndicatorClearance = min(safeBottom, 40) + 2
-    return max(radius - controlSize / 2, homeIndicatorClearance, 12)
+    return max(radius - controlSize / 2, homeIndicatorClearance, minimumEdgeGap)
+  }
+
+  static func horizontalInset(edgeGap: CGFloat, safeLeading: CGFloat, safeTrailing: CGFloat) -> CGFloat {
+    max(edgeGap, min(safeLeading, safeTrailing))
   }
 
   var expandedObscured: CGFloat { barBottomPadding + barHeight + 8 }
@@ -44,7 +50,8 @@ struct ChromeMetrics {
       barBottomPadding: hasHomeIndicator ? gap : 10,
       pillBottomPadding: hasHomeIndicator ? max(18, safeBottom - 14) : 6,
       pillWidth: min(max(width * 0.45, 150), 300),
-      horizontalPadding: hasHomeIndicator ? max(gap, safeLeading, safeTrailing) : 14)
+      horizontalPadding: hasHomeIndicator
+        ? horizontalInset(edgeGap: gap, safeLeading: safeLeading, safeTrailing: safeTrailing) : 14)
   }
 
   static let regularControlSize: CGFloat = 46
@@ -89,7 +96,7 @@ struct BottomChrome: View {
           }
           .reportsGlobalFrame { browser.morph.plusFrame = $0 }
         }
-        .modifier(OverviewSwipeModifier(gesture: style == .compact ? overviewSwipe : nil))
+        .modifier(OverviewSwipeModifier(gesture: overviewSwipe))
       }
     }
     .padding(.horizontal, metrics.horizontalPadding)
@@ -100,9 +107,14 @@ struct BottomChrome: View {
   private var overviewSwipe: VerticalSwipeGesture {
     VerticalSwipeGesture(
       onBegan: { browser.beginInteractiveOverview() },
-      onChanged: { translation in browser.updateInteractiveOverview(-translation / 320) },
+      onChanged: { translation in
+        browser.updateInteractiveOverview(
+          OverviewMorph.swipeProgress(translation: translation), translation: CGSize(width: 0, height: min(0, translation) * 0.15))
+      },
       onEnded: { translation, velocity in
-        browser.endInteractiveOverview(commit: -(translation + velocity * 0.2) > 140)
+        browser.endInteractiveOverview(
+          commit: OverviewMorph.shouldCommit(
+            progress: OverviewMorph.swipeProgress(translation: translation), velocity: -velocity / 1000))
       })
   }
 

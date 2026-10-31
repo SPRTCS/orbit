@@ -1,12 +1,15 @@
 import UIKit
 import WebKit
 
-final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
+final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGestureRecognizerDelegate {
   let webView: WKWebView
   private weak var tab: BrowserTab?
   private weak var browser: BrowserModel?
   private var observations: [NSKeyValueObservation] = []
   private let refreshControl = UIRefreshControl()
+  private let overviewPinch = UIPinchGestureRecognizer()
+  private var pinchStartCentroid: CGPoint = .zero
+  private var pinchDrivesOverview = false
   private var lastOffsetY: CGFloat = 0
   private var directionTravel: CGFloat = 0
 
@@ -24,6 +27,9 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     super.init()
     webView.navigationDelegate = self
     webView.uiDelegate = self
+    overviewPinch.addTarget(self, action: #selector(handleOverviewPinch(_:)))
+    overviewPinch.delegate = self
+    webView.addGestureRecognizer(overviewPinch)
     refreshControl.addTarget(self, action: #selector(pullToRefresh), for: .valueChanged)
     webView.scrollView.refreshControl = refreshControl
     observeWebView()
@@ -31,6 +37,7 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
   }
 
   func tearDown() {
+    webView.removeGestureRecognizer(overviewPinch)
     observations.removeAll()
     webView.scrollView.refreshControl = nil
     webView.stopLoading()
@@ -86,6 +93,49 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     Task { [weak self] in
       try? await Task.sleep(for: .seconds(8))
       self?.refreshControl.endRefreshing()
+    }
+  }
+
+  func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    guard gestureRecognizer === overviewPinch else { return true }
+    let scrollView = webView.scrollView
+    return scrollView.zoomScale <= scrollView.minimumZoomScale + 0.01 && browser?.morph.isActive == false
+  }
+
+  func gestureRecognizer(
+    _ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+  ) -> Bool {
+    gestureRecognizer === overviewPinch
+  }
+
+  @objc private func handleOverviewPinch(_ pinch: UIPinchGestureRecognizer) {
+    guard let browser else { return }
+    let centroid = pinch.location(in: webView.window)
+    switch pinch.state {
+    case .began:
+      pinchStartCentroid = centroid
+      pinchDrivesOverview = false
+    case .changed:
+      if !pinchDrivesOverview {
+        guard OverviewMorph.pinchStartsOverview(scale: pinch.scale) else { return }
+        pinchDrivesOverview = browser.beginInteractiveOverview()
+        pinchStartCentroid = centroid
+        guard pinchDrivesOverview else { return }
+      }
+      let progress = OverviewMorph.pinchProgress(scale: pinch.scale, targetScale: browser.morph.pinchTargetScale)
+      let translation = CGSize(width: centroid.x - pinchStartCentroid.x, height: centroid.y - pinchStartCentroid.y)
+      browser.updateInteractiveOverview(progress, translation: translation)
+    case .ended:
+      guard pinchDrivesOverview else { return }
+      pinchDrivesOverview = false
+      let progress = OverviewMorph.pinchProgress(scale: pinch.scale, targetScale: browser.morph.pinchTargetScale)
+      browser.endInteractiveOverview(commit: OverviewMorph.shouldCommit(progress: progress, velocity: -pinch.velocity))
+    case .cancelled, .failed:
+      guard pinchDrivesOverview else { return }
+      pinchDrivesOverview = false
+      browser.endInteractiveOverview(commit: false)
+    default:
+      break
     }
   }
 

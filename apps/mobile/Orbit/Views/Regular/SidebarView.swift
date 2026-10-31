@@ -11,9 +11,9 @@ struct SidebarView: View {
   var body: some View {
     VStack(spacing: 0) {
       SidebarTopBar()
-        .padding(.leading, max(topRowInsets.leading - 6, safeArea.leading + 10))
+        .padding(.leading, topRowLeading)
         .padding(.trailing, 10)
-        .padding(.top, max(topRowInsets.top - 4, safeArea.top + 6))
+        .padding(.top, SidebarLayout.topRowInset(edgeGap: edgeGap))
         .background {
           LayoutRegionInsetsReader { topRowInsets = $0 }
         }
@@ -54,11 +54,36 @@ struct SidebarView: View {
       .scrollIndicators(.hidden)
       .refreshable { await browser.sync.refresh() }
       SidebarFooter()
-        .padding(.leading, max(edgeGap, safeArea.leading + 8))
+        .padding(.leading, SidebarLayout.footerLeading(edgeGap: edgeGap, safeLeading: safeArea.leading))
         .padding(.trailing, 10)
         .padding(.top, 6)
         .padding(.bottom, edgeGap)
     }
+  }
+}
+
+extension SidebarView {
+  private var topRowLeading: CGFloat {
+    SidebarLayout.topRowLeading(edgeGap: edgeGap, safeLeading: safeArea.leading, cornerAdaptedLeading: topRowInsets.leading)
+  }
+}
+
+enum SidebarLayout {
+  static let iconButtonSize: CGFloat = 34
+  static let windowControlsThreshold: CGFloat = 30
+
+  static func footerLeading(edgeGap: CGFloat, safeLeading: CGFloat) -> CGFloat {
+    max(edgeGap, safeLeading + 8)
+  }
+
+  static func topRowInset(edgeGap: CGFloat) -> CGFloat {
+    edgeGap + (ChromeMetrics.regularControlSize - iconButtonSize) / 2
+  }
+
+  static func topRowLeading(edgeGap: CGFloat, safeLeading: CGFloat, cornerAdaptedLeading: CGFloat) -> CGFloat {
+    let mirrored = footerLeading(edgeGap: edgeGap, safeLeading: safeLeading) + (ChromeMetrics.regularControlSize - iconButtonSize) / 2
+    let hasWindowControls = cornerAdaptedLeading > safeLeading + windowControlsThreshold
+    return hasWindowControls ? max(mirrored, cornerAdaptedLeading) : mirrored
   }
 }
 
@@ -92,7 +117,7 @@ struct SidebarIconButton: View {
     Button(action: action) {
       Image(systemName: systemImage)
         .font(.system(size: 15, weight: .semibold))
-        .frame(width: 34, height: 34)
+        .frame(width: SidebarLayout.iconButtonSize, height: SidebarLayout.iconButtonSize)
         .contentShape(.rect(cornerRadius: 8))
     }
     .buttonStyle(.plain)
