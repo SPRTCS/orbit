@@ -44,6 +44,7 @@ import {
 } from "./adapters";
 import { extensionsAdapterFor, extensionSyncAvailable, probeExtensionSync, watchExtensionIntents } from "./extensions";
 import { pinnedFoldersAdapter, watchPinnedFolders } from "./pinnedFolders";
+import { recordKind } from "../lib/syncedDevices";
 
 type DataType = "bookmarks" | "history" | "tabs" | "pinned" | "passwords" | "extensions" | "settings";
 
@@ -105,7 +106,7 @@ const emptyDoc = (): SyncDoc => ({
 export type SyncStatus = "off" | "starting" | "updating" | "updated" | "stalled" | "offline" | "locked" | "reset" | "unavailable";
 
 type SyncedDevice = { id: string; name: string; lastSeen: number | null; current: boolean };
-export type RemoteTabs = { deviceId: string; name: string; tabs: { url: string; title: string }[] };
+export type RemoteTabs = { deviceId: string; name: string; kind?: string; tabs: { url: string; title: string }[] };
 type RemoteProfile = { syncId: string; name: string; color: Profile["color"]; icon: string | null; sharesWith?: { name: string; added: boolean }; waiting?: true };
 
 type SyncUi = {
@@ -500,7 +501,7 @@ function summarize(): Pick<SyncUi, "devices" | "remoteTabs" | "remoteProfiles"> 
     remoteTabs[profileId] = [...visible(scope, "tabs:")]
       .map(([k, v]) => ({ deviceId: k.slice(5), value: v as DeviceTabs }))
       .filter(({ deviceId, value }) => deviceId !== doc.deviceId && names.has(deviceId) && value.tabs.length > 0)
-      .map(({ deviceId, value }) => ({ deviceId, name: names.get(deviceId) || value.n || "Unknown Device", tabs: value.tabs.map((t) => ({ url: t.u, title: t.t })) }));
+      .map(({ deviceId, value }) => ({ deviceId, name: names.get(deviceId) || value.n || "Unknown Device", tabs: value.tabs.map((t) => ({ url: t.u, title: t.t })), ...recordKind(value) }));
   }
   const linked = new Set(Object.values(doc.profiles).map((l) => l.syncId));
   const remoteProfiles = [...visible(app, "prof:")]

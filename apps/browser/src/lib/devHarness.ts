@@ -46,6 +46,9 @@ export function startDevHarness() {
     get pinnedFolders(): typeof import("./pinnedFolders") & typeof import("../store/pinnedFolders") & typeof import("../components/sidebar/pinnedFolderMenus") {
       return { ...require("./pinnedFolders"), ...require("../store/pinnedFolders"), ...require("../components/sidebar/pinnedFolderMenus") };
     },
+    get syncedDevices(): typeof import("./syncedDevices") & typeof import("../store/syncedDevices") & typeof import("../components/sidebar/SyncedDevices") & { useSync: typeof import("../sync/engine").useSync } {
+      return { ...require("./syncedDevices"), ...require("../store/syncedDevices"), ...require("../components/sidebar/SyncedDevices"), useSync: require("../sync/engine").useSync };
+    },
     get capture(): typeof import("./capture/capture") & typeof import("./capture/model") {
       return { ...require("./capture/capture"), ...require("./capture/model") };
     },

@@ -20,6 +20,7 @@ import {
 import { ProfileBadge } from "../../profiles/icons";
 import { Button, Group, Row, SectionHeader, Toggle, useFormColors } from "../controls";
 import { folderLabel, showConnectDevice, showPhraseEntry, showRecoveryKit, showStopSync } from "./SyncSheets";
+import { SidebarDevicesRow } from "./SyncedDevicesSetting";
 
 export function SyncPane() {
   const theme = useTheme();
@@ -259,6 +260,7 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
         ) : (
           <Row title="Just this Mac so far" description="Other devices show here once they sync." />
         )}
+        <SidebarDevicesRow />
       </Group>
     </>
   );

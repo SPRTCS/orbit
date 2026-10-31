@@ -304,6 +304,11 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `components/sidebar/AddressBar.tsx` | Glass sidebar: import; the same `glassField` overrides in `EmptyField`. |
 | `components/ContentCard.tsx` | Glass sidebar: import; `cardRadius = useCardRadius()` for the pane's `borderRadius`; `<GlassCardEdge …/>` last in the pane. |
 | `components/settings/panes/Appearance.tsx` | Glass sidebar: import; `<SidebarStylePicker />` after `<AddressBarPicker />`. |
+| `components/Sidebar.tsx` | Devices: import; `aboveFooter = footer + useSyncedDevicesHeight(windowId)` replaces `footer` in the page area's, the player's and the docked New Tab row's `bottom`; `<SyncedDevices windowId={windowId} bottom={footer} />` before the footer. |
+| `sync/engine.ts` | Devices: import; `kind?` in `RemoteTabs`; `...recordKind(value)` at the end of `summarize`'s `remoteTabs` mapping (a `tabs:` record's optional `k`). |
+| `store/settings.ts` | Devices: `showSyncedDevices?: boolean` in `Settings` (unset = on; not synced). |
+| `components/settings/panes/Sync.tsx` | Devices: import; `<SidebarDevicesRow />` last in the Devices group. |
+| `lib/devHarness.ts` | Devices: `ac.syncedDevices` getter (dev only; also exposes `useSync` for injecting fake `remoteTabs`). |
 
 ## Shared spaces, sessions and the timeline (Arc)
 
@@ -552,6 +557,33 @@ Classic every hook takes upstream's path). Glass is modelled on the Radian brows
   scrolls by touch). Hover-only controls (a row's close button, the URL field's bookmark) don't appear for touch.
 - **Dev handles** (`__DEV__` only): `globalThis.orbitAvatarMenu` (`setState({[windowId]: true})`, `run(item, windowId)`)
   and `globalThis.orbitGlide`.
+
+## Devices in the sidebar (Orbit)
+
+A collapsible **Devices** section just above the sidebar footer (Glass and Classic) lists the window's space's other
+synced devices and their open tabs, from the same `tabs:<device id>` records as the overflow menu's "Your Devices"
+(`docs/sync.md`). Orbit-owned files: `lib/syncedDevices.ts` (pure: device kind, sorting, sizes), `store/syncedDevices.ts`
+(view state), `components/sidebar/SyncedDevices.tsx`, `components/settings/panes/SyncedDevicesSetting.tsx`, and
+`lib/syncedDevices.test.mjs`.
+
+- **Shown** while sync is on, the window isn't private, Settings › Sync › "Show devices in sidebar" is on (default) and
+  the space has at least one other device with tabs. Otherwise it takes no space.
+- **Collapsed** (default): one row, "Devices", with up to three device icons and "+n". **Expanded**: one row per
+  device (icon, name, "n tabs · x min ago" from the device's last sync), newest first, devices that never synced
+  last; a device row expands to its tabs (favicon, title, host; duplicates dropped). A space with one other device
+  shows its tabs at once. Rows use the sidebar's 34 pt rows, 3 pt gaps, 10 pt radius and hover/pressed fills; tabs
+  are indented 14 pt like folder contents; Glass uses the semibold header with the chevron after it, Classic a
+  `FadeLabel` with the chevron at the right, as pinned folders do.
+- **Height**: the section docks at the bottom and pushes the page area, the docked New Tab row and the player up.
+  Expanded, it grows to at most 45% of the sidebar and scrolls inside.
+- **Kind**: a record's `k` (or `kind`) field first, then the name: iPhone, iPad, Vision, iMac, Mac mini, Mac Studio,
+  Mac Pro, otherwise a laptop. The iOS app should publish `k: "iphone"` / `"ipad"` in its `tabs:` record.
+- **Click** opens the tab in this window (⌘-click or middle click in the background, ⇧ in a new window, ⌥ in a split:
+  `openModeFor`/`openUrl`, with a plain click opening a new tab rather than navigating the current one). Right click
+  on a tab: Open, Open in New Window, Copy Link. Right click on the header: Expand/Collapse, Hide Devices in Sidebar,
+  Sync Settings….
+- **Remembered** per window and space (section and each device's open state) in `synced-devices.json` in the data
+  dir; entries of closed windows are dropped when it's saved.
 
 ## Building locally
 

@@ -42,6 +42,7 @@ import { GLASS, useGlassSidebar } from "../lib/glassTheme";
 import { GlassFooter } from "./glassSidebar/GlassFooter";
 import { GlassHeaderTools } from "./glassSidebar/GlassHeader";
 import { SelectionGlide } from "./glassSidebar/SelectionGlide";
+import { SyncedDevices, useSyncedDevicesHeight } from "./sidebar/SyncedDevices";
 
 const GLOW_ROOM = 24;
 const ROW_PITCH = layout.rowHeight + layout.rowGap;
@@ -77,6 +78,7 @@ export function Sidebar({ width }: { width: number }) {
   const footerDownloads = addressBar && hasDownloads;
   const glass = useGlassSidebar();
   const footer = glass ? GLASS.footer : dots || footerDownloads ? PROFILE_DOTS_HEIGHT : 0;
+  const aboveFooter = footer + useSyncedDevicesHeight(windowId);
   const nothingPinned = useBrowser((s) => sidebarEntries(s, windowId, current).tiles.length === 0);
 
   useRevealTabs(windowId, scroll, scrollY, geometry, glowRoom);
@@ -97,7 +99,7 @@ export function Sidebar({ width }: { width: number }) {
               left: 0,
               right: 0,
               top: header - glowRoom,
-              bottom: (docked ? DOCK : 0) + playerHeight + footer,
+              bottom: (docked ? DOCK : 0) + playerHeight + aboveFooter,
               overflow: paging ? "hidden" : "visible",
             }}
             onLayout={(e) => setAvailable(e.nativeEvent.layout.height + (docked ? DOCK : 0))}
@@ -129,16 +131,18 @@ export function Sidebar({ width }: { width: number }) {
           </View>
 
           {playerTab ? (
-            <View style={{ position: "absolute", left: layout.sidebarInset, right: layout.sidebarInset, bottom: (docked ? DOCK : 8) + footer }}>
+            <View style={{ position: "absolute", left: layout.sidebarInset, right: layout.sidebarInset, bottom: (docked ? DOCK : 8) + aboveFooter }}>
               <SidebarPlayer tabId={playerTab} />
             </View>
           ) : null}
 
           {docked ? (
-            <View style={{ position: "absolute", left: layout.sidebarInset, right: layout.sidebarInset, bottom: DOCKED_BOTTOM + footer }}>
+            <View style={{ position: "absolute", left: layout.sidebarInset, right: layout.sidebarInset, bottom: DOCKED_BOTTOM + aboveFooter }}>
               <NewTabRow windowId={windowId} />
             </View>
           ) : null}
+
+          <SyncedDevices windowId={windowId} bottom={footer} />
 
           {glass ? <GlassFooter windowId={windowId} width={width} downloads={addressBar} /> : footer ? (
             <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: footer }}>
