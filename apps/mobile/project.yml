@@ -1,0 +1,106 @@
+name: Orbit
+options:
+  bundleIdPrefix: com.ais
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  OrbitSync:
+    path: OrbitSync
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: MYXQKK3T2Z
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ENABLE_MODULE_VERIFIER: NO
+    DEAD_CODE_STRIPPING: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+
+targets:
+  Orbit:
+    type: application
+    platform: iOS
+    sources:
+      - path: Orbit
+    dependencies:
+      - package: OrbitSync
+    info:
+      path: Orbit/Info.plist
+      properties:
+        CFBundleDisplayName: Orbit
+        CFBundleName: Orbit
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleDevelopmentRegion: en
+        LSApplicationCategoryType: public.app-category.productivity
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        UIApplicationSupportsIndirectInputEvents: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoadsInWebContent: true
+        NSCameraUsageDescription: Orbit uses the camera to scan your Recovery Kit QR code, and for websites you allow to use it.
+        NSMicrophoneUsageDescription: Websites you allow can use the microphone, for example for calls.
+        NSLocationWhenInUseUsageDescription: Websites you allow can use your location, for example for maps.
+        NSLocalNetworkUsageDescription: Orbit opens pages on your local network when you visit them.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ais.orbit-mobile
+        PRODUCT_NAME: Orbit
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
+        GENERATE_INFOPLIST_FILE: NO
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+
+  OrbitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OrbitTests
+    dependencies:
+      - target: Orbit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ais.orbit-mobile.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+schemes:
+  Orbit:
+    build:
+      targets:
+        Orbit: all
+        OrbitTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - OrbitTests
+    archive:
+      config: Release

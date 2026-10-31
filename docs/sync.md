@@ -385,6 +385,50 @@ bookmark, settings, profile or group edit, and on Sync Now. A cycle:
 5. Saves `sync.json` (in the app's data folder): links, settings of sync and the last seq written
    per scope; and `sync-state.nns`, sealed: the replica, base, version vectors and known files.
 
+## The phone as a light client (Orbit)
+
+Orbit's iPhone and iPad app joins the same folder as one more device, through the Swift package
+`apps/mobile/OrbitSync`. It reuses the Mac's `RecoveryPhrase`, `SyncCrypto`, `SyncKeyStore` and `Wordlist`
+(symlinked from `packages/sync/ios/Core`) and ports the read side of `scope.ts` to Swift.
+
+- **Joining.** The user picks the sync folder in Files (iCloud Drive › `Orbit Sync`, `Ardia Sync` or
+  `Netnyahoo Sync`); the app keeps a security-scoped bookmark and opens it around each cycle. The phrase is
+  parsed as leniently as on the Mac and checked against the chain folder; its entropy goes in the iOS Keychain
+  (`Orbit Sync Key`, account = the device id, `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, not
+  synchronizable).
+- **What it reads.** The app scope and the scope of every `prof:` record, merged exactly like `scope.ts` (HLC
+  last writer wins, tombstones, version vectors with `extra`, snapshots first, collected deletions, damaged files
+  retried and given up after a day, iCloud placeholders reported as pending and downloaded). It keeps only the
+  keys it shows: `prof:`, `pth:`, `dev:` in the app scope and `tabs:`, `pin:`, `pinrow:`, `pinfolder:` in
+  profile scopes. Passwords, history and bookmarks are opened in memory while a file is read but never kept.
+  Spaces come from `prof:`; pins from `pin:t:`/`pin:g:` by `pos`, with rows (`pinrow:` 1) placed in the
+  `pinfolder:` tree as `treeFromRecords` does; devices from `tabs:<id>` of devices that have a `dev:` record,
+  itself excluded.
+- **What it writes.** Only its own `dev:<id>` (`{ n }`) in the app scope and `tabs:<id>` (`{ n, k, tabs }`, `k`
+  is `iphone` or `ipad`, up to 30 http(s) tabs) in the default space's scope, a tombstone for `tabs:<id>` in any
+  other space that still has one, and only when a value differs from the replica. Each batch is an immutable log
+  file in the Mac's format (fresh random name, `NNS1`, AAD, padding, coordinated move from a temporary file).
+- **It never snapshots or compacts.** The Macs' snapshots cover the phone's logs and their compaction removes
+  them, so a phone that stops syncing leaves only its two records behind.
+- **Seqs are never reused.** A batch is journalled (sealed, `journal.nns`) before it's written and sent again byte
+  for byte until it lands. The highest seq per chain and scope is kept in `writer.json` with the device id,
+  apart from the disposable cache (`state.nns`), so losing the cache while the phone's own newest file is still
+  downloading can't make it number a new batch like an old one. Losing `writer.json` means a new device id (a
+  new incarnation); a journal left by the old id is still sent under that id.
+- **Retirement.** Disconnecting writes tombstones for `dev:<id>` and `tabs:<id>`, then forgets the key, cache,
+  journal and bookmark and starts a new device id. When the tombstones can't be written (offline, folder gone),
+  the old identity's key, journal, cache and bookmark are kept under `retiring/<id>` and retried at each launch
+  and after each successful cycle, and the key is deleted only once they land.
+- **Known residuals.** A phone lost without disconnecting stays in every Mac's device list and snapshot, as a
+  lost Mac does. The iOS File Provider's behaviour with folders it hasn't listed yet (the phone asks for a
+  metadata read and a download of each scope folder before listing it) and the first full read of a large
+  folder need a check on a real device.
+- **Tests** (`swift test` in `apps/mobile/OrbitSync`): the Swift replica against `scope.ts` after every delivery
+  of 40 random three-Mac histories (late, half-copied and stuck files, compaction, clock jumps), with and without
+  the key filter; a round trip with the real engine and adapters on two Macs (spaces, pins and folders as the
+  Mac sidebar shows them, devices, the phone in `remoteTabs` and the overflow menu, snapshots after
+  compaction); journal retries, seq durability, phrase re-entry, disconnect races and retirement.
+
 ## Tests
 
 - `pnpm --filter @ardia/sync test`:
