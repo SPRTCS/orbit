@@ -36,9 +36,9 @@ root="$(cd "$(dirname "$0")/.." && pwd -P)"
 app_dir="$root/apps/browser"
 macos="$app_dir/macos"
 ardiacore="$root/packages/ardiacore"
-repo="mantrakp04/ardia"
-notes_page="https://ardia.dev/release-notes"
-notary_profile="${NOTARY_PROFILE:-ardia}"
+repo="SPRTCS/orbit"
+notes_page="https://github.com/SPRTCS/orbit/releases"
+notary_profile="${NOTARY_PROFILE:-orbit}"
 [ -f "$root/scripts/.notary.env" ] && . "$root/scripts/.notary.env"
 if [ -n "${NOTARY_KEY:-}" ]; then
   notary_auth=(--key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER")
@@ -50,8 +50,8 @@ if [ -n "${SPARKLE_ACCOUNT:-}" ]; then
   sparkle_account="$SPARKLE_ACCOUNT"
 else
   legacy_account="$(sed -n 's/^ *public static let appName = "\(.*\)"$/\1/p' "$root/packages/sync/ios/Core/LegacyMigration.swift" | tr '[:upper:]' '[:lower:]')"
-  sparkle_account=ardia
-  for account in ardia $legacy_account; do
+  sparkle_account=orbit
+  for account in orbit; do
     if "$sparkle/generate_keys" --account "$account" -p >/dev/null 2>&1; then sparkle_account="$account"; break; fi
   done
 fi
@@ -64,8 +64,8 @@ if [ "$rc" = 1 ]; then dist="$root/dist/$version-rc"; else dist="$root/dist/$ver
 build="${RELEASE_BUILD_DIR:-$app_dir/build-release}"
 archive="$dist/Ardia.xcarchive"
 app="$dist/export/Ardia.app"
-zip="$dist/Ardia-$version.zip"
-dmg="$dist/Ardia-$version.dmg"
+zip="$dist/Orbit-$version.zip"
+dmg="$dist/Orbit-$version.dmg"
 chromium_src="${CHROMIUM_SRC:-$HOME/chromium-build/chromium_git/chromium/src}"
 framework_src="${ARDIACORE_FRAMEWORK:-$chromium_src/out/Release_GN_arm64/Chromium Framework.framework}"
 die() { echo "error: $*" >&2; exit 1; }
@@ -95,7 +95,7 @@ if [ -f "$notes" ]; then
 elif [ "$rc" = 1 ]; then
   headline="Release candidate $version"
   notes_channel="$channel"
-  notes_body() { echo "A release candidate of Ardia $version. Not published."; }
+  notes_body() { echo "A release candidate of Orbit $version. Not published."; }
 else
   die "no release notes: write docs/release-notes/$version.md first"
 fi
@@ -236,7 +236,7 @@ codesign --verify --deep --strict "$app"
 [ -d "$archive/dSYMs/Ardia.app.dSYM" ] || die "the archive has no Ardia.app.dSYM"
 entitlements() { codesign -d --entitlements - --xml "$1" 2>/dev/null; }
 info() { plutil -extract "$1" raw "$app/Contents/Info.plist" 2>/dev/null; }
-[ "$(info CFBundleIdentifier)" = com.ardia.browser ] || die "bundle id is $(info CFBundleIdentifier)"
+[ "$(info CFBundleIdentifier)" = com.aisconsulting.orbit ] || die "bundle id is $(info CFBundleIdentifier)"
 [ "$(info CFBundleExecutable)" = Ardia ] || die "executable is $(info CFBundleExecutable)"
 [ "$(info CFBundleShortVersionString)" = "$version" ] || die "CFBundleShortVersionString is $(info CFBundleShortVersionString)"
 [ "$(info CFBundleVersion)" = "$release_build" ] || die "CFBundleVersion is $(info CFBundleVersion), not $release_build"
@@ -253,11 +253,11 @@ for file in "$root"/LICENSE* "$root/NOTICE"; do
   cmp -s "$file" "$app/Contents/Resources/Licenses/$(basename "$file")" || die "the app lacks $(basename "$file") in Contents/Resources/Licenses"
 done
 designated="$(codesign -d -r- "$app" 2>&1 | sed -n 's/^designated => //p')"
-[[ "$designated" == *'identifier "com.ardia.browser"'* && "$designated" == *"subject.OU] = U5L5T3NGVV"* ]] \
+[[ "$designated" == *'identifier "com.aisconsulting.orbit"'* && "$designated" == *"subject.OU] = MYXQKK3T2Z"* ]] \
   || die "designated requirement: $designated"
 app_ents="$(entitlements "$app")"
 for group in webauthn unexportable-keys secure-payment-confirmation; do
-  [[ "$app_ents" == *"U5L5T3NGVV.com.ardia.browser.$group"* ]] || die "the app lacks the keychain group …$group"
+  [[ "$app_ents" == *"MYXQKK3T2Z.com.ardia.browser.$group"* ]] || die "the app lacks the keychain group …$group"
 done
 [[ "$app_ents" != *web-browser.public-key-credential* ]] || die "the app is signed with com.apple.developer.web-browser.public-key-credential"
 for helper in "$fwv"/Helpers/*"Renderer).app" "$fwv"/Helpers/*"GPU).app"; do
@@ -265,7 +265,7 @@ for helper in "$fwv"/Helpers/*"Renderer).app" "$fwv"/Helpers/*"GPU).app"; do
 done
 while IFS= read -r -d '' code; do
   details="$(codesign -dvv "$code" 2>&1)"
-  [[ "$details" == *"TeamIdentifier=U5L5T3NGVV"* && "$details" == *"Authority=Developer ID Application"* \
+  [[ "$details" == *"TeamIdentifier=MYXQKK3T2Z"* && "$details" == *"Authority=Developer ID Application"* \
     && "$details" == *"Timestamp="* ]] || die "$code isn't Developer ID-signed with a timestamp"
   [[ "$(entitlements "$code")" != *get-task-allow* ]] || die "$code has get-task-allow"
 done < <(find "$app" \( -name "*.app" -o -name "*.framework" -o -name "*.dylib" -o -name "*.xpc" -o -name "*.plugin" \
@@ -335,7 +335,7 @@ if [ "$notarize" = 1 ]; then
 fi
 
 echo "==> Package"
-legacy_app="$(sed -n 's/^ *public static let appFileName = "\(.*\)"$/\1/p' "$root/packages/sync/ios/Core/LegacyMigration.swift")"
+legacy_app=Orbit.app
 [[ "$legacy_app" == *.app ]] || die "can't read the legacy app name from LegacyMigration.swift"
 update_dir="$dist/update"
 rm -rf "$update_dir" && mkdir -p "$update_dir"
@@ -344,15 +344,15 @@ ditto -c -k --keepParent "$update_dir/$legacy_app" "$zip"
 rm -rf "$update_dir"
 staging="$dist/dmg"
 mkdir -p "$staging"
-ditto "$app" "$staging/Ardia.app"
+ditto "$app" "$staging/Orbit.app"
 ln -s /Applications "$staging/Applications"
-cp "$root/scripts/dmg/background.tiff" "$staging/.background.tiff"
-cp "$root/scripts/dmg/DS_Store" "$staging/.DS_Store"
+cp "$root/scripts/orbit/dmg/background.tiff" "$staging/.background.tiff"
+cp "$root/scripts/orbit/dmg/DS_Store" "$staging/.DS_Store"
 cp "$app/Contents/Resources/AppIcon.icns" "$staging/.VolumeIcon.icns"
 mkdir -p "$staging/.fseventsd" && touch "$staging/.fseventsd/no_log"
 dmg_rw="$dist/dmg-rw.dmg" dmg_mnt="$dist/dmg-mnt"
 rm -rf "$dmg_rw" "$dmg_mnt" && mkdir "$dmg_mnt"
-hdiutil create -volname Ardia -srcfolder "$staging" -format UDRW -ov "$dmg_rw" >/dev/null
+hdiutil create -volname Orbit -srcfolder "$staging" -format UDRW -ov "$dmg_rw" >/dev/null
 rm -rf "$staging"
 hdiutil attach "$dmg_rw" -nobrowse -noautoopen -noverify -mountpoint "$dmg_mnt" >/dev/null
 SetFile -a C "$dmg_mnt" || { hdiutil detach "$dmg_mnt" -force >/dev/null; die "couldn't flag the volume's icon"; }
@@ -373,14 +373,14 @@ fi
 
 echo "==> Release notes"
 if [ "$channel" = nightly ]; then
-  updates_line="A nightly: every fix the day it lands, tested less than a stable release. It updates to newer nightlies and stables (Ardia › Check for Updates…); Settings › General › Update channel switches back to Stable, which never downgrades. Every release's notes: $notes_page"
+  updates_line="A nightly: every fix the day it lands, tested less than a stable release. It updates to newer nightlies and stables (Orbit › Check for Updates…); Settings › General › Update channel switches back to Stable, which never downgrades. Every release's notes: $notes_page"
 else
-  updates_line="Earlier versions update automatically (Ardia › Check for Updates…). Every release's notes: $notes_page"
+  updates_line="Earlier versions update automatically (Orbit › Check for Updates…). Every release's notes: $notes_page"
 fi
 if [ "$notarize" = 1 ]; then
   install_line="Apple Silicon, macOS 14 or later. Signed with Developer ID and notarized by Apple: download, drag it to Applications, open it."
 else
-  install_line="Apple Silicon, macOS 14 or later. Signed with Developer ID but not notarized: on first launch macOS refuses to open it. Click Done, then System Settings › Privacy & Security › Open Anyway. Or run \`xattr -dr com.apple.quarantine /Applications/Ardia.app\`."
+  install_line="Apple Silicon, macOS 14 or later. Signed with Developer ID but not notarized: on first launch macOS refuses to open it. Click Done, then System Settings › Privacy & Security › Open Anyway. Or run \`xattr -dr com.apple.quarantine /Applications/Orbit.app\`."
 fi
 source_line="This build's source, with the engine's patches and build scripts: https://github.com/$repo/tree/v$version (LICENSE and NOTICE there cover the licenses)."
 [ -n "$helium_engine" ] && [ -n "$engine_release" ] && source_line="$source_line The engine's Helium and uBlock sources as built, and where Chromium's is: https://github.com/$repo/releases/download/v$engine_release/$(basename "$engine_source")"
@@ -404,7 +404,7 @@ echo "==> Appcast"
 updates="$dist/updates"
 mkdir -p "$updates"
 cp "$zip" "$updates/"
-{ printf '**%s**\n\n' "$headline"; notes_body; } > "$updates/Ardia-$version.md"
+{ printf '**%s**\n\n' "$headline"; notes_body; } > "$updates/Orbit-$version.md"
 [ -s "$base_feed" ] && cp "$base_feed" "$updates/appcast.xml"
 key="$(mktemp -d)/sparkle-key"
 trap 'rm -rf "$(dirname "$key")" "$base_feed"' EXIT

@@ -133,7 +133,7 @@
 	<key>SUFeedURL</key>
 	<string>https://github.com/SPRTCS/orbit/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>gi1pBCemmSVpHM36dT5BJPPTcKC98QwS19mztCTyd4s=</string>
+	<string>mCe4Q4oYO1Zr97yeTzMaw2+84dUZvJpHC78HYIXnU4I=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>28800</integer>
 	<key>UTExportedTypeDeclarations</key>

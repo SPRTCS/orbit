@@ -74,6 +74,49 @@ const FILE_EDITS = {
   ],
 };
 
+const TEAM = "MYXQKK3T2Z";
+const BUNDLE_ID = "com.aisconsulting.orbit";
+const SPARKLE_PUBLIC_KEY = "mCe4Q4oYO1Zr97yeTzMaw2+84dUZvJpHC78HYIXnU4I=";
+
+const RELEASE_EDITS = {
+  "apps/browser/macos/Ardia-macOS/Info.plist": [
+    ["<string>gi1pBCemmSVpHM36dT5BJPPTcKC98QwS19mztCTyd4s=</string>", `<string>${SPARKLE_PUBLIC_KEY}</string>`],
+  ],
+  "apps/browser/macos/ExportOptions-DeveloperID.plist": [["<string>U5L5T3NGVV</string>", `<string>${TEAM}</string>`]],
+  "scripts/release.sh": [
+    [
+      'repo="mantrakp04/ardia"\nnotes_page="https://ardia.dev/release-notes"\nnotary_profile="${NOTARY_PROFILE:-ardia}"',
+      `repo="${REPO}"\nnotes_page="https://github.com/${REPO}/releases"\nnotary_profile="\${NOTARY_PROFILE:-orbit}"`,
+    ],
+    ["  sparkle_account=ardia\n  for account in ardia $legacy_account; do", "  sparkle_account=orbit\n  for account in orbit; do"],
+    ['zip="$dist/Ardia-$version.zip"\ndmg="$dist/Ardia-$version.dmg"', `zip="$dist/${NAME}-$version.zip"\ndmg="$dist/${NAME}-$version.dmg"`],
+    ['notes_body() { echo "A release candidate of Ardia $version. Not published."; }', `notes_body() { echo "A release candidate of ${NAME} $version. Not published."; }`],
+    ['[ "$(info CFBundleIdentifier)" = com.ardia.browser ]', `[ "$(info CFBundleIdentifier)" = ${BUNDLE_ID} ]`],
+    [
+      `[[ "$designated" == *'identifier "com.ardia.browser"'* && "$designated" == *"subject.OU] = U5L5T3NGVV"* ]]`,
+      `[[ "$designated" == *'identifier "${BUNDLE_ID}"'* && "$designated" == *"subject.OU] = ${TEAM}"* ]]`,
+    ],
+    ['[[ "$app_ents" == *"U5L5T3NGVV.com.ardia.browser.$group"* ]]', `[[ "$app_ents" == *"${TEAM}.com.ardia.browser.$group"* ]]`],
+    ['[[ "$details" == *"TeamIdentifier=U5L5T3NGVV"*', `[[ "$details" == *"TeamIdentifier=${TEAM}"*`],
+    [
+      String.raw`legacy_app="$(sed -n 's/^ *public static let appFileName = "\(.*\)"$/\1/p' "$root/packages/sync/ios/Core/LegacyMigration.swift")"`,
+      `legacy_app=${NAME}.app`,
+    ],
+    ['ditto "$app" "$staging/Ardia.app"', `ditto "$app" "$staging/${NAME}.app"`],
+    [
+      'cp "$root/scripts/dmg/background.tiff" "$staging/.background.tiff"\ncp "$root/scripts/dmg/DS_Store" "$staging/.DS_Store"',
+      'cp "$root/scripts/orbit/dmg/background.tiff" "$staging/.background.tiff"\ncp "$root/scripts/orbit/dmg/DS_Store" "$staging/.DS_Store"',
+    ],
+    ["hdiutil create -volname Ardia ", `hdiutil create -volname ${NAME} `],
+    ["It updates to newer nightlies and stables (Ardia › Check", `It updates to newer nightlies and stables (${NAME} › Check`],
+    ["Earlier versions update automatically (Ardia › Check", `Earlier versions update automatically (${NAME} › Check`],
+    ["xattr -dr com.apple.quarantine /Applications/Ardia.app", `xattr -dr com.apple.quarantine /Applications/${NAME}.app`],
+    ['> "$updates/Ardia-$version.md"', `> "$updates/${NAME}-$version.md"`],
+  ],
+};
+
+const EDITS = { ...FILE_EDITS, ...RELEASE_EDITS };
+
 const SWIFT_CODE = [[/(?<!\?\? )ProcessInfo\.processInfo\.processName/g, '(Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? ProcessInfo.processInfo.processName)']];
 
 const WHOLE_FILE = [[/(<key>CFBundleName<\/key>\s*<string>)[^<]*(<\/string>)/, `$1${NAME}$2`]];
@@ -145,7 +188,7 @@ function rebrandLine(line, target) {
 const stale = [];
 
 function applyFileEdits(path, text) {
-  for (const [from, to] of FILE_EDITS[relative(root, path)] ?? []) {
+  for (const [from, to] of EDITS[relative(root, path)] ?? []) {
     if (text.includes(to)) continue;
     if (!text.includes(from)) {
       stale.push(`${relative(root, path)}: ${from.split("\n")[0]}`);
@@ -162,7 +205,7 @@ const targetFiles = (target) =>
 const lineTargets = new Set();
 const edited = [
   ...TARGETS.map((target) => ({ target, paths: targetFiles(target).filter((path) => !target.skip?.some((re) => re.test(path))) })),
-  { target: null, paths: Object.keys(FILE_EDITS).map((file) => join(root, file)) },
+  { target: null, paths: Object.keys(EDITS).map((file) => join(root, file)) },
 ];
 
 let changed = 0;
