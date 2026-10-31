@@ -29,6 +29,7 @@ final class SessionTests: XCTestCase {
 
   func session(_ deviceId: String = "phonephonephonephonephone2") throws -> SyncSession {
     let session = SyncSession(storage: LocalStorage(directory: storage), deviceId: deviceId, deviceName: "Arman’s iPhone", deviceKind: "iphone", bookmark: try FolderBookmark.create(for: folder))
+    session.gate.open(for: deviceId)
     session.unlock(entropy: entropy)
     return session
   }
@@ -117,6 +118,7 @@ final class SessionTests: XCTestCase {
     XCTAssertEqual(journalled.count, 2)
 
     let locked = SyncSession(storage: LocalStorage(directory: storage), deviceId: "phonephonephonephonephone2", deviceName: "Arman’s iPhone", deviceKind: "iphone", bookmark: try FolderBookmark.create(for: folder))
+    locked.gate.open(for: "phonephonephonephonephone2")
     XCTAssertTrue(try locked.adopt(entropy: entropy))
     XCTAssertEqual(locked.journal.map(\.payload), journalled)
     _ = try locked.cycle()
@@ -139,7 +141,7 @@ final class SessionTests: XCTestCase {
     XCTAssertEqual(LocalStorage(directory: storage).loadWriter()?.seq(chain: chain, scope: "p:personal"), 1)
   }
 
-  func testAnUnreadableJournalIsQuarantinedAndItsValuesAreSentAgain() throws {
+  func testAnUnreadableJournalIsQuarantinedAndTheWriterAsksToBeReplaced() throws {
     let first = try session()
     first.openTabs = [SyncedTab(url: URL(string: "https://one.example/")!, title: "One")]
     first.writeFile = { vault, scope, payload in
@@ -154,10 +156,9 @@ final class SessionTests: XCTestCase {
 
     let second = try session()
     second.openTabs = [SyncedTab(url: URL(string: "https://one.example/")!, title: "One")]
-    _ = try second.cycle()
-    let tabs = try phoneFiles("p:personal")
-    XCTAssertEqual(tabs.count, 1, "the tabs whose batch was lost are sent again")
-    XCTAssertGreaterThanOrEqual(tabs.first?.seq ?? 0, 1)
+    XCTAssertTrue(second.needsRotation, "a writer that lost a batch must not go on with a gap in its seqs")
+    XCTAssertThrowsError(try second.cycle()) { XCTAssertEqual($0 as? SessionFailure, .needsRotation) }
+    XCTAssertEqual(try phoneFiles("p:personal").count, 0)
     let quarantine = storage.appendingPathComponent("quarantine")
     XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: quarantine.path))?.count, 1, "the damaged journal is kept aside")
   }

@@ -412,25 +412,35 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   them, so a phone that stops syncing leaves only its two records behind.
 - **Identity and seqs.** The phone's device id and its highest seq per chain and scope live in `writer.json` and,
   mirrored, in a this-device-only Keychain item (`identity`); the next seq is above both, above the journal and
-  above whatever the folder shows. The app's data folder is excluded from backups. So a lost cache, an old
-  `writer.json` put back, or a batch whose file is still downloading can't number a new batch like an old one.
-  When the two don't name the same device (a clone, a restore, a lost `writer.json`, a build from before the
-  Keychain mirror), the phone starts a new device id and retires the old one; the sync key moves to the new id,
-  so it stays connected.
+  above whatever the folder shows, so a lost cache, an older `writer.json` put back over a newer one, or a batch
+  whose file is still downloading can't number a new batch like an old one. The Keychain mirror isn't a
+  restore-proof counter: this-device-only items come back with an encrypted backup restored to the same iPhone.
+  The defence against a full restore is that the app's data folder is excluded from backups, so a restored phone
+  has no `writer.json` and starts a new device id. Whenever the two don't name the same device (a restore, a
+  clone, a lost `writer.json`, a build from before the mirror), the phone rotates to a new device id.
+- **Transitions.** Rotating and disconnecting are one small resumable state machine, `transition.json`
+  (`{ kind: rotate | disconnect, from, to }`, written atomically and finished at the next launch before anything
+  is unlocked or published). A rotation saves the sync key under the new id and reads it back, then commits the
+  new identity, and only then records the old ids for retirement; if the key can't be saved, nothing is committed,
+  the old key stays, and the app shows the error. A disconnect is reported only once its `transition.json` is on
+  disk (otherwise the app shows an error, keeps its key and connection, and publishes nothing); it records the
+  retirement, then forgets the bookmark, cache and journal and commits the new id. A write gate shared with the
+  sync queue closes at once on either, and every folder write checks it, so a cycle queued before a disconnect
+  can't publish under the retiring id.
 - **Journal.** A batch is journalled (sealed, `journal.nns`) before it's written, its seq is made durable before
   any journal is sent, and it's sent again byte for byte until it lands. A journal that can't be read is moved to
-  `quarantine/`, and any value this phone published optimistically whose batch isn't confirmed or journalled is
-  dropped from the cache, so it goes out again under a new seq.
-- **Retirement.** Disconnecting first saves a retirement record (`retiring/<id>.json`, one atomic file), then
-  shows "not set up", forgets the cache, journal and bookmark and starts a new device id. The record's tombstones
-  for `dev:<id>` and `tabs:<id>` (in every space) are written by a fresh one-shot writer id with its own seqs,
-  never by the retiring id, so the retiring id never writes again, its unsent live batches are dropped without
-  leaving a seq gap on the Macs, and no stale seq can hide the tombstones. The retiring id's key stays in the
-  Keychain until the tombstones are written and a full read of the folder shows nothing left (or a day has
-  passed with files still pending); records are retried at launch and after each successful cycle. A disconnect
-  whose cleanup never ran (the app was killed) is finished at the next launch before anything is unlocked.
-  Displaced ids (above) retire the same way, using the active folder when their own bookmark is gone; one whose
-  key isn't on this device (a clone) is dropped without tombstones.
+  `quarantine/`, and the writer rotates: going on under the same id would leave a permanent gap in its seqs,
+  which on a Mac keeps `extra` non-empty, so that writer's logs never compact and tombstones are held 90 days. The
+  new id publishes the current values afresh.
+- **Retirement.** Each retired id has a record (`retiring/<id>.json`, one atomic file). Its tombstones for
+  `dev:<id>` and `tabs:<id>` (in every space) are written by a fresh one-shot writer id with its own seqs, never
+  by the retiring id, so the retiring id never writes again, its unsent live batches are dropped without leaving a
+  seq gap on the Macs, and no stale seq can hide the tombstones (Macs merge by HLC, whoever wrote the op). The
+  retired id's key stays in the Keychain until the tombstones are written and a full read of the folder shows
+  nothing left (or a day has passed with files still pending); then the key is deleted, the delete is checked by
+  reading it back, and only then is the record removed. Records are retried at launch and after each successful
+  cycle; one whose key isn't on this device (a clone) is dropped without tombstones, and one without its own
+  bookmark uses the active folder.
 - **Known residuals.** A phone lost without disconnecting stays in every Mac's device list and snapshot, as a
   lost Mac does. The iOS File Provider's behaviour with folders it hasn't listed yet (the phone asks for a
   metadata read and a download of each scope folder before listing it) and the first full read of a large
@@ -439,9 +449,10 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   of 40 random three-Mac histories (late, half-copied and stuck files, compaction, clock jumps), with and without
   the key filter; a round trip with the real engine and adapters on two Macs (spaces, pins and folders as the
   Mac sidebar shows them, devices, the phone in `remoteTabs` and the overflow menu, snapshots after
-  compaction); journal retries and quarantine, seq durability after cache loss, restore and clone, phrase
-  re-entry, disconnect races, a disconnect killed before its cleanup, and retirement (tombstones only, retried
-  until written, keys deleted after).
+  compaction); journal retries and quarantine (with the Mac compacting afterwards, no gap left), seq durability
+  after cache loss, restore and clone, phrase re-entry, disconnect races (UI state and the folder's contents), a
+  disconnect killed before its cleanup or unable to save its intent, rotations that can't save the key or were
+  interrupted, and retirement (tombstones only, retried until written, records kept while a key delete fails).
 
 ## Tests
 

@@ -289,5 +289,85 @@ final class ClientTests: XCTestCase {
     XCTAssertEqual(try sentTitles("p:personal", from: originalId), ["Original"])
     XCTAssertEqual(try sentTitles("p:personal", from: clone.deviceId), ["Clone"])
   }
+
+  func testACycleQueuedBeforeDisconnectWritesNothingUnderTheRetiredId() async throws {
+    let client = try await connected()
+    let oldId = client.deviceId
+    _ = try await client.runner.run { $0.openTabs = [SyncedTab(url: URL(string: "https://late.example/")!, title: "Late")] }
+    let gate = hold(client.runner)
+    let cycle = Task { await client.syncNow() }
+    await settle()
+    client.disconnect()
+    gate.signal()
+    await cycle.value
+    await client.waitForPendingWork()
+    XCTAssertFalse(try sentTitles("p:personal", from: oldId).contains("Late"), "nothing goes out under an id being retired")
+    XCTAssertTrue(try latest("app", "dev:\(oldId)") is NSNull)
+  }
+
+  func testADisconnectWhoseIntentCantBeSavedKeepsTheConnectionAndWritesNothing() async throws {
+    let client = try await connected()
+    let oldId = client.deviceId
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: storage.path)
+    client.disconnect()
+    await client.waitForPendingWork()
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: storage.path)
+    guard case .failed = client.state else { return XCTFail("state \(client.state)") }
+    XCTAssertNotNil(keyStore.items[oldId], "the key stays")
+    await client.publish(openTabs: tabs("After"))
+    XCTAssertFalse(try sentTitles("p:personal", from: oldId).contains("After"), "a device whose disconnect is half done stops publishing")
+    let relaunched = self.client()
+    XCTAssertEqual(relaunched.deviceId, oldId)
+    guard case .idle = relaunched.state else { return XCTFail("relaunched \(relaunched.state)") }
+  }
+
+  func testARetirementRecordOutlivesAKeyDeleteThatDidntHappen() async throws {
+    let client = try await connected()
+    let oldId = client.deviceId
+    keyStore.refuseDeletes(true)
+    client.disconnect()
+    await client.waitForPendingWork()
+    XCTAssertTrue(try latest("app", "dev:\(oldId)") is NSNull)
+    XCTAssertNotNil(keyStore.items[oldId])
+    XCTAssertTrue(client.pendingRetirement, "the record stays while the key is still there")
+    keyStore.refuseDeletes(false)
+    let relaunched = self.client()
+    await relaunched.waitForPendingWork()
+    XCTAssertNil(keyStore.items[oldId])
+    XCTAssertFalse(relaunched.pendingRetirement)
+  }
+
+  func testARotationWhoseKeyCantBeSavedNeitherCommitsNorLosesTheOldKey() async throws {
+    let client = try await connected()
+    let oldId = client.deviceId
+    keyStore.items[OrbitSyncClient.identityAccount] = nil
+    keyStore.refuseSaves(except: [OrbitSyncClient.identityAccount])
+    let failing = self.client()
+    await failing.waitForPendingWork()
+    XCTAssertNotNil(keyStore.items[oldId], "the old key stays until the new one is saved")
+    guard case .failed = failing.state else { return XCTFail("state \(failing.state)") }
+    XCTAssertNotNil(try latest("app", "dev:\(oldId)") as? [String: Any], "nothing is retired yet")
+
+    keyStore.refuseSaves(except: nil)
+    let resumed = self.client()
+    await resumed.waitForPendingWork()
+    XCTAssertNotEqual(resumed.deviceId, oldId)
+    guard case .idle = resumed.state else { return XCTFail("resumed \(resumed.state)") }
+    XCTAssertNotNil(keyStore.items[resumed.deviceId])
+    XCTAssertTrue(try latest("app", "dev:\(oldId)") is NSNull)
+    XCTAssertNil(keyStore.items[oldId])
+  }
+
+  func testARotationInterruptedAfterItsRetirementWasSavedIsntReadAsADisconnect() async throws {
+    let client = try await connected()
+    let oldId = client.deviceId
+    keyStore.items[OrbitSyncClient.identityAccount] = nil
+    try LocalStorage(directory: storage).saveRetirement(RetirementRecord(device: oldId, bookmark: nil, created: 0))
+    let relaunched = self.client()
+    await relaunched.waitForPendingWork()
+    XCTAssertNotEqual(relaunched.deviceId, oldId)
+    guard case .idle = relaunched.state else { return XCTFail("relaunched \(relaunched.state)") }
+    XCTAssertTrue(FileManager.default.fileExists(atPath: storage.appendingPathComponent("folder.bookmark").path))
+  }
 }
 #endif

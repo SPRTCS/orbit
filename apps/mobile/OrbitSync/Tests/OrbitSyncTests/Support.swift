@@ -201,16 +201,23 @@ final class MacDevice {
 final class MemoryKeyStore: OrbitSync.SyncKeyStore, @unchecked Sendable {
   private let lock = NSLock()
   private var stored: [String: Data] = [:]
+  private var refusedSaves: Set<String>?
+  private var refusesDeletes = false
   var items: [String: Data] {
     get { lock.withLock { stored } }
     set { lock.withLock { stored = newValue } }
   }
+  func refuseSaves(except allowed: Set<String>?) { lock.withLock { refusedSaves = allowed } }
+  func refuseDeletes(_ refuse: Bool) { lock.withLock { refusesDeletes = refuse } }
   func load(account: String) -> Data? { lock.withLock { stored[account] } }
   func save(_ secret: Data, account: String) -> Bool {
-    lock.withLock { stored[account] = secret }
-    return true
+    lock.withLock {
+      if let allowed = refusedSaves, !allowed.contains(account) { return false }
+      stored[account] = secret
+      return true
+    }
   }
-  func delete(account: String) { lock.withLock { stored[account] = nil } }
+  func delete(account: String) { lock.withLock { if !refusesDeletes { stored[account] = nil } } }
 }
 
 extension JSONValue {

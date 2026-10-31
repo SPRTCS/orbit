@@ -48,43 +48,9 @@ public final class OrbitSyncClient: OrbitSyncing {
   @ObservationIgnored private var generation = 0
   @ObservationIgnored private var connected: Bool
   @ObservationIgnored private let now: @Sendable () -> Date
-  static let identityAccount = "identity"
-
-  static func identitySaver(storage: LocalStorage, keyStore: any SyncKeyStore) -> (WriterRecord) throws -> Void {
-    { record in
-      guard keyStore.save(record.json.data, account: identityAccount) else { throw CocoaError(.fileWriteUnknown) }
-      try storage.saveWriter(record)
-    }
-  }
-
-  static func resolveIdentity(storage: LocalStorage, keyStore: any SyncKeyStore, now: Date) -> WriterRecord {
-    let saved = storage.loadWriter()
-    let anchor = WriterRecord(data: keyStore.load(account: identityAccount))
-    let retiring = Set(storage.retirements.map(\.device))
-    if let saved, let anchor, saved.device == anchor.device, !retiring.contains(saved.device) {
-      let merged = saved.merged(with: anchor)
-      if merged != saved || merged != anchor { try? identitySaver(storage: storage, keyStore: keyStore)(merged) }
-      return merged
-    }
-    let disconnected = saved.map { retiring.contains($0.device) } ?? false
-    let bookmark = storage.read(.bookmark)
-    var displaced: [(device: String, bookmark: Data?)] = []
-    if let saved, !retiring.contains(saved.device) { displaced.append((saved.device, bookmark)) }
-    if let anchor, anchor.device != saved?.device, !retiring.contains(anchor.device) { displaced.append((anchor.device, nil)) }
-    let createdAt = (now.timeIntervalSince1970 * 1000).rounded(.down)
-    for old in displaced { try? storage.saveRetirement(RetirementRecord(device: old.device, bookmark: old.bookmark, created: createdAt)) }
-    let carried = displaced.lazy.compactMap { keyStore.load(account: $0.device) }.first { $0.count == 32 }
-    let fresh = WriterRecord(device: SyncKeys.newFileId())
-    try? identitySaver(storage: storage, keyStore: keyStore)(fresh)
-    storage.remove(.state)
-    storage.remove(.journal)
-    if disconnected {
-      storage.remove(.bookmark)
-    } else if let carried {
-      _ = keyStore.save(carried, account: fresh.device)
-    }
-    return fresh
-  }
+  @ObservationIgnored let gate = WriteGate()
+  @ObservationIgnored private var blocked: String?
+  static let identityAccount = Identity.account
 
   public convenience init() {
     self.init(storageDirectory: LocalStorage.defaultDirectory, keyStore: KeychainKeyStore(service: Self.keychainService), deviceName: Self.currentDeviceName, deviceKind: Self.currentDeviceKind)
@@ -93,30 +59,96 @@ public final class OrbitSyncClient: OrbitSyncing {
   init(storageDirectory: URL, keyStore: any SyncKeyStore, deviceName: String, deviceKind: String = OrbitSyncClient.currentDeviceKind, now: @escaping @Sendable () -> Date = { Date() }) {
     let storage = LocalStorage(directory: storageDirectory)
     storage.excludeFromBackup()
-    let identity = Self.resolveIdentity(storage: storage, keyStore: keyStore, now: now())
-    let bookmark = storage.read(.bookmark)
+    var identity: WriterRecord?
+    var pending = storage.loadTransition()
+    if pending == nil {
+      switch Identity.resolve(storage: storage, keyStore: keyStore) {
+      case .trusted(let record):
+        identity = record
+      case .rotate(let rotation):
+        try? storage.saveTransition(rotation)
+        pending = rotation
+      }
+    }
+    var problem: String?
+    var leaving = false
+    if let pending {
+      switch pending.finish(storage: storage, keyStore: keyStore, now: now()) {
+      case .done(let record):
+        identity = record
+      case .stuck(let message):
+        problem = message
+        leaving = pending.kind == .disconnect
+      }
+    }
+    let writer = identity ?? WriterRecord(device: pending?.to ?? SyncKeys.newFileId())
+    let bookmark = leaving ? nil : storage.read(.bookmark)
     self.storage = storage
     self.keyStore = keyStore
-    self.deviceId = identity.device
+    self.deviceId = writer.device
     self.thisDeviceName = deviceName
     self.now = now
     connected = bookmark != nil
-    let session = SyncSession(storage: storage, deviceId: identity.device, deviceName: deviceName, deviceKind: deviceKind, bookmark: bookmark, writer: identity, now: now)
-    session.saveIdentity = Self.identitySaver(storage: storage, keyStore: keyStore)
+    let session = SyncSession(storage: storage, deviceId: writer.device, deviceName: deviceName, deviceKind: deviceKind, bookmark: bookmark, writer: writer, now: now)
+    session.saveIdentity = Identity.saver(storage: storage, keyStore: keyStore)
+    session.gate = gate
     runner = SessionRunner(session)
     pendingRetirement = !storage.retirements.isEmpty
+    if let problem {
+      blocked = problem
+      state = leaving ? .notSetUp : .failed(problem)
+      return
+    }
+    gate.open(for: writer.device)
     if pendingRetirement { enqueue { await self.processRetirements() } }
     guard connected else { return }
     guard let entropy = savedEntropy else {
       state = .needsPhrase
       return
     }
-    let (views, lastSync) = runner.runNow { session in
+    var (views, lastSync, rotate) = runner.runNow { session in
       session.unlock(entropy: entropy)
-      return (session.views, session.lastSync)
+      return (session.views, session.lastSync, session.needsRotation)
+    }
+    if rotate {
+      guard let fresh = beginRotation() else { return }
+      let carried = savedEntropy
+      (views, lastSync) = runner.runNow { session in
+        session.adoptIdentity(fresh)
+        if let carried { session.unlock(entropy: carried) }
+        return (session.views, session.lastSync)
+      }
+      gate.open(for: fresh.device)
     }
     show(views)
     state = .idle(lastSync: lastSync)
+  }
+
+  private func beginRotation() -> WriterRecord? {
+    gate.close()
+    let rotation = Transition(kind: .rotate, from: [deviceId])
+    try? storage.saveTransition(rotation)
+    switch rotation.finish(storage: storage, keyStore: keyStore, now: now()) {
+    case .done(let record):
+      deviceId = record.device
+      pendingRetirement = !storage.retirements.isEmpty
+      return record
+    case .stuck(let message):
+      blocked = message
+      state = .failed(message)
+      return nil
+    }
+  }
+
+  private func rotateAway() async -> Bool {
+    guard let fresh = beginRotation() else { return false }
+    let carried = savedEntropy
+    _ = try? await runner.run { session in
+      session.adoptIdentity(fresh)
+      if let carried { session.unlock(entropy: carried) }
+    }
+    gate.open(for: fresh.device)
+    return true
   }
 
   public static var currentDeviceName: String {
@@ -143,6 +175,7 @@ public final class OrbitSyncClient: OrbitSyncing {
 
   private enum ConnectOutcome: Sendable {
     case unlocked
+    case unlockedNeedingRotation
     case needsPhrase
     case keyDoesNotMatch
   }
@@ -178,7 +211,7 @@ public final class OrbitSyncClient: OrbitSyncing {
             return .keyDoesNotMatch
           }
           session.unlock(entropy: entropy)
-          return .unlocked
+          return session.needsRotation ? .unlockedNeedingRotation : .unlocked
         }
       } catch {
         if self.isCurrent(generation) { self.state = .failed(error.localizedDescription) }
@@ -188,6 +221,8 @@ public final class OrbitSyncClient: OrbitSyncing {
       switch outcome {
       case .unlocked:
         await self.runCycle(generation)
+      case .unlockedNeedingRotation:
+        if await self.rotateAway() { await self.runCycle(generation) }
       case .keyDoesNotMatch, .needsPhrase:
         if outcome == .keyDoesNotMatch { self.keyStore.delete(account: deviceId) }
         self.show(SyncedViews())
@@ -209,8 +244,10 @@ public final class OrbitSyncClient: OrbitSyncing {
       guard self.isCurrent(generation) else { throw OrbitSyncError.notConnected }
       let deviceId = self.deviceId
       let matches: Bool
+      var rotate = false
       do {
         matches = try await self.runner.run { try $0.adopt(entropy: entropy) }
+        rotate = try await self.runner.run { $0.needsRotation }
       } catch SessionFailure.noFolder {
         throw OrbitSyncError.notConnected
       } catch {
@@ -221,6 +258,7 @@ public final class OrbitSyncClient: OrbitSyncing {
       guard self.keyStore.save(entropy, account: deviceId) else {
         throw OrbitSyncError.folderUnreadable("Couldn’t save the sync key in the Keychain.")
       }
+      if rotate, await !self.rotateAway() { return }
       await self.runCycle(generation)
     }
   }
@@ -240,24 +278,35 @@ public final class OrbitSyncClient: OrbitSyncing {
     }
   }
 
+  public static let disconnectFailedMessage = "Couldn’t disconnect: this device’s sync state can’t be saved."
+
   public func disconnect() {
     generation += 1
     let generation = self.generation
-    let leaving = RetirementRecord(device: deviceId, bookmark: storage.read(.bookmark), created: (now().timeIntervalSince1970 * 1000).rounded(.down))
-    try? storage.saveRetirement(leaving)
+    gate.close()
+    let leaving = Transition(kind: .disconnect, from: [deviceId])
+    do {
+      try storage.saveTransition(leaving)
+    } catch {
+      blocked = Self.disconnectFailedMessage
+      state = .failed(Self.disconnectFailedMessage)
+      return
+    }
     connected = false
     pendingRetirement = true
     show(SyncedViews())
     state = .notSetUp
     enqueue {
-      _ = try? await self.runner.run { $0.disconnect() }
-      if !self.storage.retirements.contains(where: { $0.device == leaving.device }), (try? self.storage.saveRetirement(leaving)) == nil {
-        self.keyStore.delete(account: leaving.device)
+      _ = try? await self.runner.run { $0.forgetMemory() }
+      switch leaving.finish(storage: self.storage, keyStore: self.keyStore, now: self.now()) {
+      case .done(let record):
+        self.deviceId = record.device
+        _ = try? await self.runner.run { $0.adoptIdentity(record) }
+        self.gate.open(for: record.device)
+        self.blocked = nil
+      case .stuck(let message):
+        self.blocked = message
       }
-      let fresh = WriterRecord(device: SyncKeys.newFileId())
-      try? Self.identitySaver(storage: self.storage, keyStore: self.keyStore)(fresh)
-      self.deviceId = fresh.device
-      _ = try? await self.runner.run { $0.adoptIdentity(fresh) }
       await self.processRetirements()
       if self.isCurrent(generation) {
         self.show(SyncedViews())
@@ -281,6 +330,10 @@ public final class OrbitSyncClient: OrbitSyncing {
 
   private func runCycle(_ generation: Int) async {
     guard isCurrent(generation) else { return }
+    if let blocked {
+      state = .failed(blocked)
+      return
+    }
     switch state {
     case .idle, .failed: state = .syncing
     default: break
@@ -292,6 +345,10 @@ public final class OrbitSyncClient: OrbitSyncing {
       show(views)
       state = .idle(lastSync: lastSync)
       if pendingRetirement { await processRetirements() }
+    case .failure(SessionFailure.needsRotation):
+      if await rotateAway() { await runCycle(generation) }
+    case .failure(SessionFailure.writesStopped):
+      break
     case .failure(SessionFailure.locked):
       state = .needsPhrase
     case .failure(SessionFailure.noFolder):
@@ -319,8 +376,8 @@ public final class OrbitSyncClient: OrbitSyncing {
         return try Retirement.process(&working, storage: storage, entropy: entropy, bookmark: bookmark, now: now())
       }) ?? false
       if done {
-        storage.removeRetirement(record.device)
         keyStore.delete(account: record.device)
+        if keyStore.load(account: record.device) == nil { storage.removeRetirement(record.device) }
       }
     }
     pendingRetirement = !storage.retirements.isEmpty

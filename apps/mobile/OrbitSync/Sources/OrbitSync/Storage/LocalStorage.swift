@@ -106,6 +106,7 @@ struct LocalStorage: Sendable {
     case bookmark = "folder.bookmark"
     case state = "state.nns"
     case journal = "journal.nns"
+    case transition = "transition.json"
   }
 
   func url(_ item: Item) -> URL { directory.appendingPathComponent(item.rawValue) }
@@ -135,6 +136,16 @@ struct LocalStorage: Sendable {
   func saveWriter(_ writer: WriterRecord) throws {
     try write(writer.json.data, to: .writer)
   }
+
+  func loadTransition() -> Transition? {
+    read(.transition).flatMap { try? JSONValue.parse($0) }.flatMap(Transition.init(json:))
+  }
+
+  func saveTransition(_ transition: Transition) throws {
+    try write(transition.json.data, to: .transition)
+  }
+
+  func removeTransition() { remove(.transition) }
 
   var retiringRoot: URL { directory.appendingPathComponent("retiring", isDirectory: true) }
 

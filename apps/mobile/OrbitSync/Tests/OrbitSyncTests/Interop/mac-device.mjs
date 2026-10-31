@@ -178,6 +178,11 @@ const commands = {
     for (const [scope, state] of Object.entries(doc.scopes)) await compact(state, transport, scope, doc.deviceId, Date.now(), { pruneGrace: 0 }, true);
     return summary();
   },
+  async scopes() {
+    await engine.syncNow();
+    const doc = globalThis.acSync.doc();
+    return Object.fromEntries(Object.entries(doc.scopes).map(([scope, s]) => [scope, { vv: s.vv, extra: s.extra, files: Object.keys(s.files).length }]));
+  },
   async remote() {
     await engine.syncNow();
     const doc = globalThis.acSync.doc();

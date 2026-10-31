@@ -21,6 +21,8 @@ enum SessionFailure: Error, Equatable {
   case locked
   case folderUnavailable
   case chainMissing
+  case writesStopped
+  case needsRotation
 }
 
 final class SyncSession {
@@ -50,6 +52,8 @@ final class SyncSession {
   private(set) var lastSync: Date?
   private(set) var writer: WriterRecord
   private(set) var quarantinedJournals = 0
+  private(set) var needsRotation = false
+  var gate = WriteGate()
 
   init(storage: LocalStorage, deviceId: String, deviceName: String, deviceKind: String, bookmark: Data?, writer: WriterRecord? = nil, now: @escaping () -> Date = Date.init) {
     self.storage = storage
@@ -79,6 +83,7 @@ final class SyncSession {
     keys = nil
     deviceId = writer.device
     self.writer = writer
+    needsRotation = false
     forgetData()
   }
 
@@ -107,12 +112,14 @@ final class SyncSession {
     storage.remove(.journal)
   }
 
-  func disconnect() {
+  func forgetMemory() {
     keys = nil
     bookmark = nil
     openTabs = nil
-    forgetData()
-    storage.remove(.bookmark)
+    app = ScopeReplica()
+    spaces = [:]
+    journal = []
+    lastSync = nil
   }
 
   var views: SyncedViews {
@@ -137,7 +144,8 @@ final class SyncSession {
   }
 
   func cycle() throws -> SyncedViews {
-    try withFolder { vault in
+    if needsRotation { throw SessionFailure.needsRotation }
+    return try withFolder { vault in
       guard vault.chainExists() else { throw SessionFailure.chainMissing }
       try flushJournal(vault)
       pull(vault)
@@ -251,6 +259,7 @@ final class SyncSession {
     var written: [Int] = []
     for (index, entry) in journal.enumerated() {
       do {
+        guard gate.allows(entry.batch.device) else { throw SessionFailure.writesStopped }
         let id = try writeFile(vault, entry.scope, Data(entry.payload.utf8))
         update(entry.scope) { $0.written(entry.batch, id: id, now: nowMs) }
         written.append(index)
@@ -322,6 +331,7 @@ final class SyncSession {
       } else {
         storage.quarantine(.journal)
         quarantinedJournals += 1
+        needsRotation = true
       }
     }
     dropUnconfirmedValues()

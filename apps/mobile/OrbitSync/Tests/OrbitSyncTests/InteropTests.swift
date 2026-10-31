@@ -210,5 +210,51 @@ final class InteropTests: XCTestCase {
     XCTAssertFalse((gone["remoteTabs"]?["default"]?.array ?? []).contains { $0["deviceId"]?.string == phoneId })
     XCTAssertFalse((gone["devices"]?.array ?? []).contains { $0["id"]?.string == phoneId }, "disconnecting removes the phone from the Macs")
   }
+
+  func testALostJournalLeavesNoSeqGapSoTheMacsStillCompact() async throws {
+    let folder = try Paths.scratch("gap-folder")
+    let storage = try Paths.scratch("gap-phone")
+    defer {
+      try? FileManager.default.removeItem(at: folder)
+      try? FileManager.default.removeItem(at: storage)
+    }
+    let mac = try MacDevice(entropy: Self.entropy)
+    let a = try mac.command("setupA", ["path": folder.path, "name": "Arman’s MacBook Pro"])
+    let personal = try XCTUnwrap(a["profiles"]?["default"]?["syncId"]?.string)
+    let keyStore = MemoryKeyStore()
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    try client.connect(folder: folder)
+    await client.waitForPendingWork()
+    try await client.enterRecoveryPhrase(Self.words.joined(separator: " "))
+    await client.publish(openTabs: [SyncedTab(url: URL(string: "https://a.example/")!, title: "A")])
+    let firstId = client.deviceId
+
+    let keys = ArdiaSyncCore.SyncKeys(entropy: Self.entropy)
+    let scopeDir = folder.appendingPathComponent(keys.chainTag).appendingPathComponent(keys.scopeTag("p:\(personal)"))
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: scopeDir.path)
+    await client.publish(openTabs: [SyncedTab(url: URL(string: "https://b.example/")!, title: "B")])
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scopeDir.path)
+    let journal = storage.appendingPathComponent("journal.nns")
+    let sealed = try Data(contentsOf: journal)
+    try sealed.prefix(sealed.count - 40).write(to: journal)
+
+    let relaunched = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    await relaunched.waitForPendingWork()
+    await relaunched.publish(openTabs: [SyncedTab(url: URL(string: "https://b.example/")!, title: "B")])
+    guard case .idle = relaunched.state else { return XCTFail("state \(relaunched.state)") }
+
+    try mac.command("compactAll")
+    try mac.command("sync")
+    try mac.command("compactAll")
+    let scopes = try mac.command("scopes")
+    for (scope, value) in scopes.object ?? [:] {
+      XCTAssertEqual(value["extra"], .object([:]), "\(scope) has a seq gap that stops compaction")
+    }
+    let remote = try mac.command("remote")
+    let phone = (remote["remoteTabs"]?["default"]?.array ?? []).filter { $0["name"]?.string == "Arman’s iPhone" }
+    XCTAssertEqual(phone.count, 1)
+    XCTAssertEqual(phone.first?["tabs"]?.array?.compactMap { $0["title"]?.string }, ["B"])
+    XCTAssertNotEqual(phone.first?["deviceId"]?.string, firstId, "the writer whose journal was lost is replaced")
+  }
 }
 #endif
