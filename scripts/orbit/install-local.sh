@@ -64,13 +64,15 @@ if [ "$build" = 1 ]; then
   find "$root" -name '* [2-9].*' -not -path '*/node_modules/*' -not -path '*/fixtures/*' -delete 2>/dev/null || true
   (cd "$root" && pnpm install --frozen-lockfile >/dev/null)
   "$root/packages/ardiacore/scripts/fetch-engine.sh"
+  node_binary=$(command -v node) || die "node not found"
+  printf 'export NODE_BINARY=%s\n' "$node_binary" > "$root/apps/browser/macos/.xcode.env.local"
   (cd "$root/apps/browser/macos" && pod install >/dev/null)
   if ! xcode_build; then
     if grep -q "detritus" "$derived.log"; then
       xattr -cr "$built" 2>/dev/null || true
       xcode_build || { tail -30 "$derived.log"; die "build failed, see $derived.log"; }
     else
-      grep -E " error:" "$derived.log" | sort -u | head -20
+      { grep -E " error:|No such file|failed with a nonzero exit code" "$derived.log" || tail -30 "$derived.log"; } | sort -u | head -20
       die "build failed, see $derived.log"
     fi
   fi
