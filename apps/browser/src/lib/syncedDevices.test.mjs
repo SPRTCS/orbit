@@ -8,17 +8,17 @@ const stub = await import("../test-native-stub.mjs");
 const tab = (url, title = "") => ({ url, title });
 
 test("device kind comes from a kind field first, then the name", () => {
-  assert.equal(D.deviceKindOf("Arman’s iPhone"), "iphone");
-  assert.equal(D.deviceKindOf("iPad Pro von Arman"), "ipad");
-  assert.equal(D.deviceKindOf("Arman’s MacBook Pro"), "laptop");
+  assert.equal(D.deviceKindOf("Alex’s iPhone"), "iphone");
+  assert.equal(D.deviceKindOf("iPad Pro von Alex"), "ipad");
+  assert.equal(D.deviceKindOf("Alex’s MacBook Pro"), "laptop");
   assert.equal(D.deviceKindOf("Studio iMac"), "imac");
   assert.equal(D.deviceKindOf("Office Mac mini"), "macmini");
   assert.equal(D.deviceKindOf("Render Mac Studio"), "macstudio");
   assert.equal(D.deviceKindOf("Lab Mac Pro"), "macpro");
   assert.equal(D.deviceKindOf("Work"), "laptop");
   assert.equal(D.deviceKindOf("Work", "iphone"), "iphone");
-  assert.equal(D.deviceKindOf("Arman’s iPhone", "ipad"), "ipad");
-  assert.equal(D.deviceKindOf("Arman’s iPhone", "unknown-thing"), "iphone");
+  assert.equal(D.deviceKindOf("Alex’s iPhone", "ipad"), "ipad");
+  assert.equal(D.deviceKindOf("Alex’s iPhone", "unknown-thing"), "iphone");
   assert.equal(D.deviceSymbol("iphone"), "iphone");
   assert.equal(D.deviceSymbol("ipad"), "ipad.landscape");
   assert.equal(D.deviceSymbol("laptop"), "laptopcomputer");
@@ -43,7 +43,7 @@ test("hosts drop www, credentials and ports; file URLs read as File", () => {
 test("devices are sorted by recency, unseen last, and their tabs deduplicated", () => {
   const remote = [
     { deviceId: "a", name: "Old Mac", tabs: [tab("https://a.com", "A")] },
-    { deviceId: "b", name: "Arman’s iPhone", kind: undefined, tabs: [tab("https://b.com", "B"), tab("https://b.com", "B again"), tab("https://www.c.com/x", "  ")] },
+    { deviceId: "b", name: "Alex’s iPhone", kind: undefined, tabs: [tab("https://b.com", "B"), tab("https://b.com", "B again"), tab("https://www.c.com/x", "  ")] },
     { deviceId: "c", name: "Never Seen", tabs: [tab("https://d.com", "D")] },
     { deviceId: "d", name: "Empty", tabs: [] },
     { deviceId: "e", name: "Also Never", tabs: [tab("https://e.com", "E")] },

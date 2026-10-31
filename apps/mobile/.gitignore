@@ -3,3 +3,4 @@ build/
 DerivedData/
 .swiftpm/
 .build/
+scripts/testflight.env

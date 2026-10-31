@@ -52,9 +52,9 @@ scripts/testflight.sh             # archive, export, upload
 scripts/testflight.sh --no-upload # archive and export only
 ```
 
-The script regenerates the project, stamps a timestamp build number (`YYMMDD.HHMM`), archives Release,
-exports an App Store Connect IPA and uploads it with `altool`. It uses the App Store Connect API key
-`AuthKey_6JL634S7B6.p8` from `/Users/armansamary/Documents/Projects/Apps`.
+The script regenerates the project, numbers the build one above the highest build of the current version in
+App Store Connect, archives Release, exports an App Store Connect IPA and uploads it with `altool`. It uses
+the App Store Connect API key named by `ORBIT_ASC_KEY_ID`, `ORBIT_ASC_ISSUER_ID` and `ORBIT_ASC_KEY_PATH` (environment or the git-ignored `scripts/testflight.env`).
 
 The export signs with the local "Apple Distribution" certificate and the "Orbit Mobile App Store"
 provisioning profile. `scripts/app-store-profile.swift` fetches that profile through the App Store Connect

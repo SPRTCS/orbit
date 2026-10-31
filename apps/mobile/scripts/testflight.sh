@@ -8,6 +8,9 @@
 # which scripts/app-store-profile.swift fetches (or creates) through the App Store Connect API.
 # Build products go to ~/Library/Caches/Orbit/mobile-app (the checkout lives in iCloud).
 #
+# Needs an App Store Connect API key: set ORBIT_ASC_KEY_ID, ORBIT_ASC_ISSUER_ID and ORBIT_ASC_KEY_PATH (the .p8),
+# or put them in scripts/testflight.env (git-ignored), which the script sources.
+#
 #   --no-upload   stop after the export; the IPA is left in ~/Library/Caches/Orbit/mobile-app/export
 #   -h, --help    print this help
 set -euo pipefail
@@ -22,10 +25,11 @@ for argument in "$@"; do
 done
 
 mobile_dir="${0:A:h:h}"
-keys_dir="/Users/armansamary/Documents/Projects/Apps"
-key_id="6JL634S7B6"
-issuer_id="0129d0a3-d63c-4162-a69b-f6ff28b5314e"
-key_path="$keys_dir/AuthKey_$key_id.p8"
+[[ -f "$mobile_dir/scripts/testflight.env" ]] && source "$mobile_dir/scripts/testflight.env"
+key_id="${ORBIT_ASC_KEY_ID:?set ORBIT_ASC_KEY_ID (see --help)}"
+issuer_id="${ORBIT_ASC_ISSUER_ID:?set ORBIT_ASC_ISSUER_ID (see --help)}"
+key_path="${ORBIT_ASC_KEY_PATH:?set ORBIT_ASC_KEY_PATH (see --help)}"
+keys_dir="${key_path:h}"
 work_dir="$HOME/Library/Caches/Orbit/mobile-app"
 archive_path="$work_dir/archive/Orbit.xcarchive"
 export_path="$work_dir/export"
