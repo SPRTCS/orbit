@@ -18,12 +18,13 @@ const HIT = GLASS.buttonHit;
 const TOP = GLASS.lightsY - HIT / 2;
 
 export function navLayout(width: number, toggle: boolean, forward: boolean) {
-  const reload = width - GLASS.edge - HALF;
+  const sidebarToggle = width - GLASS.edge - HALF;
+  const reload = toggle ? sidebarToggle - GLASS.button - GLASS.buttonGap : sidebarToggle;
   const navRight = reload - HALF - GLASS.buttonGap;
-  const floor = toggle ? GLASS.toggleX + HALF + GLASS.buttonGap : GLASS.toggleX - HALF;
+  const floor = GLASS.toggleX - HALF;
   const fits = (segments: number) => navRight - segments * GLASS.button >= floor;
   const segments = forward && fits(2) ? 2 : fits(1) ? 1 : 0;
-  return { reload, navLeft: navRight - segments * GLASS.button, segments };
+  return { sidebarToggle, reload, navLeft: navRight - segments * GLASS.button, segments };
 }
 
 export function GlassHeaderTools({ width }: { width: number }) {
@@ -37,7 +38,7 @@ export function GlassHeaderTools({ width }: { width: number }) {
           icon="sidebar.left"
           glyph={15}
           hit={{ width: HIT, height: HIT }}
-          style={{ position: "absolute", top: TOP, left: GLASS.toggleX - HIT / 2 }}
+          style={{ position: "absolute", top: TOP, left: navLayout(width, true, false).sidebarToggle - HIT / 2 }}
           tooltip="Auto-Hide Tabs (⌘S)"
           onPress={() => useBrowser.getState().toggleSidebar(windowId)}
         />
