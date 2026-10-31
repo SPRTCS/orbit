@@ -15,9 +15,11 @@ import {
   reconcileTree,
   refsIn,
   renameFolder,
+  setFolderAppearance,
   setFolderCollapsed,
   tabRef,
   usePinnedFolders,
+  type FolderColor,
   type FolderTarget,
   type ImportPlan,
   type PinnedTree,
@@ -219,6 +221,16 @@ export function endFolderRename(folderId: string) {
   if (usePinnedFolders.getState().renaming?.folderId === folderId) usePinnedFolders.setState({ renaming: null });
 }
 
+export const appearanceRef = (folderId: string) => `a:${folderId}`;
+
+export function setPinnedFolderEmoji(profileId: string, folderId: string, emoji: string | null) {
+  updateTree(profileId, (tree) => setFolderAppearance(tree, folderId, { emoji }), () => [appearanceRef(folderId)]);
+}
+
+export function setPinnedFolderColor(profileId: string, folderId: string, color: FolderColor | null) {
+  updateTree(profileId, (tree) => setFolderAppearance(tree, folderId, { color }), () => [appearanceRef(folderId)]);
+}
+
 export function setPinnedFolderCollapsed(profileId: string, folderId: string, collapsed: boolean) {
   updateTree(profileId, (tree) => setFolderCollapsed(tree, folderId, collapsed));
 }
@@ -288,4 +300,25 @@ export function adoptSyncedTree(profileId: string, tree: PinnedTree | null) {
 
 export function replacePinnedTree(profileId: string, tree: PinnedTree) {
   updateTree(profileId, () => tree, () => [...refsIn(tree), ...Object.keys(tree.folders).map(folderRef)]);
+}
+
+const PICKER_PREFIX = "pinfolder|";
+
+export const pinnedFolderPickerId = (profileId: string, folderId: string) => `${PICKER_PREFIX}${profileId}|${folderId}`;
+
+function pickedFolder(pickerId: string): { profileId: string; folderId: string } | null {
+  if (!pickerId.startsWith(PICKER_PREFIX)) return null;
+  const rest = pickerId.slice(PICKER_PREFIX.length);
+  const at = rest.lastIndexOf("|");
+  return at > 0 ? { profileId: rest.slice(0, at), folderId: rest.slice(at + 1) } : null;
+}
+
+export function pinnedFolderPickerEmoji(trees: Record<string, PinnedTree>, pickerId: string): string | null {
+  const picked = pickedFolder(pickerId);
+  return (picked && trees[picked.profileId]?.folders[picked.folderId]?.emoji) || null;
+}
+
+export function setPinnedFolderPickerEmoji(pickerId: string, icon: string | null) {
+  const picked = pickedFolder(pickerId);
+  if (picked) setPinnedFolderEmoji(picked.profileId, picked.folderId, icon);
 }

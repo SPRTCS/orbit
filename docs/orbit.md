@@ -103,7 +103,10 @@ depth. Folders are an Orbit overlay: upstream's flat model (`Tab.pinned`/`pinned
 source of truth for the pins themselves, and the overlay only adds hierarchy, order, names and collapsed state.
 
 - **Model** (`store/pinnedFolders.ts`): one tree per space (profile), `{ root, folders: { id: { name, collapsed,
-  children } } }`. Leaves are `t:<pinKey>` (a pinned row) and `g:<pinKey>` (a pinned group), so every window's
+  children, emoji?, color? } } }`. `emoji` is one emoji (any sequence: skin tones, ZWJ, flags, keycaps; `folderEmoji`
+  checks it by code point, as Hermes may lack `\p{}`), `color` one of the tab group colours (`GroupColor`,
+  `GROUP_COLORS` in `components/sidebar/tokens.ts`). Both are sanitized when read (`appearanceOf`), so a bad value
+  shows the default folder. Leaves are `t:<pinKey>` (a pinned row) and `g:<pinKey>` (a pinned group), so every window's
   mirrored copy of a pin (`pinKeyOf`, store/pinMirror.ts) maps to the same leaf; folders are `f:<id>`.
 - **Self-healing**: rendering resolves the tree against the window's actual pinned rows/groups. A pin the tree
   doesn't know appears at root next to its upstream neighbour; a missing one isn't shown. A store subscription
@@ -115,7 +118,12 @@ source of truth for the pins themselves, and the overlay only adds hierarchy, or
   in each profile's scope. One record per node, keyed `pinfolder:` + its overlay ref: `pinfolder:f:<folder id>` =
   `{ n (name), p (parent folder id or null), pos }`, and `pinfolder:t:<pin key>` / `pinfolder:g:<pin key>` =
   `{ p, pos }` for every row and pinned group in the tree, top level included (so a folder's place among the rows
-  syncs). `pos` is upstream's fractional position (`order.ts`), so a move changes only the moved node. Applying
+  syncs). A folder's icon and colour are a record of their own, `pinfolder:a:<folder id>` = `{ e?, c? }`, published
+  only while the folder has one (removing both tombstones it, as does deleting the folder), so a rename and a colour
+  change made at once on two Macs both stay, and the folder record keeps its old `{ n, p, pos }` shape. Macs from
+  before icons ignore `a:` records (their `nodeValue` rejects the ref) and never rewrite or delete them; an `a:`
+  record whose folder hasn't arrived waits for it, and one this Mac didn't change is never rewritten while it means
+  the same (fields a later version adds survive). `pos` is upstream's fractional position (`order.ts`), so a move changes only the moved node. Applying
   rebuilds the tree from the records: last writer wins per node, a deleted folder is a tombstone (the Mac that
   deleted it also publishes its contents' new places in the same batch), a folder cycle from two concurrent moves
   is cut at the lowest folder id on every Mac, a node whose folder is gone lands at the top level, and a node whose
@@ -142,11 +150,18 @@ source of truth for the pins themselves, and the overlay only adds hierarchy, or
   (it needs a log 45 days late, upstream's late-log residual): a move into a folder delivered after every Mac
   collected that folder's tombstone waits at the top level for good.
 - **UI**: sidebar context menu and command bar "New Folder"; a pinned row's / pinned group's context menu
-  "Move to Folder ›"; a folder's menu (Rename, New Folder Inside, Collapse, Move to Folder, Delete Folder: contents
+  "Move to Folder ›"; a folder's menu (Rename, Add/Change Icon…, Color › Default + the nine group colours, New Folder Inside, Collapse, Move to Folder, Delete Folder: contents
   move up); click toggles, double-click renames; a collapsed folder keeps the path to the active tab visible. Drag
   a row, tile, list tab or group onto a folder header (middle half) to drop it in, between rows to place it; drag
   a folder header to move the folder (a line shows where).
-- **Arc import** keeps Arc's pinned folders as pinned folders (with nesting and order) instead of bookmarks.
+- **Icon and colour**: "Add Icon…" / "Change Icon…" opens upstream's icon picker (`IconPicker.tsx`, target kind
+  `pinfolder`, id `pinfolder|<profile>|<folder>`) with only its emoji grid, search, an emoji typed into the search
+  field as the first cell, and "Remove Icon". The emoji replaces the folder glyph; a colour tints the glyph, or,
+  with an emoji, a rounded chip behind it (Dia shows a group's colour as a fill behind its header and keeps the icon
+  as is). The name is never touched, so a name like "🟡 MLP" stays as typed. A click on the glyph still
+  collapses the folder: Ardia's group header (Dia's) doesn't open the picker from its icon either.
+- **Arc import** keeps Arc's pinned folders as pinned folders (with nesting and order) instead of bookmarks; they
+  get no icon or colour (Arc folders have none).
 
 ### Orbit layers and their hooks in upstream files
 
@@ -165,7 +180,10 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `components/omnibox/actions.ts` | the "New Folder" command bar entry. |
 | `packages/shell/src/index.tsx` | `"newPinnedFolder"` in `BrowserCommand`. |
 | `components/import/apply.ts` | import; `space = arcPinnedFolders(profileId, space);` first line of `importArcSpace` (folders go to the overlay, all their links are imported as pinned rows). |
-| `lib/devHarness.ts` | `ac.pinnedFolders` getter (dev only). |
+| `lib/devHarness.ts` | `ac.pinnedFolders` getter (dev only; also spreads `components/sidebar/pinnedFolderMenus`, so `openPinnedFolderMenu` can be driven with a stubbed `ArdiaShell.showMenu`). |
+| `components/sidebar/state.ts` | Folder icons: `"pinfolder"` in `Target["kind"]`. |
+| `components/sidebar/actions.ts` | Folder icons: import; `else if (target.kind === "pinfolder") setPinnedFolderPickerEmoji(target.id, icon);` in `setIcon`. |
+| `components/sidebar/IconPicker.tsx` | Folder icons: imports; `folderEmoji`/`emojiOnly` and the `emojiOnly ? folderEmoji` branch of `current`; no emoji/symbols tab buttons and "Remove Icon" when `emojiOnly`; `typedEmoji(query)` first in the emoji items (an emoji typed into the search, for every target). |
 | `sync/engine.ts` | Pinned folders sync: import; `pinnedFoldersAdapter(profileId, () => doc.scopes[…]?.records)` on its own line after the pinned adapters in `profileAdapters` (gated on `t.pinned`); `watchPinnedFolders(…)` after the store subscription in `startSync` (an edit schedules a cycle). |
 | `lib/commands.ts` | Boosts: import; `if (runBoostCommand(command, requested)) return;` after the Little Ardia line (`zapElements`, `showBoosts`, `newBoost`). |
 | `components/omnibox/actions.ts` | Boosts: the "Zap Elements…", "New Boost for This Site" and "Boosts" command bar entries. |

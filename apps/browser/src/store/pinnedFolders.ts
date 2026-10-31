@@ -1,9 +1,11 @@
 import { create } from "zustand";
 import type { BrowserState } from "./browser";
 import { mirrored, pinKeyOf } from "./pinMirror";
-import type { Tab, TabGroup } from "./types";
+import type { GroupColor, Tab, TabGroup } from "./types";
 
-export type PinnedFolder = { id: string; name: string; collapsed: boolean; children: string[] };
+export type FolderColor = GroupColor;
+export type FolderAppearance = { emoji?: string; color?: FolderColor };
+export type PinnedFolder = { id: string; name: string; collapsed: boolean; children: string[] } & FolderAppearance;
 export type PinnedTree = { root: string[]; folders: Record<string, PinnedFolder> };
 export type FolderTarget = { parent: string | null; before?: string | null };
 export type ResolvedNode = { ref: string; children?: ResolvedNode[] };
@@ -120,6 +122,60 @@ export function createFolder(tree: PinnedTree, id: string, name: string, target:
 export function renameFolder(tree: PinnedTree, id: string, name: string): PinnedTree {
   const f = tree.folders[id];
   return !f || f.name === name ? tree : { ...tree, folders: { ...tree.folders, [id]: { ...f, name } } };
+}
+
+export const FOLDER_COLORS: FolderColor[] = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"];
+
+export const isFolderColor = (value: unknown): value is FolderColor => typeof value === "string" && (FOLDER_COLORS as string[]).includes(value);
+
+const inRanges = (cp: number, ranges: [number, number][]) => ranges.some(([lo, hi]) => cp >= lo && cp <= hi);
+const PICTOGRAPHS: [number, number][] = [
+  [0xa9, 0xa9], [0xae, 0xae], [0x203c, 0x203c], [0x2049, 0x2049], [0x2122, 0x2122], [0x2139, 0x2139], [0x2194, 0x21aa],
+  [0x231a, 0x23ff], [0x24c2, 0x24c2], [0x25aa, 0x25fe], [0x2600, 0x27bf], [0x2934, 0x2935], [0x2b05, 0x2b55],
+  [0x3030, 0x3030], [0x303d, 0x303d], [0x3297, 0x3299], [0x1f000, 0x1f1e5], [0x1f200, 0x1faff],
+];
+const REGIONAL: [number, number][] = [[0x1f1e6, 0x1f1ff]];
+const MODIFIERS: [number, number][] = [[0xfe0e, 0xfe0f], [0x1f3fb, 0x1f3ff], [0x20e3, 0x20e3], [0xe0020, 0xe007f]];
+const KEYCAP_BASES = new Set([0x23, 0x2a, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39]);
+const ZWJ = 0x200d;
+const MAX_EMOJI_LENGTH = 32;
+
+export function folderEmoji(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text || text.length > MAX_EMOJI_LENGTH) return null;
+  const cps = [...text].map((c) => c.codePointAt(0)!);
+  let i = 0;
+  for (;;) {
+    const base = cps[i++];
+    if (base === undefined) return null;
+    if (inRanges(base, REGIONAL)) {
+      if (!inRanges(cps[i++] ?? 0, REGIONAL)) return null;
+    } else if (KEYCAP_BASES.has(base)) {
+      while (cps[i] === 0xfe0f) i++;
+      if (cps[i++] !== 0x20e3) return null;
+    } else if (!inRanges(base, PICTOGRAPHS)) return null;
+    while (i < cps.length && inRanges(cps[i]!, MODIFIERS)) i++;
+    if (i === cps.length) return text;
+    if (cps[i++] !== ZWJ) return null;
+  }
+}
+
+export function appearanceOf(folder: FolderAppearance | undefined): FolderAppearance {
+  const emoji = folderEmoji(folder?.emoji);
+  const color = isFolderColor(folder?.color) ? folder!.color : null;
+  return { ...(emoji ? { emoji } : {}), ...(color ? { color } : {}) };
+}
+
+export function setFolderAppearance(tree: PinnedTree, id: string, change: { emoji?: string | null; color?: FolderColor | null }): PinnedTree {
+  const f = tree.folders[id];
+  if (!f) return tree;
+  const now = appearanceOf(f);
+  const emoji = change.emoji === undefined ? now.emoji : (folderEmoji(change.emoji) ?? undefined);
+  const color = change.color === undefined ? now.color : isFolderColor(change.color) ? change.color : undefined;
+  if (emoji === f.emoji && color === f.color) return tree;
+  const { emoji: _emoji, color: _color, ...rest } = f;
+  return { ...tree, folders: { ...tree.folders, [id]: { ...rest, ...appearanceOf({ emoji, color }) } } };
 }
 
 export function setFolderCollapsed(tree: PinnedTree, id: string, collapsed: boolean): PinnedTree {

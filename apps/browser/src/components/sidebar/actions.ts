@@ -1,6 +1,7 @@
 import { cleanUrl, markdownLink } from "@ardia/core";
 import { copyText, prompt } from "@ardia/shell";
 import { updateFolder } from "../../live/store";
+import { setPinnedFolderPickerEmoji } from "../../lib/pinnedFolders";
 import { useBrowser } from "../../store/browser";
 import { activeTabId, bookmarkProfileId, tabLayoutOf, viewTabIds } from "../../store/model";
 import { groupLabel, groupOf, selectedTabIds } from "../../store/organize";
@@ -109,6 +110,7 @@ export async function openIconPicker(windowId: string, target: Target) {
 export function setIcon(target: Target, icon: string | null) {
   if (target.kind === "tab") store().updateTab(target.id, { customIcon: icon });
   else if (target.kind === "live") updateFolder(target.id.split("|")[1] ?? "", { icon });
+  else if (target.kind === "pinfolder") setPinnedFolderPickerEmoji(target.id, icon);
   else store().updateGroup(target.id, { icon });
 }
 

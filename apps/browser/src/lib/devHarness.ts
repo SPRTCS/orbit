@@ -43,8 +43,8 @@ export function startDevHarness() {
     get spaces(): typeof import("./spaces") & typeof import("./spaceSessions") & typeof import("./spaceSubscriptions") & typeof import("../components/spaces/spaceFiles") & typeof import("../store/spaceSnapshot") {
       return { ...require("./spaces"), ...require("./spaceSessions"), ...require("./spaceSubscriptions"), ...require("../components/spaces/spaceFiles"), ...require("../store/spaceSnapshot") };
     },
-    get pinnedFolders(): typeof import("./pinnedFolders") & typeof import("../store/pinnedFolders") {
-      return { ...require("./pinnedFolders"), ...require("../store/pinnedFolders") };
+    get pinnedFolders(): typeof import("./pinnedFolders") & typeof import("../store/pinnedFolders") & typeof import("../components/sidebar/pinnedFolderMenus") {
+      return { ...require("./pinnedFolders"), ...require("../store/pinnedFolders"), ...require("../components/sidebar/pinnedFolderMenus") };
     },
     get capture(): typeof import("./capture/capture") & typeof import("./capture/model") {
       return { ...require("./capture/capture"), ...require("./capture/model") };

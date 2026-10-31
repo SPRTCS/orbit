@@ -1,9 +1,11 @@
 import { Surface, Symbol } from "@ardia/shell";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { pinnedFolderPickerEmoji } from "../../lib/pinnedFolders";
 import { hex, useTheme } from "../../lib/theme";
 import { useLive } from "../../live/store";
 import { useBrowser } from "../../store/browser";
+import { folderEmoji as emojiOf, usePinnedFolders } from "../../store/pinnedFolders";
 import { setIcon } from "./actions";
 import { setSidebarUi, useSidebarUi } from "./state";
 import { SYMBOL_PREFIX } from "./TabIcon";
@@ -40,6 +42,11 @@ const SYMBOLS = [
   "questionmark.circle", "exclamationmark.triangle", "book", "graduationcap", "doc.text", "list.bullet", "checkmark.circle", "person.2",
 ];
 
+const typedEmoji = (query: string) => {
+  const emoji = emojiOf(query);
+  return emoji && !EMOJI.some(([e]) => e === emoji) ? [emoji] : [];
+};
+
 const COLUMNS = 8;
 const CELL = 30;
 const WIDTH = COLUMNS * CELL + 16;
@@ -55,13 +62,15 @@ function PickerPanel({ picker, sidebarWidth }: { picker: Picker; sidebarWidth: n
   const theme = useTheme();
   const tokens = useSidebarTokens();
   const liveIcon = useLive((s) => (picker.kind === "live" ? s.folders[picker.id.split("|")[1] ?? ""]?.icon : null));
-  const current = useBrowser((s) => (picker.kind === "tab" ? s.tabs[picker.id]?.customIcon : picker.kind === "live" ? liveIcon : s.groups[picker.id]?.icon) ?? null);
+  const folderEmoji = usePinnedFolders((f) => (picker.kind === "pinfolder" ? pinnedFolderPickerEmoji(f.trees, picker.id) : null));
+  const emojiOnly = picker.kind === "pinfolder";
+  const current = useBrowser((s) => (picker.kind === "tab" ? s.tabs[picker.id]?.customIcon : picker.kind === "live" ? liveIcon : emojiOnly ? folderEmoji : s.groups[picker.id]?.icon) ?? null);
   const [tab, setTab] = useState<"emoji" | "symbols">(current?.startsWith(SYMBOL_PREFIX) ? "symbols" : "emoji");
   const [query, setQuery] = useState("");
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tab === "emoji"
-      ? EMOJI.filter(([, words]) => !q || words.includes(q)).map(([e]) => e)
+      ? [...typedEmoji(query), ...EMOJI.filter(([, words]) => !q || words.includes(q)).map(([e]) => e)]
       : SYMBOLS.filter((name) => !q || name.includes(q)).map((name) => SYMBOL_PREFIX + name);
   }, [tab, query]);
   const close = () => setSidebarUi({ iconPicker: null });
@@ -102,7 +111,7 @@ function PickerPanel({ picker, sidebarWidth }: { picker: Picker; sidebarWidth: n
               style={{ flex: 1, fontSize: 12, marginLeft: 5, color: theme.textPrimary, paddingVertical: 0 }}
             />
           </View>
-          {(["emoji", "symbols"] as const).map((t) => (
+          {(emojiOnly ? [] : (["emoji", "symbols"] as const)).map((t) => (
             <Pressable key={t} onPress={() => setTab(t)}>
               <View style={{ width: 28, height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: tab === t ? tokens.pickerCellHover : undefined }}>
                 <Symbol name={t === "emoji" ? "face.smiling" : "star.square.on.square"} size={13} color={theme.icon} style={{ width: 16, height: 16 }} />
@@ -122,7 +131,7 @@ function PickerPanel({ picker, sidebarWidth }: { picker: Picker; sidebarWidth: n
           <Pressable onPress={() => choose(null)}>
             {({ pressed }) => (
               <View style={{ height: 26, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: pressed ? tokens.pickerCellHover : theme.urlPill }}>
-                <Text style={{ fontSize: 12, color: theme.textPrimary }}>Reset Icon</Text>
+                <Text style={{ fontSize: 12, color: theme.textPrimary }}>{emojiOnly ? "Remove Icon" : "Reset Icon"}</Text>
               </View>
             )}
           </Pressable>

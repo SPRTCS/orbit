@@ -2,12 +2,13 @@ import { ContextMenuArea, FadeLabel, Symbol } from "@ardia/shell";
 import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, PanResponder, Pressable, Text, View } from "react-native";
 import { create, useStore, type StoreApi } from "zustand";
-import { endFolderRename, movePinnedNodes, renamePinnedFolder, setPinnedFolderCollapsed } from "../../lib/pinnedFolders";
+import { endFolderRename, movePinnedNodes, pinnedFolderPickerId, renamePinnedFolder, setPinnedFolderCollapsed } from "../../lib/pinnedFolders";
 import { layout, useTheme } from "../../lib/theme";
 import { glassChrome, useGlassSidebar } from "../../lib/glassTheme";
 import { useBrowser, type BrowserState } from "../../store/browser";
 import { activeTabId, isIncognitoProfile, isPinnedRow } from "../../store/model";
 import {
+  appearanceOf,
   folderIdOf,
   folderRef,
   groupRef,
@@ -17,6 +18,7 @@ import {
   tabRef,
   usePinnedFolders,
   windowRefs,
+  type FolderAppearance,
   type FolderTarget,
   type PinnedTree,
   type ResolvedNode,
@@ -28,8 +30,9 @@ import { GroupBlock } from "./GroupBlock";
 import { dismissHover, suppressHover } from "./hover";
 import { headerAt, nextSibling, registerPinnedTree, type Frame, type PinnedTreeHandle } from "./pinnedFolderDrop";
 import { openPinnedFolderMenu } from "./pinnedFolderMenus";
-import { rowView } from "./state";
+import { registerRow, rowView } from "./state";
 import { RenameField, TabRowItem } from "./TabRow";
+import { GROUP_COLORS, withAlpha } from "./tokens";
 
 const INDENT = 14;
 const GAP = layout.rowGap;
@@ -214,7 +217,7 @@ const FolderBlock = memo(function FolderBlock({ node, parent }: { node: Resolved
   const clamp = fold.moving && height > 0 ? { height: fold.open.interpolate({ inputRange: [0, 1], outputRange: [0, height] }), overflow: "hidden" as const } : null;
   return (
     <View style={{ gap: GAP }}>
-      <FolderHeader folderId={id} name={folder.name} collapsed={collapsed} open={fold.open} />
+      <FolderHeader folderId={id} name={folder.name} collapsed={collapsed} open={fold.open} appearance={appearanceOf(folder)} />
       {shown.length ? (
         <Animated.View style={clamp}>
           <View
@@ -233,7 +236,28 @@ const FolderBlock = memo(function FolderBlock({ node, parent }: { node: Resolved
   );
 });
 
-function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; name: string; collapsed: boolean; open: Animated.Value }) {
+function FolderGlyph({ appearance, collapsed, glass }: { appearance: FolderAppearance; collapsed: boolean; glass: boolean }) {
+  const theme = useTheme();
+  const tint = appearance.color ? GROUP_COLORS[appearance.color].hex : null;
+  if (appearance.emoji) {
+    return tint ? (
+      <View style={{ width: 18, height: 18, marginHorizontal: -1, borderRadius: 5, alignItems: "center", justifyContent: "center", backgroundColor: withAlpha(tint, theme.dark ? 0.32 : 0.24) }}>
+        <Text style={{ fontSize: 12, lineHeight: 18 }}>{appearance.emoji}</Text>
+      </View>
+    ) : (
+      <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ fontSize: 13, lineHeight: 16 }}>{appearance.emoji}</Text>
+      </View>
+    );
+  }
+  return glass ? (
+    <Symbol name="folder.fill" size={15} color={tint ?? glassChrome(theme.dark).folder} style={{ width: 16, height: 16 }} />
+  ) : (
+    <Symbol name={collapsed ? "folder" : "folder.fill"} size={13} color={tint ?? theme.icon} style={{ width: 16, height: 16 }} />
+  );
+}
+
+function FolderHeader({ folderId, name, collapsed, open, appearance }: { folderId: string; name: string; collapsed: boolean; open: Animated.Value; appearance: FolderAppearance }) {
   const theme = useTheme();
   const ctx = useContext(TreeContext)!;
   const renaming = usePinnedFolders((f) => f.renaming?.folderId === folderId && f.renaming.windowId === ctx.windowId);
@@ -244,7 +268,10 @@ function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; n
   const glass = useGlassSidebar();
   return (
     <View
-      ref={(v) => void ctx.headers.set(folderId, v)}
+      ref={(v) => {
+        ctx.headers.set(folderId, v);
+        registerRow(ctx.windowId, pinnedFolderPickerId(ctx.profileId, folderId), v);
+      }}
       {...pan.panHandlers}
       {...hoverProps}
       onDoubleClick={() => usePinnedFolders.setState({ renaming: { windowId: ctx.windowId, folderId } })}
@@ -274,11 +301,7 @@ function FolderHeader({ folderId, name, collapsed, open }: { folderId: string; n
                 backgroundColor: into || pressed ? theme.tabPressed : hovered ? theme.tabHover : undefined,
               }}
             >
-              {glass ? (
-                <Symbol name="folder.fill" size={15} color={glassChrome(theme.dark).folder} style={{ width: 16, height: 16 }} />
-              ) : (
-                <Symbol name={collapsed ? "folder" : "folder.fill"} size={13} color={theme.icon} style={{ width: 16, height: 16 }} />
-              )}
+              <FolderGlyph appearance={appearance} collapsed={collapsed} glass={glass} />
               {renaming ? (
                 <RenameField
                   initial={name}

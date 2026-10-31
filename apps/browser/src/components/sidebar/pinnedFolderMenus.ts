@@ -3,14 +3,18 @@ import {
   deletePinnedFolder,
   movePinnedNodes,
   newPinnedFolder,
+  pinnedFolderPickerId,
   setPinnedFolderCollapsed,
+  setPinnedFolderColor,
   shownProfile,
   subjectRef,
 } from "../../lib/pinnedFolders";
 import { exportFolder } from "../spaces/spaceFiles";
 import { aiFolderMenuItems, folderTabIds, TIDY_FOLDER_TITLES, tidyTitles } from "../../lib/ai/tidyTitles";
 import { useBrowser } from "../../store/browser";
-import { childrenOf, folderDepth, folderRef, isWithin, parentOf, usePinnedFolders, type PinnedTree } from "../../store/pinnedFolders";
+import { childrenOf, folderDepth, folderRef, FOLDER_COLORS, isFolderColor, isWithin, parentOf, usePinnedFolders, type PinnedTree } from "../../store/pinnedFolders";
+import { openIconPicker } from "./actions";
+import { GROUP_COLORS } from "./tokens";
 
 type Subject = { kind: "tab" | "group"; id: string };
 
@@ -83,6 +87,18 @@ export async function openPinnedFolderMenu(windowId: string, profileId: string, 
   const ref = folderRef(folderId);
   const choice = await showMenu([
     { id: "rename", title: "Rename…", symbol: "character.cursor.ibeam" },
+    { id: "icon", title: folder.emoji ? "Change Icon…" : "Add Icon…", symbol: "face.smiling" },
+    {
+      id: "color",
+      title: "Color",
+      symbol: "paintpalette",
+      children: [
+        { id: "color:", title: "Default", checked: !folder.color },
+        sep,
+        ...FOLDER_COLORS.map((c) => ({ id: `color:${c}`, title: GROUP_COLORS[c].name, swatch: GROUP_COLORS[c].hex, checked: folder.color === c })),
+      ],
+    },
+    sep,
     { id: "nested", title: "New Folder Inside", symbol: "folder.badge.plus" },
     { id: "collapse", title: folder.collapsed ? "Expand Folder" : "Collapse Folder", symbol: folder.collapsed ? "chevron.down" : "chevron.up" },
     sep,
@@ -94,7 +110,11 @@ export async function openPinnedFolderMenu(windowId: string, profileId: string, 
   ]);
   if (!choice) return;
   if (choice === "rename") usePinnedFolders.setState({ renaming: { windowId, folderId } });
-  else if (choice === "nested") {
+  else if (choice === "icon") void openPinnedFolderIconPicker(windowId, profileId, folderId);
+  else if (choice.startsWith("color:")) {
+    const color = choice.slice(6);
+    setPinnedFolderColor(profileId, folderId, isFolderColor(color) ? color : null);
+  } else if (choice === "nested") {
     setPinnedFolderCollapsed(profileId, folderId, false);
     newPinnedFolder(windowId, { target: { parent: folderId, before: childrenOf(tree, folderId)[0] ?? null } });
   } else if (choice === "collapse") setPinnedFolderCollapsed(profileId, folderId, !folder.collapsed);
@@ -103,4 +123,8 @@ export async function openPinnedFolderMenu(windowId: string, profileId: string, 
   else if (choice === TIDY_FOLDER_TITLES) void tidyTitles(windowId, folderTabIds(useBrowser.getState(), windowId, profileId, folderId));
   else if (choice === `${PREFIX}root`) movePinnedNodes(profileId, [ref], { parent: null });
   else if (choice.startsWith(`${PREFIX}into:`)) movePinnedNodes(profileId, [ref], { parent: choice.slice(PREFIX.length + 5) });
+}
+
+export function openPinnedFolderIconPicker(windowId: string, profileId: string, folderId: string) {
+  return openIconPicker(windowId, { kind: "pinfolder", id: pinnedFolderPickerId(profileId, folderId) });
 }

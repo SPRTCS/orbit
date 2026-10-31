@@ -149,3 +149,26 @@ test("Arc import plan puts imported pins into their folders in Arc's order", () 
     { "f:work": ["t:2", { "f:deep": ["t:3"] }, "t:4"] },
   ]);
 });
+
+test("a folder's icon is one emoji, whatever its sequence", () => {
+  for (const e of ["🟡", "⭐️", "❤️", "👍🏽", "👩‍💻", "🏳️‍🌈", "🇩🇪", "1️⃣", "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "⚙️", "☕️"]) assert.equal(F.folderEmoji(e), e, e);
+  assert.equal(F.folderEmoji(" 🟡 "), "🟡");
+  for (const bad of ["", "a", "1", "🟡 MLP", "🟡🟢", "👩‍", "🇩", "symbol:star", null, 7, "x".repeat(40)]) assert.equal(F.folderEmoji(bad), null, String(bad));
+});
+
+test("icon and colour are set, changed and removed without touching the name or the rest of the tree", () => {
+  let t = F.createFolder(F.EMPTY_TREE, "x", "🟡 MLP");
+  const before = t;
+  t = F.setFolderAppearance(t, "x", { emoji: "🚀" });
+  assert.deepEqual(t.folders.x, { id: "x", name: "🟡 MLP", collapsed: false, children: [], emoji: "🚀" });
+  t = F.setFolderAppearance(t, "x", { color: "red" });
+  assert.deepEqual(F.appearanceOf(t.folders.x), { emoji: "🚀", color: "red" });
+  assert.equal(F.setFolderAppearance(t, "x", { color: "red" }), t, "no change, same tree");
+  assert.equal(F.setFolderAppearance(t, "x", { color: "magenta" }).folders.x.color, undefined, "unknown colours fall back to the default");
+  assert.equal(F.setFolderAppearance(t, "x", { emoji: "MLP" }).folders.x.emoji, undefined, "text isn't an icon");
+  t = F.setFolderAppearance(F.setFolderAppearance(t, "x", { emoji: null }), "x", { color: null });
+  assert.deepEqual(t.folders.x, before.folders.x);
+  assert.ok(!("emoji" in t.folders.x) && !("color" in t.folders.x));
+  assert.equal(F.setFolderAppearance(t, "missing", { emoji: "🚀" }), t);
+  assert.deepEqual(F.appearanceOf({ emoji: "nope", color: "blue" }), { color: "blue" }, "a saved tree from elsewhere is sanitized when read");
+});

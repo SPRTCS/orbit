@@ -710,6 +710,85 @@ test("a record from a broken or future writer is ignored, not applied or deleted
   assert.ok(a.scope.records[`${PIN_FOLDER}q:future`].v, "left as it is");
 });
 
+const looksOf = (device) => device.with(() => Object.fromEntries(Object.values(P().trees.default?.folders ?? {}).map((f) => [f.name, F.appearanceOf(f)])));
+
+test("a folder's icon and colour sync in a record of their own, next to its name and place", async () => {
+  const folder = new Folder();
+  const a = new Device("devA", folder);
+  const b = new Device("devB", folder);
+  pinRows(a, ["mail", "docs"]);
+  const id = a.with(() => L.newPinnedFolder(a.window, { name: "🟡 MLP", contents: [row("docs")], rename: false }));
+  await settled([a, b]);
+  a.with(() => {
+    L.setPinnedFolderEmoji("default", id, "🚀");
+    L.setPinnedFolderColor("default", id, "yellow");
+  });
+  await settled([a, b]);
+  assert.deepEqual(looksOf(b), { "🟡 MLP": { emoji: "🚀", color: "yellow" } }, "B shows A's icon and colour, and the name stays as typed");
+  assert.deepEqual(records(b)[`${PIN_FOLDER}a:${id}`], { e: "🚀", c: "yellow" });
+  assert.deepEqual(Object.keys(records(b)[`${PIN_FOLDER}f:${id}`]).sort(), ["n", "p", "pos"], "the folder's own record keeps its old shape");
+
+  a.with(() => L.renamePinnedFolder("default", id, "MLP"));
+  b.with(() => L.setPinnedFolderColor("default", id, "green"));
+  await settled([a, b]);
+  for (const d of [a, b]) assert.deepEqual(looksOf(d), { MLP: { emoji: "🚀", color: "green" } }, `${d.id}: a rename and a colour change made at once both stay`);
+
+  b.with(() => {
+    L.setPinnedFolderEmoji("default", id, null);
+    L.setPinnedFolderColor("default", id, null);
+  });
+  await settled([b, a]);
+  assert.deepEqual(looksOf(a), { MLP: {} }, "removing both brings back the default folder on the other Mac");
+  assert.equal(a.scope.records[`${PIN_FOLDER}a:${id}`].v, null);
+
+  a.with(() => L.setPinnedFolderEmoji("default", id, "📚"));
+  await settled([a, b]);
+  b.with(() => L.deletePinnedFolder("default", id));
+  await settled([b, a]);
+  assert.deepEqual(view(a), ["mail", "docs"]);
+  for (const d of [a, b]) assert.equal(d.scope.records[`${PIN_FOLDER}a:${id}`].v, null, `${d.id}: a deleted folder leaves no icon behind`);
+});
+
+test("older folder records without an icon still apply, and an icon record is kept as written until someone changes it", async () => {
+  const folder = new Folder();
+  const a = new Device("devA", folder);
+  pinRows(a, ["mail"]);
+  await settled([a]);
+  later();
+  const h = new Clock("devZ", null, () => now).tick();
+  const ops = [
+    { k: `${PIN_FOLDER}f:plain`, h, v: { n: "Plain", p: null, pos: "V" } },
+    { k: `${PIN_FOLDER}f:looks`, h, v: { n: "Looks", p: null, pos: "W" } },
+    { k: `${PIN_FOLDER}a:looks`, h, v: { e: "🟡", c: "blue", later: 1 } },
+    { k: `${PIN_FOLDER}a:odd`, h, v: { e: "not an emoji", c: "magenta" } },
+    { k: `${PIN_FOLDER}a:waiting`, h, v: { e: "🎯" } },
+  ];
+  await folder.transport("devZ").write("p", JSON.stringify({ v: 1, kind: "log", device: "devZ", seq: 1, at: now, ops }));
+  await settled([a]);
+  assert.deepEqual(looksOf(a), { Plain: {}, Looks: { emoji: "🟡", color: "blue" } });
+  assert.deepEqual(a.scope.records[`${PIN_FOLDER}a:looks`].v, { e: "🟡", c: "blue", later: 1 }, "not rewritten by a Mac that didn't change it");
+  assert.ok(a.scope.records[`${PIN_FOLDER}a:waiting`].v, "an icon whose folder hasn't arrived waits for it");
+  a.with(() => L.setPinnedFolderEmoji("default", "plain", "🧪"));
+  await settled([a]);
+  assert.deepEqual(a.scope.records[`${PIN_FOLDER}a:plain`].v, { e: "🧪" });
+});
+
+test("a Mac without folder sync carries the icon records, and a Mac that joins from it gets the icons", async () => {
+  const folder = new Folder();
+  const a = new Device("devA", folder);
+  const old = new Device("devOld", folder, { legacy: true });
+  pinRows(a, ["mail", "docs"]);
+  a.with(() => {
+    const id = L.newPinnedFolder(a.window, { name: "X", contents: [row("docs")], rename: false });
+    L.setPinnedFolderEmoji("default", id, "🔥");
+  });
+  await settled([a, old]);
+  assert.deepEqual(records(old), records(a));
+  const fresh = new Device("devNew", folder);
+  await settled([fresh, a, old]);
+  assert.deepEqual(looksOf(fresh), { X: { emoji: "🔥" } });
+});
+
 test("randomized: three Macs making, nesting, renaming, moving and deleting folders, pinning and unpinning, with late files, converge", async () => {
   let seed = 20261030;
   const rand = (n) => {

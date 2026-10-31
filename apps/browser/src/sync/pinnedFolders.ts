@@ -1,12 +1,24 @@
 import { assignPositions, canonical, type Adapter, type Extraction } from "@ardia/sync";
 import { useBrowser } from "../store/browser";
-import { folderIdOf, folderRef, isFolderRef, pinnedRefs, reconcileTree, usePinnedFolders, type PinnedTree } from "../store/pinnedFolders";
-import { adoptSyncedTree, pinnedChoices, pinnedFoldersStarted, settlePinnedChoices } from "../lib/pinnedFolders";
+import {
+  appearanceOf,
+  folderIdOf,
+  folderRef,
+  isFolderRef,
+  pinnedRefs,
+  reconcileTree,
+  usePinnedFolders,
+  type FolderAppearance,
+  type FolderColor,
+  type PinnedTree,
+} from "../store/pinnedFolders";
+import { adoptSyncedTree, appearanceRef, pinnedChoices, pinnedFoldersStarted, settlePinnedChoices } from "../lib/pinnedFolders";
 
 export const PIN_FOLDER = "pinfolder:";
 
 export type PinnedNodeValue = { p: string | null; pos: string };
 export type PinnedFolderValue = PinnedNodeValue & { n: string };
+export type PinnedAppearanceValue = { e?: string; c?: FolderColor };
 
 type Records = Record<string, { v: unknown }> | undefined;
 
@@ -14,6 +26,18 @@ const keyOf = (ref: string) => `${PIN_FOLDER}${ref}`;
 const refOf = (key: string) => key.slice(PIN_FOLDER.length);
 const pinRecordOf = (ref: string) => `pin:${ref}`;
 const isLeafRef = (ref: string) => ref.startsWith("t:") || ref.startsWith("g:");
+const isAppearanceRef = (ref: string) => ref.startsWith("a:") && ref.length > 2;
+
+export function appearanceValue(value: unknown): FolderAppearance | null {
+  if (!value || typeof value !== "object") return null;
+  const { e, c } = value as Record<string, unknown>;
+  return appearanceOf({ emoji: e as string, color: c as FolderColor });
+}
+
+function appearanceRecord(appearance: FolderAppearance): PinnedAppearanceValue | null {
+  const { emoji, color } = appearanceOf(appearance);
+  return emoji || color ? { ...(emoji ? { e: emoji } : {}), ...(color ? { c: color } : {}) } : null;
+}
 
 function nodeValue(ref: string, value: unknown): PinnedNodeValue | PinnedFolderValue | null {
   if (!value || typeof value !== "object") return null;
@@ -66,9 +90,15 @@ export function breakCycles(parent: Map<string, string | null>, folderIds: Itera
 export function treeFromRecords(visible: Map<string, unknown>, pinGone: (ref: string) => boolean, collapsed: (folderId: string) => boolean): PinnedTree {
   const folders = new Map<string, PinnedFolderValue>();
   const nodes = new Map<string, PinnedNodeValue>();
+  const looks = new Map<string, FolderAppearance>();
   for (const [key, raw] of visible) {
     if (!key.startsWith(PIN_FOLDER)) continue;
     const ref = refOf(key);
+    if (isAppearanceRef(ref)) {
+      const look = appearanceValue(raw);
+      if (look) looks.set(ref.slice(2), look);
+      continue;
+    }
     const value = nodeValue(ref, raw);
     if (!value) continue;
     if (isFolderRef(ref)) folders.set(folderIdOf(ref), value as PinnedFolderValue);
@@ -93,7 +123,7 @@ export function treeFromRecords(visible: Map<string, unknown>, pinGone: (ref: st
   return {
     root: children.get(null)!,
     folders: Object.fromEntries(
-      [...folders].map(([id, v]) => [id, { id, name: v.n, collapsed: collapsed(id), children: children.get(id) ?? [] }]),
+      [...folders].map(([id, v]) => [id, { id, name: v.n, collapsed: collapsed(id), children: children.get(id) ?? [], ...looks.get(id) }]),
     ),
   };
 }
@@ -139,9 +169,22 @@ export function pinnedFoldersAdapter(profileId: string, records: () => Records):
           values.set(key, isFolderRef(ref) ? ({ n: tree.folders[folderIdOf(ref)]!.name, ...placement } satisfies PinnedFolderValue) : placement);
         });
       }
+      for (const folder of Object.values(tree.folders)) {
+        const ref = appearanceRef(folder.id);
+        const key = keyOf(ref);
+        const look = appearanceRecord(folder);
+        const same = base(key) !== undefined && canonical(appearanceRecord(appearanceValue(base(key)) ?? {})) === canonical(look);
+        if (!chosen.has(ref) && (same || unapplied(key, base))) held.add(key);
+        else if (look) values.set(key, look);
+      }
       const ignore = (key: string) => {
         if (held.has(key)) return true;
         const ref = refOf(key);
+        if (isAppearanceRef(ref)) {
+          const id = ref.slice(2);
+          if (tree.folders[id]) return false;
+          return !chosen.has(folderRef(id)) && records()?.[keyOf(folderRef(id))]?.v !== null;
+        }
         if (!nodeValue(ref, base(key))) return true;
         return isLeafRef(ref) && !pinGone(ref) && !chosen.has(ref) && !!waitingIn(key, tree);
       };
