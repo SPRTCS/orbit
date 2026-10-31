@@ -14,7 +14,7 @@ import { clickTab } from "./actions";
 import { PIN_SLOT, useDragController, useDragging, useDragItem, useDropPins, usePinnedCount } from "./dnd";
 import { dismissHover, useRowHover } from "./hover";
 import { openTabMenu } from "./menus";
-import { pinGrid, pinGridHeight, TILE_GAP } from "./pinZone";
+import { pinGrid, pinGridHeight, TILE_GAP, TILE_SPACING } from "./pinZone";
 import { registerRow } from "./state";
 import { TabIcon } from "./TabIcon";
 import { TabBadges } from "../media/TabBadges";
@@ -23,7 +23,6 @@ import { useSidebarTokens } from "./tokens";
 
 const SELECTION_STROKE = 3;
 const GLASS_RIM = 1;
-const TILE_SPACING = { marginRight: TILE_GAP };
 
 export const PinnedGrid = memo(function PinnedGrid({ tabs, innerWidth }: { tabs: string[]; innerWidth: number }) {
   const controller = useDragController();

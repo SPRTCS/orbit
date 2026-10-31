@@ -10,7 +10,7 @@ import { SLIDE } from "../layout/stripReorder";
 import { beginTabDrag, cancelTabDrag, endTabDrag, setDragPicture, updateTabDrag, useTabDrag } from "../layout/tabDrag";
 import { useClipped, type ClipSource } from "./entryMotion";
 import { suppressHover } from "./hover";
-import { overPins, pinGridHeight, pinSlot, TILE_GAP } from "./pinZone";
+import { collapsingTileMargin, overPins, pinGridHeight, pinSlot, TILE_GAP } from "./pinZone";
 import { pinnedTreeDrop } from "./pinnedFolderDrop";
 
 type Frame = { x: number; y: number; w: number; h: number };
@@ -519,6 +519,11 @@ export const usePinnedCount = (tabIds: string[]) =>
   useStore(useContext(DragContext)?.marks ?? noMarks, (m) => tabIds.reduce((n, id) => n + (m.sources.has(`t:${id}`) ? 0 : 1), 0) + m.pinCount);
 export const useDragging = () => useStore(useContext(DragContext)?.marks ?? noMarks, (m) => m.sources.size > 0);
 
+function tileCollapse(size: Animated.Value, width: number) {
+  const { property, inputRange, outputRange } = collapsingTileMargin(width);
+  return { [property]: size.interpolate({ inputRange, outputRange, extrapolate: "clamp" }) };
+}
+
 export function useDragItem(key: string, spec: ItemSpec, selection: () => string[] = () => [], clip: ClipSource | null = null) {
   const controller = useContext(DragContext) ?? undefined;
   const marks = controller?.marks ?? noMarks;
@@ -569,7 +574,7 @@ export function useDragItem(key: string, spec: ItemSpec, selection: () => string
           ? horizontal
             ? {
                 width: item.size,
-                marginRight: item.size.interpolate({ inputRange: [0, Math.max(1, item.frame?.w ?? 0)], outputRange: [0, TILE_GAP], extrapolate: "clamp" }),
+                ...tileCollapse(item.size, item.frame?.w ?? 0),
                 opacity: 0,
                 overflow: "hidden" as const,
               }

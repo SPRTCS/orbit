@@ -1,6 +1,11 @@
 export const TILE_GAP = 6;
 export const MIN_TILE = 50;
 export const PIN_ZONE_HYSTERESIS = 6;
+export const TILE_SPACING = { marginRight: TILE_GAP };
+
+export function collapsingTileMargin(width: number) {
+  return { property: "marginLeft" as const, inputRange: [0, Math.max(1, width)], outputRange: [-TILE_GAP, 0] };
+}
 
 type Area = { x: number; y: number; w: number };
 

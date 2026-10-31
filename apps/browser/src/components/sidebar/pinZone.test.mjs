@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-const { overPins, pinGrid, pinGridHeight, pinSlot, PIN_ZONE_HYSTERESIS } = await import("./pinZone.ts");
+const { collapsingTileMargin, overPins, pinGrid, pinGridHeight, pinSlot, PIN_ZONE_HYSTERESIS, TILE_GAP, TILE_SPACING } = await import("./pinZone.ts");
 
 const TILE = 41;
 const grid = { x: 6, y: 54, w: 178 };
@@ -60,4 +60,13 @@ test("the grid's height is its row count after the drop", () => {
   assert.equal(pinGridHeight(2, 178, TILE), 41);
   assert.equal(pinGridHeight(0, 178, TILE), 41);
   assert.equal(pinGridHeight(7, 178, TILE), 135);
+});
+
+test("a dragged tile collapses through a margin its resting style doesn't set", () => {
+  const { property, inputRange, outputRange } = collapsingTileMargin(55);
+  assert.ok(!(property in TILE_SPACING), `${property} is animated during the drag and must drop out of the style afterwards`);
+  assert.deepEqual(inputRange, [0, 55]);
+  assert.equal(outputRange[0] + TILE_SPACING.marginRight, 0);
+  assert.equal(outputRange[1] + TILE_SPACING.marginRight, TILE_GAP);
+  assert.deepEqual(collapsingTileMargin(0).inputRange, [0, 1]);
 });
