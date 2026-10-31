@@ -7,7 +7,13 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
   private weak var browser: BrowserModel?
   private var observations: [NSKeyValueObservation] = []
   private let refreshControl = UIRefreshControl()
-  private var panStartOffset: CGFloat = 0
+  private var lastOffsetY: CGFloat = 0
+  private var directionTravel: CGFloat = 0
+
+  private static let collapseTravel: CGFloat = 24
+  private static let expandTravel: CGFloat = 36
+  private static let minimumScrollableHeight: CGFloat = 120
+  private static let bottomMargin: CGFloat = 44
 
   private static let embeddedSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
 
@@ -20,14 +26,12 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     webView.uiDelegate = self
     refreshControl.addTarget(self, action: #selector(pullToRefresh), for: .valueChanged)
     webView.scrollView.refreshControl = refreshControl
-    webView.scrollView.panGestureRecognizer.addTarget(self, action: #selector(handlePan(_:)))
     observeWebView()
     syncState()
   }
 
   func tearDown() {
     observations.removeAll()
-    webView.scrollView.panGestureRecognizer.removeTarget(self, action: nil)
     webView.scrollView.refreshControl = nil
     webView.stopLoading()
     webView.navigationDelegate = nil
@@ -39,6 +43,9 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     observations = [
       observe(\.title), observe(\.url), observe(\.estimatedProgress), observe(\.isLoading),
       observe(\.canGoBack), observe(\.canGoForward), observe(\.themeColor),
+      webView.scrollView.observe(\.contentOffset) { [weak self] _, _ in
+        MainActor.assumeIsolated { self?.scrollViewDidScroll() }
+      },
     ]
   }
 
@@ -82,22 +89,33 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
   }
 
-  @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
+  private func scrollViewDidScroll() {
     let scrollView = webView.scrollView
-    switch pan.state {
-    case .began:
-      panStartOffset = scrollView.contentOffset.y
-    case .changed:
-      let offset = scrollView.contentOffset.y
-      let delta = offset - panStartOffset
-      let atTop = offset <= -scrollView.adjustedContentInset.top + 4
-      if delta > 28, !atTop {
-        browser?.setChromeCollapsed(true)
-      } else if delta < -28 || atTop {
-        browser?.setChromeCollapsed(false)
-      }
-    default:
-      break
+    let offset = scrollView.contentOffset.y
+    let delta = offset - lastOffsetY
+    lastOffsetY = offset
+    guard scrollView.isTracking || scrollView.isDecelerating, let browser else {
+      directionTravel = 0
+      return
+    }
+    let top = -scrollView.adjustedContentInset.top
+    let bottom = scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
+    guard bottom - top > Self.minimumScrollableHeight else {
+      browser.setChromeCollapsed(false)
+      return
+    }
+    if offset <= top + 2 || offset >= bottom - 2 {
+      directionTravel = 0
+      browser.setChromeCollapsed(false)
+      return
+    }
+    guard delta != 0 else { return }
+    if (delta > 0) != (directionTravel > 0) { directionTravel = 0 }
+    directionTravel += delta
+    if directionTravel > Self.collapseTravel, offset < bottom - Self.bottomMargin {
+      browser.setChromeCollapsed(true)
+    } else if directionTravel < -Self.expandTravel {
+      browser.setChromeCollapsed(false)
     }
   }
 
@@ -124,6 +142,8 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate {
 
   func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
     syncState()
+    directionTravel = 0
+    if let tab, browser?.selectedTabID == tab.id { browser?.setChromeCollapsed(false) }
   }
 
   func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

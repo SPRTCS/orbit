@@ -3,16 +3,25 @@ import SwiftUI
 
 struct SidebarView: View {
   @Environment(BrowserModel.self) private var browser
+  let width: CGFloat
+  let safeArea: EdgeInsets
+  @State private var topRowInsets = EdgeInsets(top: 24, leading: 20, bottom: 0, trailing: 0)
 
   var body: some View {
     VStack(spacing: 0) {
       SidebarTopBar()
-        .padding(.horizontal, 10)
-        .padding(.top, 6)
+        .padding(.leading, max(topRowInsets.leading - 6, safeArea.leading + 10))
+        .padding(.trailing, 10)
+        .padding(.top, max(topRowInsets.top - 4, safeArea.top + 6))
+        .background {
+          LayoutRegionInsetsReader { topRowInsets = $0 }
+        }
       ScrollView {
         VStack(alignment: .leading, spacing: 18) {
           if browser.sync.client.spaces.count > 1 { SpacePicker() }
-          if let space = browser.currentSpace, !space.pins.isEmpty { PinnedSection(space: space) }
+          if let space = browser.currentSpace, !space.pins.isEmpty {
+            PinnedSection(space: space, tileColumns: SidebarWidth.tileColumns(forSidebarWidth: width))
+          }
           OpenTabsSection()
           if let space = browser.currentSpace {
             ForEach(browser.sync.devices(in: space)) { device in
@@ -37,14 +46,17 @@ struct SidebarView: View {
             .hoverEffect(.highlight)
           }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, safeArea.leading + 10)
+        .padding(.trailing, 10)
         .padding(.vertical, 12)
       }
       .scrollIndicators(.hidden)
       .refreshable { await browser.sync.refresh() }
       SidebarFooter()
-        .padding(.horizontal, 10)
-        .padding(.bottom, 8)
+        .padding(.leading, safeArea.leading + 10)
+        .padding(.trailing, 10)
+        .padding(.top, 6)
+        .padding(.bottom, max(12, safeArea.bottom + 6))
     }
   }
 }
@@ -140,13 +152,14 @@ struct SidebarSectionHeader: View {
 struct PinnedSection: View {
   @Environment(BrowserModel.self) private var browser
   let space: SyncedSpace
+  let tileColumns: Int
 
   var body: some View {
     let layout = PinLayout(pins: space.pins)
     VStack(alignment: .leading, spacing: 2) {
       SidebarSectionHeader(title: "Pinned on Mac")
       if !layout.tiles.isEmpty {
-        PinTileGrid(tiles: layout.tiles, minimumWidth: 52)
+        PinTileGrid(tiles: layout.tiles, columns: tileColumns)
           .padding(.bottom, 6)
       }
       ForEach(layout.sections) { section in
@@ -355,24 +368,48 @@ struct SidebarRow: View {
 
 struct SidebarFooter: View {
   @Environment(BrowserModel.self) private var browser
+  @Namespace private var glass
+
+  private let buttonSize: CGFloat = 46
 
   var body: some View {
-    HStack(spacing: 2) {
-      SidebarIconButton(systemImage: "gearshape", label: "Settings") { browser.isShowingSettings = true }
-      SidebarIconButton(systemImage: "square.grid.2x2", label: "All Tabs") { browser.showTabSwitcher() }
-      Spacer(minLength: 0)
-      if browser.sync.isConnected {
-        Text(browser.sync.statusText)
+    let sync = browser.sync
+    VStack(alignment: .leading, spacing: 8) {
+      if sync.isConnected {
+        Text(sync.statusText)
           .font(.caption2)
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(.secondary)
           .lineLimit(1)
-        SidebarIconButton(systemImage: "arrow.triangle.2.circlepath", label: "Sync Now") {
-          browser.sync.refreshInBackground()
-        }
-        .symbolEffect(.rotate, isActive: browser.sync.isSyncing)
+          .padding(.leading, 4)
       }
-      SidebarIconButton(systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces") {
-        browser.isShowingDevices = true
+      GlassEffectContainer(spacing: 10) {
+        HStack(spacing: 10) {
+          GlassCircleButton(systemImage: "gearshape", label: "Settings", size: buttonSize, glassNamespace: glass) {
+            browser.isShowingSettings = true
+          }
+          GlassCircleButton(systemImage: "square.grid.2x2", label: "All Tabs", size: buttonSize, glassNamespace: glass) {
+            browser.showTabSwitcher()
+          }
+          Spacer(minLength: 0)
+          if sync.isConnected {
+            GlassCircleButton(
+              systemImage: "arrow.triangle.2.circlepath", label: "Sync Now", size: buttonSize, glassNamespace: glass,
+              isSymbolEffectActive: sync.isSyncing
+            ) {
+              sync.refreshInBackground()
+            }
+            .help(sync.statusText)
+            .contextMenu {
+              Text(sync.statusText)
+              Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { sync.refreshInBackground() }
+            }
+          }
+          GlassCircleButton(
+            systemImage: "laptopcomputer.and.iphone", label: "Devices and Spaces", size: buttonSize, glassNamespace: glass
+          ) {
+            browser.isShowingDevices = true
+          }
+        }
       }
     }
   }

@@ -13,6 +13,9 @@ struct RootView: View {
         CompactBrowserView()
       }
     }
+    .onChange(of: horizontalSizeClass, initial: true) { _, sizeClass in
+      browser.isCompactLayout = sizeClass != .regular
+    }
     .sheet(isPresented: $browser.isShowingSettings) {
       SettingsView().environment(browser)
     }

@@ -5,13 +5,15 @@ open tabs show up on the phone, and the phone's open tabs show up on the Mac. No
 
 - **Browsing:** one WebKit view per tab, full screen. The address bar sits at the bottom: tap it to type,
   swipe it left or right to switch tabs, long-press it for Share, Find on Page, Reader and Copy Link.
-  The bar shrinks while you scroll down. Swipe from the edge to go back or forward, pull down to reload.
+  Scrolling down shrinks the bar into a small pill with the site or search; scrolling up, tapping the pill or
+  reaching the end of the page brings it back. Swipe up on the bar (or tap the tabs button) and the page
+  shrinks into its card in the tab overview. Swipe from the edge to go back or forward, pull down to reload.
 - **Address entry:** suggestions from your open tabs, history, your Mac's tabs and pins, and your search
   engine (Google, DuckDuckGo, Bing or Ecosia).
 - **Tabs:** a card grid with snapshots; swipe a card left to close it. Devices & Spaces (bottom left) lists
   everything synced from the Mac.
 - **iPad, iPhone Duo unfolded, Split View:** at regular width the app switches to an Orbit-for-Mac layout
-  with a sidebar. Folding or resizing keeps the current tab, its scroll position and anything you're typing.
+  with a resizable sidebar (drag its edge; double-tap to reset). Folding or resizing keeps the current tab, its scroll position and anything you're typing.
   Keyboard shortcuts: ⌘T, ⌘⇧T, ⌘W, ⌘L, ⌘R, ⌘[, ⌘], ⌃Tab, ⌃⇧Tab, ⌘F, ⌘S (sidebar).
 
 Open tabs, history and snapshots stay on the device, in Application Support. Background tabs beyond the

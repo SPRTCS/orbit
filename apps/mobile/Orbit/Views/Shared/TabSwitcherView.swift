@@ -17,6 +17,8 @@ struct TabSwitcherView: View {
         .padding(.horizontal, 14)
         .padding(.bottom, 4)
     }
+    .opacity(browser.morph.overviewOpacity)
+    .scaleEffect(browser.morph.isActive ? 1.06 - 0.06 * browser.morph.progress : 1)
   }
 
   private var grid: some View {
@@ -85,6 +87,7 @@ struct SwitcherBottomBar: View {
         GlassCircleButton(systemImage: "plus", label: "New Tab") {
           browser.beginNewTab()
         }
+        .reportsGlobalFrame { browser.morph.plusFrame = $0 }
       }
     }
   }
@@ -109,10 +112,7 @@ struct TabCard: View {
         .aspectRatio(0.74, contentMode: .fit)
         .overlay {
           if let snapshot = tab.snapshot {
-            Image(uiImage: snapshot)
-              .resizable()
-              .scaledToFill()
-              .frame(maxHeight: .infinity, alignment: .top)
+            TopAlignedSnapshot(image: snapshot)
           } else {
             ZStack {
               Rectangle().fill(.background.secondary)
@@ -125,9 +125,9 @@ struct TabCard: View {
             }
           }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: OverviewMorph.cardCornerRadius, style: .continuous))
         .overlay {
-          RoundedRectangle(cornerRadius: 22, style: .continuous)
+          RoundedRectangle(cornerRadius: OverviewMorph.cardCornerRadius, style: .continuous)
             .strokeBorder(isSelected ? Color.accentColor : Color.white.opacity(0.12), lineWidth: isSelected ? 3 : 1)
         }
         .overlay(alignment: .topTrailing) {
@@ -145,11 +145,13 @@ struct TabCard: View {
           .accessibilityLabel("Close \(tab.displayTitle)")
         }
         .shadow(color: .black.opacity(0.28), radius: 12, y: 6)
+        .reportsGlobalFrame { browser.morph.cardFrames[tab.id] = $0 }
+        .opacity(browser.morph.hidesCard(of: tab.id) ? 0 : 1)
     }
     .contentShape(.rect)
     .offset(x: dragOffset)
     .opacity(1 - min(abs(dragOffset) / 260, 0.7))
-    .onTapGesture { browser.select(tab) }
+    .onTapGesture { browser.openFromOverview(tab) }
     .gesture(
       HorizontalSwipeGesture(
         onChanged: { translation in dragOffset = min(translation, 40) },

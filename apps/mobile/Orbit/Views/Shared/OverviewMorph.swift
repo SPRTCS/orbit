@@ -1,0 +1,186 @@
+import SwiftUI
+import UIKit
+
+@Observable
+final class OverviewMorph {
+  enum Phase: Equatable {
+    case idle
+    case opening
+    case closing
+    case interactive
+    case growing
+  }
+
+  static let animation: Animation = .spring(duration: 0.4, bounce: 0)
+  static let cardCornerRadius: CGFloat = 22
+
+  var phase: Phase = .idle
+  var tabID: UUID?
+  var image: UIImage?
+  var progress: CGFloat = 0
+  var sourceFrame: CGRect?
+  var cardFrames: [UUID: CGRect] = [:]
+  @ObservationIgnored var plusFrame: CGRect?
+
+  var isActive: Bool { phase != .idle }
+
+  var targetFrame: CGRect? {
+    if phase == .growing { return sourceFrame }
+    guard let tabID else { return nil }
+    return cardFrames[tabID]
+  }
+
+  func hidesCard(of id: UUID) -> Bool {
+    isActive && phase != .growing && tabID == id
+  }
+
+  var overviewOpacity: Double {
+    switch phase {
+    case .idle, .growing: 1
+    case .opening, .closing, .interactive: Double(progress)
+    }
+  }
+
+  func start(_ phase: Phase, tabID: UUID?, image: UIImage?, progress: CGFloat, sourceFrame: CGRect? = nil) {
+    self.phase = phase
+    self.tabID = tabID
+    self.image = image
+    self.progress = progress
+    self.sourceFrame = sourceFrame
+  }
+
+  func finish() {
+    phase = .idle
+    tabID = nil
+    image = nil
+    sourceFrame = nil
+  }
+}
+
+struct OverviewMorphLayer: View {
+  @Environment(BrowserModel.self) private var browser
+
+  var body: some View {
+    let morph = browser.morph
+    if morph.isActive {
+      GeometryReader { proxy in
+        let origin = proxy.frame(in: .global).origin
+        let full = CGRect(origin: .zero, size: proxy.size)
+        let target = morph.targetFrame.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) } ?? full
+        let displayRadius: CGFloat = proxy.safeAreaInsets.bottom > 0 ? 55 : 0
+        MorphSnapshot(image: morph.image)
+          .modifier(
+            MorphGeometry(
+              progress: morph.progress, from: full, to: target, fromRadius: displayRadius,
+              toRadius: morph.phase == .growing ? target.height / 2 : OverviewMorph.cardCornerRadius))
+      }
+      .ignoresSafeArea()
+      .allowsHitTesting(false)
+      .transition(.opacity)
+    }
+  }
+}
+
+struct MorphSnapshot: View {
+  let image: UIImage?
+
+  var body: some View {
+    ZStack {
+      Rectangle().fill(Color(uiColor: .systemBackground))
+      TopAlignedSnapshot(image: image)
+    }
+  }
+}
+
+struct TopAlignedSnapshot: View {
+  let image: UIImage?
+
+  var body: some View {
+    GeometryReader { proxy in
+      if let image, image.size.width > 0, image.size.height > 0 {
+        let scale = max(proxy.size.width / image.size.width, proxy.size.height / image.size.height)
+        Image(uiImage: image)
+          .resizable()
+          .frame(width: image.size.width * scale, height: image.size.height * scale)
+          .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+      }
+    }
+    .clipped()
+  }
+}
+
+struct MorphGeometry: ViewModifier, Animatable {
+  var progress: CGFloat
+  let from: CGRect
+  let to: CGRect
+  let fromRadius: CGFloat
+  let toRadius: CGFloat
+
+  var animatableData: CGFloat {
+    get { progress }
+    set { progress = newValue }
+  }
+
+  func body(content: Content) -> some View {
+    let t = min(max(progress, 0), 1)
+    let rect = CGRect(
+      x: from.minX + (to.minX - from.minX) * t, y: from.minY + (to.minY - from.minY) * t,
+      width: from.width + (to.width - from.width) * t, height: from.height + (to.height - from.height) * t)
+    let radius = fromRadius + (toRadius - fromRadius) * t
+    content
+      .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+      .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+      .shadow(color: .black.opacity(0.3 * Double(t)), radius: 12, y: 6)
+      .position(x: rect.midX, y: rect.midY)
+  }
+}
+
+struct VerticalSwipeGesture: UIGestureRecognizerRepresentable {
+  var onBegan: () -> Bool
+  var onChanged: (CGFloat) -> Void
+  var onEnded: (_ translation: CGFloat, _ velocity: CGFloat) -> Void
+
+  func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
+    Coordinator()
+  }
+
+  func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+    let pan = UIPanGestureRecognizer()
+    pan.delegate = context.coordinator
+    pan.maximumNumberOfTouches = 1
+    return pan
+  }
+
+  func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+    let translation = recognizer.translation(in: recognizer.view?.window).y
+    switch recognizer.state {
+    case .began:
+      if !onBegan() {
+        recognizer.isEnabled = false
+        recognizer.isEnabled = true
+      }
+    case .changed:
+      onChanged(translation)
+    case .ended:
+      onEnded(translation, recognizer.velocity(in: recognizer.view?.window).y)
+    case .cancelled, .failed:
+      onEnded(0, 0)
+    default:
+      break
+    }
+  }
+
+  final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+      guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+      let velocity = pan.velocity(in: pan.view)
+      return velocity.y < 0 && abs(velocity.y) > abs(velocity.x) * 1.3
+    }
+  }
+}
+
+extension View {
+  func reportsGlobalFrame(_ update: @escaping (CGRect) -> Void) -> some View {
+    onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { update($0) }
+  }
+}

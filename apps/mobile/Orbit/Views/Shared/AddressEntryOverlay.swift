@@ -7,25 +7,37 @@ struct AddressEntryOverlay: View {
   }
 
   let layout: Layout
+  var leadingInset: CGFloat = 0
+  var trailingInset: CGFloat = 0
   @Environment(BrowserModel.self) private var browser
   @FocusState private var fieldFocused: Bool
+  @State private var keyboard = KeyboardMetrics()
 
   private let rowHeight: CGFloat = 54
+  private let fieldBlockHeight: CGFloat = 66
 
   var body: some View {
     GeometryReader { proxy in
+      let margin: CGFloat = layout == .compact ? 8 : 12
+      let bottom = max(keyboard.overlap, keyboard.safeArea.bottom) + margin
+      let available = proxy.size.height - bottom - keyboard.safeArea.top - margin - fieldBlockHeight
       ZStack(alignment: .bottom) {
         Rectangle()
           .fill(.black.opacity(layout == .compact ? 0.32 : 0.18))
-          .ignoresSafeArea()
           .onTapGesture { browser.cancelEntry() }
           .accessibilityHidden(true)
-        panel(maxListHeight: max(rowHeight * 2, proxy.size.height - 120))
+        panel(maxListHeight: max(rowHeight, available))
           .frame(maxWidth: layout == .regular ? 640 : .infinity)
           .padding(.horizontal, layout == .compact ? 10 : 16)
-          .padding(.bottom, layout == .compact ? 8 : 12)
+          .frame(maxWidth: .infinity)
+          .padding(.leading, leadingInset + keyboard.safeArea.leading)
+          .padding(.trailing, trailingInset + keyboard.safeArea.trailing)
+          .padding(.bottom, bottom)
       }
+      .animation(.snappy(duration: 0.25), value: keyboard)
     }
+    .background { KeyboardMetricsReader { keyboard = $0 } }
+    .ignoresSafeArea()
     .onAppear {
       fieldFocused = true
       browser.updateSuggestions()

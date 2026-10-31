@@ -3,6 +3,7 @@ import SwiftUI
 struct URLCapsule: View {
   @Environment(BrowserModel.self) private var browser
   var height: CGFloat = 50
+  var glassNamespace: Namespace.ID?
   @State private var dragOffset: CGFloat = 0
 
   var body: some View {
@@ -41,20 +42,14 @@ struct URLCapsule: View {
     .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
     .overlay(alignment: .bottom) {
       if let tab, tab.isLoading {
-        GeometryReader { proxy in
-          Capsule()
-            .fill(Color.accentColor)
-            .frame(width: max(8, proxy.size.width * tab.progress), height: 2.5)
-            .animation(.easeOut(duration: 0.2), value: tab.progress)
-        }
-        .frame(height: 2.5)
-        .padding(.horizontal, 18)
-        .padding(.bottom, 3)
-        .transition(.opacity)
+        LoadingProgressLine(progress: tab.progress)
+          .padding(.horizontal, 18)
+          .padding(.bottom, 3)
       }
     }
     .contentShape(.capsule)
     .glassEffect(.regular.interactive(), in: .capsule)
+    .glassID("address", in: glassNamespace)
     .offset(x: dragOffset)
     .onTapGesture { browser.beginEditingCurrent() }
     .gesture(
@@ -117,20 +112,78 @@ struct PageActionsMenu: View {
   }
 }
 
-struct CollapsedAddressLabel: View {
+struct MinimizedAddressPill: View {
   @Environment(BrowserModel.self) private var browser
+  let width: CGFloat
+  var glassNamespace: Namespace.ID?
+
+  static let height: CGFloat = 36
 
   var body: some View {
-    let text = browser.selectedTab?.host ?? "Orbit"
-    Text(text)
-      .font(.system(size: 13, weight: .semibold))
-      .lineLimit(1)
-      .padding(.horizontal, 14)
-      .frame(height: 28)
-      .glassEffect(.regular.interactive(), in: .capsule)
-      .onTapGesture { browser.setChromeCollapsed(false) }
-      .accessibilityLabel("Show toolbar, \(text)")
-      .accessibilityAddTraits(.isButton)
+    let tab = browser.selectedTab
+    let query = tab?.url.flatMap(SearchEngine.query(fromResultsPage:))
+    let text = query ?? tab?.host ?? "Search or enter address"
+    HStack(spacing: 5) {
+      if query != nil {
+        Image(systemName: "magnifyingglass")
+          .font(.system(size: 12, weight: .semibold))
+      } else if tab?.url?.scheme == "http" {
+        Image(systemName: "lock.open.fill")
+          .font(.system(size: 10, weight: .semibold))
+          .foregroundStyle(.orange)
+      }
+      Text(text)
+        .font(.system(size: 15, weight: .medium))
+        .lineLimit(1)
+        .truncationMode(.middle)
+    }
+    .padding(.horizontal, 16)
+    .frame(width: width, height: Self.height)
+    .overlay(alignment: .bottom) {
+      if let tab, tab.isLoading {
+        LoadingProgressLine(progress: tab.progress, thickness: 2)
+          .padding(.horizontal, 16)
+          .padding(.bottom, 2)
+      }
+    }
+    .contentShape(.capsule)
+    .glassEffect(.regular.interactive(), in: .capsule)
+    .glassID("address", in: glassNamespace)
+    .onTapGesture { browser.setChromeCollapsed(false) }
+    .contextMenu { PageActionsMenu() }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Show toolbar")
+    .accessibilityValue(text)
+    .accessibilityAddTraits(.isButton)
+    .accessibilityAction { browser.setChromeCollapsed(false) }
+  }
+}
+
+struct LoadingProgressLine: View {
+  let progress: Double
+  var thickness: CGFloat = 2.5
+
+  var body: some View {
+    GeometryReader { proxy in
+      Capsule()
+        .fill(Color.accentColor)
+        .frame(width: max(8, proxy.size.width * progress), height: thickness)
+        .animation(.easeOut(duration: 0.2), value: progress)
+    }
+    .frame(height: thickness)
+    .transition(.opacity)
+    .allowsHitTesting(false)
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func glassID(_ id: String, in namespace: Namespace.ID?) -> some View {
+    if let namespace {
+      glassEffectID(id, in: namespace)
+    } else {
+      self
+    }
   }
 }
 
@@ -139,18 +192,23 @@ struct GlassCircleButton: View {
   let label: String
   var size: CGFloat = 50
   var prominent = false
+  var glassID: String?
+  var glassNamespace: Namespace.ID?
+  var isSymbolEffectActive = false
   let action: () -> Void
 
   var body: some View {
     Button(action: action) {
       Image(systemName: systemImage)
         .font(.system(size: size * 0.38, weight: .semibold))
+        .symbolEffect(.rotate, isActive: isSymbolEffectActive)
         .foregroundStyle(prominent ? Color.white : Color.primary)
         .frame(width: size, height: size)
         .contentShape(.circle)
     }
     .buttonStyle(.plain)
     .glassEffect(prominent ? .regular.tint(.accentColor).interactive() : .regular.interactive(), in: .circle)
+    .glassID(glassID ?? systemImage, in: glassNamespace)
     .hoverEffect(.lift)
     .accessibilityLabel(label)
   }
@@ -159,6 +217,7 @@ struct GlassCircleButton: View {
 struct TabStackButton: View {
   @Environment(BrowserModel.self) private var browser
   var size: CGFloat = 50
+  var glassNamespace: Namespace.ID?
 
   var body: some View {
     let preview = Array(browser.tabs.sorted { $0.lastActive > $1.lastActive }.prefix(2).reversed())
@@ -183,6 +242,7 @@ struct TabStackButton: View {
     }
     .buttonStyle(.plain)
     .glassEffect(.regular.interactive(), in: .circle)
+    .glassID("leading", in: glassNamespace)
     .hoverEffect(.lift)
     .accessibilityLabel("Tabs")
     .accessibilityValue("\(browser.tabs.count) open")

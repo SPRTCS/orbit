@@ -17,6 +17,8 @@ final class BrowserModel {
   var selectedSpaceID: String?
 
   let entry = AddressEntryModel()
+  let morph = OverviewMorph()
+  @ObservationIgnored var isCompactLayout = true
   let suggestions = SuggestionEngine()
   let history: HistoryStore
   let settings: AppSettings
@@ -27,6 +29,8 @@ final class BrowserModel {
   @ObservationIgnored private var saveTask: Task<Void, Never>?
   @ObservationIgnored private var recentlyClosed: [TabRecord] = []
   @ObservationIgnored private var memoryWarningObserver: NSObjectProtocol?
+  @ObservationIgnored private var keyboardObservers: [NSObjectProtocol] = []
+  @ObservationIgnored private(set) var isKeyboardVisible = false
 
   init(
     persistence: TabPersistence = .standard(), settings: AppSettings = AppSettings(),
@@ -46,6 +50,21 @@ final class BrowserModel {
     ) { [weak self] _ in
       MainActor.assumeIsolated { self?.unloadBackgroundTabs() }
     }
+    keyboardObservers = [
+      NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) {
+        [weak self] _ in
+        MainActor.assumeIsolated { self?.keyboardVisibilityChanged(true) }
+      },
+      NotificationCenter.default.addObserver(forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main) {
+        [weak self] _ in
+        MainActor.assumeIsolated { self?.keyboardVisibilityChanged(false) }
+      },
+    ]
+  }
+
+  private func keyboardVisibilityChanged(_ visible: Bool) {
+    isKeyboardVisible = visible
+    if visible { setChromeCollapsed(false) }
   }
 
   var selectedTab: BrowserTab? {
@@ -114,9 +133,13 @@ final class BrowserModel {
   }
 
   func select(_ tab: BrowserTab) {
+    select(tab, keepingOverview: false)
+  }
+
+  private func select(_ tab: BrowserTab, keepingOverview: Bool) {
     if let current = selectedTab, current.id != tab.id { captureSnapshot(of: current) }
     activate(tab)
-    isShowingTabSwitcher = false
+    if !keepingOverview { isShowingTabSwitcher = false }
     setChromeCollapsed(false)
   }
 
@@ -254,22 +277,123 @@ final class BrowserModel {
     if selectedTab?.isLoading == true { stopLoading() } else { reload() }
   }
 
+  static let chromeAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.84)
+
   func setChromeCollapsed(_ collapsed: Bool) {
-    guard chromeCollapsed != collapsed else { return }
-    withAnimation(.snappy(duration: 0.28)) { chromeCollapsed = collapsed }
+    let target = collapsed && !entry.isPresented && !isKeyboardVisible && !isShowingTabSwitcher
+    guard chromeCollapsed != target else { return }
+    withAnimation(Self.chromeAnimation) { chromeCollapsed = target }
+  }
+
+  var usesOverviewMorph: Bool {
+    isCompactLayout && !UIAccessibility.isReduceMotionEnabled
   }
 
   func showTabSwitcher() {
-    if let tab = selectedTab { captureSnapshot(of: tab) }
     entry.dismiss()
-    withAnimation(.smooth(duration: 0.3)) { isShowingTabSwitcher = true }
+    setChromeCollapsed(false)
+    guard !isShowingTabSwitcher, !morph.isActive else { return }
+    guard usesOverviewMorph, let tab = selectedTab, tab.webView != nil else {
+      if let tab = selectedTab { captureSnapshot(of: tab) }
+      withAnimation(.smooth(duration: 0.3)) { isShowingTabSwitcher = true }
+      return
+    }
+    Task { [weak self] in
+      guard let self else { return }
+      let image = await self.freshSnapshot(of: tab) ?? tab.snapshot
+      guard !self.isShowingTabSwitcher, !self.morph.isActive, self.selectedTabID == tab.id else { return }
+      let morph = self.morph
+      morph.start(.opening, tabID: tab.id, image: image, progress: 0)
+      self.isShowingTabSwitcher = true
+      await Task.yield()
+      withAnimation(OverviewMorph.animation) {
+        morph.progress = 1
+      } completion: {
+        morph.finish()
+      }
+    }
   }
 
   func hideTabSwitcher() {
-    withAnimation(.smooth(duration: 0.3)) { isShowingTabSwitcher = false }
+    if let tab = selectedTab {
+      openFromOverview(tab)
+    } else {
+      withAnimation(.smooth(duration: 0.3)) { isShowingTabSwitcher = false }
+    }
+  }
+
+  func openFromOverview(_ tab: BrowserTab) {
+    guard usesOverviewMorph, isShowingTabSwitcher, !morph.isActive else {
+      if morph.isActive { return }
+      withAnimation(.smooth(duration: 0.3)) { select(tab) }
+      return
+    }
+    loadSnapshotIfNeeded(tab)
+    morph.start(.closing, tabID: tab.id, image: tab.snapshot, progress: 1)
+    select(tab, keepingOverview: true)
+    withAnimation(OverviewMorph.animation) {
+      morph.progress = 0
+    } completion: { [weak self] in
+      self?.isShowingTabSwitcher = false
+      self?.morph.finish()
+    }
+  }
+
+  func beginInteractiveOverview() -> Bool {
+    guard usesOverviewMorph, !isShowingTabSwitcher, !morph.isActive, !entry.isPresented,
+      let tab = selectedTab, tab.webView != nil
+    else { return false }
+    loadSnapshotIfNeeded(tab)
+    morph.start(.interactive, tabID: tab.id, image: tab.snapshot, progress: 0)
+    isShowingTabSwitcher = true
+    Task { [weak self] in
+      guard let self, let image = await self.freshSnapshot(of: tab) else { return }
+      guard self.morph.phase == .interactive, self.morph.tabID == tab.id else { return }
+      self.morph.image = image
+    }
+    return true
+  }
+
+  func updateInteractiveOverview(_ progress: CGFloat) {
+    guard morph.phase == .interactive else { return }
+    morph.progress = min(max(progress, 0), 1)
+  }
+
+  func endInteractiveOverview(commit: Bool) {
+    guard morph.phase == .interactive else { return }
+    withAnimation(OverviewMorph.animation) {
+      morph.progress = commit ? 1 : 0
+    } completion: { [weak self] in
+      guard let self else { return }
+      if !commit { self.isShowingTabSwitcher = false }
+      self.morph.finish()
+    }
+  }
+
+  private func growNewTabFromPlusButton(_ tab: BrowserTab) {
+    guard usesOverviewMorph, let source = morph.plusFrame, !morph.isActive else { return }
+    morph.start(.growing, tabID: tab.id, image: nil, progress: 1, sourceFrame: source)
+    withAnimation(OverviewMorph.animation) {
+      morph.progress = 0
+    } completion: { [weak self] in
+      withAnimation(.easeOut(duration: 0.18)) { self?.morph.finish() }
+    }
+  }
+
+  private func freshSnapshot(of tab: BrowserTab) async -> UIImage? {
+    guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return nil }
+    let configuration = WKSnapshotConfiguration()
+    configuration.snapshotWidth = NSNumber(value: Double(min(webView.bounds.width, 440)))
+    configuration.afterScreenUpdates = false
+    guard let image = try? await webView.takeSnapshot(configuration: configuration) else { return nil }
+    tab.snapshot = image
+    tab.snapshotLoaded = true
+    if let data = image.jpegData(compressionQuality: 0.72) { persistence.saveSnapshot(data, for: tab.id) }
+    return image
   }
 
   func beginNewTab() {
+    setChromeCollapsed(false)
     withAnimation(.snappy(duration: 0.25)) { entry.begin(newTab: true, initialText: "") }
   }
 
@@ -278,6 +402,7 @@ final class BrowserModel {
       beginNewTab()
       return
     }
+    setChromeCollapsed(false)
     withAnimation(.snappy(duration: 0.25)) { entry.begin(newTab: false, initialText: Omnibox.editingText(for: url)) }
   }
 
@@ -300,6 +425,7 @@ final class BrowserModel {
     cancelEntry()
     isShowingTabSwitcher = false
     open(url, inNewTab: newTab)
+    if newTab, let tab = selectedTab { growNewTabFromPlusButton(tab) }
   }
 
   func choose(_ suggestion: Suggestion) {
@@ -309,8 +435,11 @@ final class BrowserModel {
     switch suggestion.action {
     case .open(let url): open(url, inNewTab: newTab)
     case .search(let query): open(settings.searchEngine.searchURL(for: query), inNewTab: newTab)
-    case .switchToTab(let id): select(tabID: id)
+    case .switchToTab(let id):
+      select(tabID: id)
+      return
     }
+    if newTab, let tab = selectedTab { growNewTabFromPlusButton(tab) }
   }
 
   func complete(with suggestion: Suggestion) {

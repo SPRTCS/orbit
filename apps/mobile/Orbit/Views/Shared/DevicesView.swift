@@ -116,19 +116,24 @@ struct PinEntryRows: View {
 struct PinTileGrid: View {
   @Environment(BrowserModel.self) private var browser
   let tiles: [SyncedPin]
-  var minimumWidth: CGFloat = 56
+  var columns: Int?
+  var minimumWidth: CGFloat = 64
+
+  private var gridItems: [GridItem] {
+    if let columns {
+      return Array(repeating: GridItem(.flexible(), spacing: 8), count: columns)
+    }
+    return [GridItem(.adaptive(minimum: minimumWidth), spacing: 8)]
+  }
 
   var body: some View {
-    LazyVGrid(columns: [GridItem(.adaptive(minimum: minimumWidth), spacing: 8)], spacing: 8) {
+    LazyVGrid(columns: gridItems, spacing: 8) {
       ForEach(tiles) { tile in
         if let url = tile.url {
           Button {
             browser.openSynced(url)
           } label: {
-            Favicon(url: url, size: 22)
-              .frame(maxWidth: .infinity, minHeight: 44)
-              .background(.fill.tertiary, in: .rect(cornerRadius: 12, style: .continuous))
-              .contentShape(.rect(cornerRadius: 12))
+            PinTile(url: url)
           }
           .buttonStyle(.plain)
           .hoverEffect(.highlight)
@@ -140,6 +145,25 @@ struct PinTileGrid: View {
         }
       }
     }
+  }
+}
+
+struct PinTile: View {
+  let url: URL
+
+  var body: some View {
+    Color.clear
+      .aspectRatio(1.4, contentMode: .fit)
+      .overlay {
+        GeometryReader { proxy in
+          let radius = min(max(proxy.size.width * 0.16, 10), 16)
+          let iconSize = min(max(proxy.size.height * 0.38, 18), 28)
+          Favicon(url: url, size: iconSize)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .background(.fill.tertiary, in: .rect(cornerRadius: radius, style: .continuous))
+            .contentShape(.rect(cornerRadius: radius, style: .continuous))
+        }
+      }
   }
 }
 
