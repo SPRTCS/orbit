@@ -26,6 +26,8 @@ mergeable.
 | Bundle ID | `com.aisconsulting.orbit` | `project.pbxproj` |
 | Team | `MYXQKK3T2Z` (AIS Consulting UG) | `project.pbxproj` |
 | Updates | GitHub releases of SPRTCS/orbit (`appcast.xml` asset) | `Info.plist` `SUFeedURL`, `Updater.swift` |
+| Sparkle key | Orbit's own EdDSA key, login keychain account `orbit` on the release Mac | `SPARKLE_PUBLIC_KEY` in `rebrand.mjs` → `Info.plist` `SUPublicEDKey` |
+| Version, build | Orbit's own: 1.0.0 was build 100; the build goes up by one every release | `project.pbxproj` (see Releasing) |
 | Kill switches | `switches.json` in this repo (raw.githubusercontent.com) | `apps/browser/src/lib/killSwitches.ts` |
 | Telemetry | off: `LOGS_URL` is empty, so nothing is sent and the app never asks | `apps/browser/src/telemetry/config.ts` |
 | Internal pages | `orbit://settings`, `orbit://history` …; `ardia://` still opens them | `packages/core/src/appUrls.ts` (rebrand script) |
@@ -62,6 +64,12 @@ text is gone is reported as `stale rule` and fails the run, so a merge that move
   endpoint, `ardia-userscript:///` source URLs and the release asset name `ardia-cli-<version>-macos-arm64.tar.gz`.
 - **Native strings** (`FILE_EDITS`): the main window's title (`ArdiaCoreChromeWindow.mm`) and the password export's
   default file name (`ArdiaCoreServices.mm`).
+- **Release** (`RELEASE_EDITS`): `scripts/release.sh` publishes to SPRTCS/orbit with notes at its releases page,
+  notarizes with the `orbit` profile when `scripts/.notary.env` is absent, signs with the `orbit` Sparkle account,
+  names its assets `Orbit-<version>.{dmg,zip}` (the update zip's folder and the DMG's app are `Orbit.app`, the volume
+  `Orbit`, its art from `scripts/orbit/dmg`), and checks bundle id `com.aisconsulting.orbit`, team `MYXQKK3T2Z` in the
+  designated requirement, the keychain groups and every signature. `ExportOptions-DeveloperID.plist` exports for
+  `MYXQKK3T2Z`; `Info.plist` gets Orbit's `SUPublicEDKey`.
 
 ### The prebuilt engine, branded for Orbit
 
@@ -107,7 +115,10 @@ expects: check a new upstream engine against it, then update its counts.
 - iCloud Keychain passkeys need Apple's `com.apple.developer.web-browser.public-key-credential` grant for
   `com.aisconsulting.orbit` (`Ardia-ICloudPasskeys.entitlements` is ready for it). Widevine stays blocked: it
   needs Google's VMP signing.
-- `scripts/release.sh` still checks for upstream's team in the keychain groups (see Releasing).
+- Release internals: the archive `Ardia.xcarchive`, the executable `Ardia`, the CLI asset
+  `ardia-cli-<version>-macos-arm64.tar.gz`, and the release skill's scripts (`smoke.sh`, `update-test.sh`,
+  `carryover.sh`, `publish-nightly.sh`, `appcast-merge.sh`'s default feed), which still expect Ardia's names and repo.
+  Orbit's flow (Releasing) doesn't run them yet.
 - A full rename, including Safe Storage with a migration, means building the engine (`docs/engine-build.md`)
   with `chromium-branding.patch` and `chromium-safe-storage-name.patch` adjusted.
 
@@ -252,6 +263,8 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `apps/cli/ardia_cli/endpoint.py`, `pyproject.toml`, `install.sh`, `scripts/build.sh` | `orbit` command (`rebrand.mjs`): `INSTALLED_DATA_DIR` → `com.aisconsulting.orbit`; `orbit = "ardia_cli.cli:main"`; `repo=SPRTCS/orbit`, `…/Orbit/CLI`, `bin/orbit`. |
 | `packages/shell/ios/CliInstaller.swift` | `orbit` command (`rebrand.mjs`): CLI home `Library/Application Support/Orbit/CLI`. Native: rebuild. |
 | `packages/ardiacore/ios/ArdiaCoreChromeWindow.mm`, `ArdiaCoreServices.mm` | Name (`rebrand.mjs` `FILE_EDITS`): `window.title = @"Orbit"`, `@"Orbit Passwords.csv"`. Native: rebuild. |
+| `scripts/release.sh` | Release (`rebrand.mjs` `RELEASE_EDITS`): repo, notes page, notary profile, Sparkle account, asset and volume names, DMG art from `scripts/orbit/dmg`, Orbit's bundle id and team in the checks. `scripts/orbit/release.sh` wraps it. |
+| `apps/browser/macos/ExportOptions-DeveloperID.plist`, `Ardia-macOS/Info.plist` | Release (`rebrand.mjs` `RELEASE_EDITS`): `teamID` `MYXQKK3T2Z`; `SUPublicEDKey` is Orbit's. |
 | `Ardia-macOS/Ardia.entitlements`, `Ardia-ICloudPasskeys.entitlements` | Engine branding: keychain groups `$(AppIdentifierPrefix)com.ardia.browser.<group>` (`rebrand.mjs` writes them). |
 | `components/littleArdia/actions.ts` | Air Traffic Control: import; `sourceApp` threaded through `openExternalUrls` / `openRoutedUrls` / `openUrlsFromApps`, which loops over `airTrafficFlights(…)`; the old body is `openFlight(urls, routed, little?)`, where `little` overrides the Little Orbit setting. |
 | `lib/native.ts` | Air Traffic Control: `onOpenURLs((urls, sourceApp) => openExternalUrls(takeSpaceFiles(urls), sourceApp))`. |
@@ -643,9 +656,93 @@ profile; releases also need a "Developer ID Application" certificate and notariz
 
 ## Releasing
 
-Not set up yet: `scripts/release.sh` still checks upstream's bundle ID and team. Before the first Orbit
-release: parametrize it, generate Orbit's own Sparkle EdDSA key (`SUPublicEDKey`), and publish
-`appcast.xml` with the release assets.
+Orbit releases are GitHub releases of SPRTCS/orbit, tagged `v<version>`, on the stable channel only for now
+(the nightly flow, `publish-nightly.sh`, is still Ardia's). Publishing needs the owner's OK. No ardia.dev, no site
+deploy, no tweet. Each release carries:
+
+- `Orbit-<version>.dmg`: the download, `https://github.com/SPRTCS/orbit/releases/latest/download/Orbit-<version>.dmg`.
+- `Orbit-<version>.zip`: what Sparkle installs (its top folder is `Orbit.app`, the installed name).
+- `appcast.xml`: the feed every copy polls (`SUFeedURL`, `releases/latest/download/appcast.xml`), signed with
+  Orbit's Sparkle key. Each release's appcast starts from the published one, so earlier items stay listed.
+- `ardia-cli-<version>-macos-arm64.tar.gz`: what Settings › Advanced › Command line installs as `orbit`
+  (`install.sh` downloads it from this release; the app pins its SHA-256 in `Contents/Resources/ardia-cli.sha256`).
+
+No engine archive: Orbit ships upstream's prebuilt engine, which `prebuilt-engines.tsv` fetches from mantrakp04/ardia.
+The rest of `docs/releasing.md` (signing Chrome's framework, pruning, notarizing, the Source section) applies as is.
+
+### Once per machine
+
+- A clone outside iCloud Drive (`~/Developer/orbit-src`): `dist/` and the bundle would otherwise get Finder info
+  that codesign refuses. `scripts/orbit/release.sh` refuses a checkout under `~/Documents`, `~/Desktop` or iCloud.
+- `pnpm install`, `pod install` in `apps/browser/macos` and `packages/ardiacore/scripts/fetch-engine.sh`
+  (`scripts/orbit/install-local.sh --build-only` does all three).
+- "Developer ID Application: AIS Consulting UG (haftungsbeschrankt) (MYXQKK3T2Z)" with its private key in the login
+  keychain, and Xcode signed in to the team: the export creates the Developer ID provisioning profile that the
+  keychain-group entitlements need (`-allowProvisioningUpdates`). Only the Account Holder can create the certificate.
+- Notarization: an App Store Connect API key. `scripts/.notary.env` (untracked) holds `NOTARY_KEY=<path to
+  AuthKey_<id>.p8>`, `NOTARY_KEY_ID=<id>` and `NOTARY_ISSUER=<issuer id>`; keep the key outside the repo. Without it,
+  release.sh looks for a notarytool keychain profile named `orbit`.
+- The Sparkle key: a login keychain item (service `https://sparkle-project.org`, account `orbit`). Its public half
+  is `SPARKLE_PUBLIC_KEY` in `scripts/orbit/rebrand.mjs`, which writes it to `SUPublicEDKey`. Every update must be
+  signed with it: without it no installed copy can update again. Keep the backup in a password manager;
+  `apps/browser/macos/Pods/Sparkle/bin/generate_keys --account orbit -f <file>` imports it on another Mac, and
+  `-x <file>` exports it.
+
+### Versions
+
+`MARKETING_VERSION` is Orbit's own (1.0.0 was the first) and `CURRENT_PROJECT_VERSION` is Orbit's build number: 100
+for 1.0.0, then one up for every release. Sparkle compares only the build number, and starting at 100 keeps Orbit's
+builds clear of upstream's (66 at Ardia 0.2.39). Both are in the two configurations of the `Ardia-macOS` target in
+`project.pbxproj`. An upstream merge conflicts on them: keep Orbit's side. `scripts/orbit/release.sh` refuses a build
+under 100, and release.sh one that isn't above every build in the published feed.
+
+### Cutting a release
+
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`, and write `docs/release-notes/<version>.md`
+   (`docs/release-notes/README.md`; release.sh adds the Install and Source sections).
+2. Commit, `git pull --rebase`, push `orbit`: the tag must be a pushed commit and release.sh needs a clean tree
+   under `apps/browser`, `apps/cli`, `packages`, `engine` and `scripts/dmg`.
+3. `scripts/orbit/release.sh <version>` (the first release added `--new-feed`, which it refuses once a feed is
+   published). It runs `scripts/release.sh` with the prebuilt engine and derived data in
+   `~/Library/Caches/Orbit/release-build`, after checking the branding (`rebrand.mjs --check`) and the build
+   number. Everything lands in `dist/<version>/`: the Developer ID export in `export/Ardia.app`, the DMG, the zip,
+   the CLI tarball, `appcast.xml`, `release-notes.md` and `provenance.txt`. It takes about half an hour with
+   notarization.
+4. Check it by hand (the release skill's `smoke.sh` and `update-test.sh` still expect Ardia):
+   - `codesign --verify --deep --strict` and `spctl -a -vv` on `dist/<version>/export/Ardia.app`,
+     `spctl -a -t open --context context:primary-signature -vv` on the DMG, `xcrun stapler validate` on both;
+   - a hidden launch with a throwaway data dir that loads a page over CDP, then `codesign --verify` again;
+   - the bundle id, version, build, `SUFeedURL` and `SUPublicEDKey` in the export's `Info.plist`;
+   - the appcast item's `sparkle:edSignature` verifies over the zip against `SUPublicEDKey`
+     (`.claude/skills/release/scripts/ed25519.swift`).
+5. Publish:
+
+   ```bash
+   git tag v<version> && git push origin v<version>
+   .claude/skills/release/scripts/appcast-merge.sh <version> https://github.com/SPRTCS/orbit/releases/latest/download/appcast.xml
+   gh release create v<version> -R SPRTCS/orbit --title "Orbit <version>" --latest \
+     --notes-file dist/<version>/release-notes.md \
+     dist/<version>/Orbit-<version>.dmg dist/<version>/Orbit-<version>.zip dist/<version>/appcast.xml \
+     dist/<version>/ardia-cli-<version>-macos-arm64.tar.gz
+   ```
+
+   `appcast-merge.sh` folds a release published while this one was being built into the feed; skip it for the first
+   release. Afterwards `releases/latest/download/appcast.xml` must list the new item.
+
+### Moving from a local build
+
+`scripts/orbit/install-local.sh` builds ad hoc. An ad hoc copy has Ardia's `SUPublicEDKey` up to 0.2.39 and
+can't update to a release: install the DMG by hand. The bundle id is the same, so tabs, pins, history, bookmarks
+and settings carry over. Three things don't, because an ad hoc build keeps its secrets differently from a
+Developer ID build:
+
+- **Saved passwords and cookies.** Ad hoc builds encrypt them with Chrome's mock keychain key
+  (`--use-mock-keychain`, `ArdiaCoreHost.mm`); a Developer ID build uses the "Ardia Safe Storage" login keychain item,
+  which it creates if missing. What the ad hoc copy saved doesn't decrypt: sites are signed out and saved passwords
+  are gone. Export them first (Settings › Passwords › Export) and import the CSV after.
+- **The sync key.** "Orbit Sync Key" was saved by the ad hoc copy, and the new signature can't read it without a
+  prompt, which sync never shows: Settings › Sync asks for the Recovery Phrase once.
+- **macOS permissions** (camera, microphone, location, automation) are granted again when a site or script asks.
 
 ## Credits
 
