@@ -18,6 +18,7 @@ import { pinGrid, pinGridHeight, TILE_GAP, TILE_SPACING } from "./pinZone";
 import { registerRow } from "./state";
 import { TabIcon } from "./TabIcon";
 import { TabBadges } from "../media/TabBadges";
+import { useMedia } from "../media/state";
 import { clickMods } from "./TabRow";
 import { useSidebarTokens } from "./tokens";
 
@@ -154,6 +155,7 @@ const PinnedTile = memo(function PinnedTile({ tabId, width }: { tabId: string; w
   const active = useIsActiveTab(tabId);
   const selected = useBrowser((s) => (s.selection[windowId] ?? []).includes(tabId));
   const playing = useTabLive(tabId, (l) => l.playingAudio);
+  const pip = useMedia((m) => !!m.pipOpen[tabId]);
   const { hovered, hoverProps } = useRowHover(windowId, { kind: "tab", id: tabId });
   const { wrapper, handle } = useDragItem(`t:${tabId}`, { kind: "tile", tabIds: [tabId], section: "tiles" }, () => useBrowser.getState().selection[windowId] ?? []);
   const tileTheme = useTileTheme(tab?.url ?? "", tab?.favicon, tab?.customIcon, tab?.profileId ?? "");
@@ -201,7 +203,7 @@ const PinnedTile = memo(function PinnedTile({ tabId, width }: { tabId: string; w
                       ) : (
                         <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} />
                       )}
-                      <TabBadges tabId={tabId} />
+                      <TabBadges tabId={tabId} pip={false} />
                     </View>
                   </DockSelection>
                 ) : active ? (
@@ -227,7 +229,7 @@ const PinnedTile = memo(function PinnedTile({ tabId, width }: { tabId: string; w
                     >
                       <View>
                         <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} />
-                        <TabBadges tabId={tabId} />
+                        <TabBadges tabId={tabId} pip={false} />
                       </View>
                     </View>
                   </Surface>
@@ -246,7 +248,7 @@ const PinnedTile = memo(function PinnedTile({ tabId, width }: { tabId: string; w
                   >
                     <View>
                       <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} />
-                      <TabBadges tabId={tabId} />
+                      <TabBadges tabId={tabId} pip={false} />
                     </View>
                   </View>
                 )
@@ -255,6 +257,11 @@ const PinnedTile = memo(function PinnedTile({ tabId, width }: { tabId: string; w
           </ContextMenuArea>
         </MouseArea>
         <NextMeetingBadge tabId={tabId} />
+        {pip ? (
+          <View pointerEvents="none" style={{ position: "absolute", top: 3, right: 4 }}>
+            <Symbol name="pip.fill" size={8} color={theme.textSecondary} style={{ width: 12, height: 10 }} />
+          </View>
+        ) : null}
         {playing || tab.muted ? (
           <View pointerEvents="none" style={{ position: "absolute", bottom: 3, right: 4 }}>
             <Symbol name={tab.muted ? "speaker.slash.fill" : "speaker.wave.2.fill"} size={8} color={theme.textSecondary} style={{ width: 12, height: 10 }} />
@@ -308,7 +315,7 @@ function GlassTile({
       ) : null}
       <View>
         <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} />
-        <TabBadges tabId={tabId} />
+        <TabBadges tabId={tabId} pip={false} />
       </View>
     </View>
   );
