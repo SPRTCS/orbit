@@ -101,6 +101,19 @@ final class OverviewMorph {
     if phase != .growing { cardReveal = progress }
   }
 
+  enum Settlement: Equatable {
+    case showOverview
+    case showPage
+  }
+
+  static func settlement(for phase: Phase) -> Settlement? {
+    switch phase {
+    case .idle: nil
+    case .opening: .showOverview
+    case .closing, .interactive, .growing: .showPage
+    }
+  }
+
   func finish() {
     phase = .idle
     tabID = nil
@@ -153,14 +166,27 @@ struct TopAlignedSnapshot: View {
   var body: some View {
     GeometryReader { proxy in
       if let image, image.size.width > 0, image.size.height > 0 {
-        let scale = max(proxy.size.width / image.size.width, proxy.size.height / image.size.height)
+        let size = SnapshotFit.size(image: image.size, in: proxy.size)
         Image(uiImage: image)
           .resizable()
-          .frame(width: image.size.width * scale, height: image.size.height * scale)
-          .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+          .frame(width: size.width, height: size.height)
+          .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
       }
     }
     .clipped()
+  }
+}
+
+enum SnapshotFit {
+  static func size(image: CGSize, in frame: CGSize) -> CGSize {
+    guard image.width > 0, image.height > 0 else { return frame }
+    let widthScale = frame.width / image.width
+    let scaledHeight = image.height * widthScale
+    if scaledHeight >= frame.height * 0.9 {
+      return CGSize(width: frame.width, height: scaledHeight)
+    }
+    let scale = frame.height / image.height
+    return CGSize(width: image.width * scale, height: frame.height)
   }
 }
 
@@ -231,9 +257,11 @@ struct VerticalSwipeGesture: UIGestureRecognizerRepresentable {
 
   final class Coordinator: NSObject, UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-      guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+      guard let pan = gestureRecognizer as? UIPanGestureRecognizer, let window = pan.view?.window else { return true }
       let velocity = pan.velocity(in: pan.view)
-      return velocity.y < 0 && abs(velocity.y) > abs(velocity.x) * 1.3
+      let start = pan.location(in: window)
+      let outsideHomeArea = start.y < window.bounds.height - max(window.safeAreaInsets.bottom, 16)
+      return outsideHomeArea && velocity.y < 0 && abs(velocity.y) > abs(velocity.x) * 1.3
     }
   }
 }

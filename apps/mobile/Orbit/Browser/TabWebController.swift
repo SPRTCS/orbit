@@ -222,7 +222,11 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
   }
 
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-    webView.reload()
+    if webView.url != nil {
+      webView.reload()
+    } else if let url = tab?.url {
+      webView.load(URLRequest(url: url))
+    }
   }
 
   func webView(

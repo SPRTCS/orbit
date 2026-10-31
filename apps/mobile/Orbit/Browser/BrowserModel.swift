@@ -9,7 +9,11 @@ final class BrowserModel {
   private(set) var tabs: [BrowserTab] = []
   private(set) var selectedTabID: UUID?
   var chromeCollapsed = false
-  var isShowingTabSwitcher = false
+  var isShowingTabSwitcher = false {
+    didSet {
+      if !isShowingTabSwitcher, oldValue { morph.cardFrames.removeAll() }
+    }
+  }
   var isShowingDevices = false
   var isShowingSettings = false
   var isShowingSyncSetup = false
@@ -299,6 +303,7 @@ final class BrowserModel {
       return
     }
     let image = instantSnapshot(of: tab)
+    measurePageFrame(of: tab)
     morph.start(.opening, tabID: tab.id, image: image, progress: 0)
     isShowingTabSwitcher = true
     let morph = self.morph
@@ -323,6 +328,7 @@ final class BrowserModel {
       return
     }
     loadSnapshotIfNeeded(tab)
+    if let current = selectedTab { measurePageFrame(of: current) }
     morph.start(.closing, tabID: tab.id, image: tab.snapshot, progress: 1)
     select(tab, keepingOverview: true)
     animateMorph(to: 0, reveal: 0) { [weak self] in
@@ -336,6 +342,7 @@ final class BrowserModel {
       let tab = selectedTab, tab.webView != nil
     else { return false }
     let image = instantSnapshot(of: tab)
+    measurePageFrame(of: tab)
     morph.start(.interactive, tabID: tab.id, image: image, progress: 0)
     isShowingTabSwitcher = true
     return true
@@ -361,6 +368,11 @@ final class BrowserModel {
       morph.finish()
       if commit, let tab = self.selectedTab { self.captureSnapshot(of: tab) }
     }
+  }
+
+  private func measurePageFrame(of tab: BrowserTab) {
+    guard let host = tab.webView?.superview, host.window != nil, host.bounds.width > 0 else { return }
+    morph.pageFrame = host.convert(host.bounds, to: nil)
   }
 
   private func instantSnapshot(of tab: BrowserTab) -> UIImage? {
@@ -536,13 +548,35 @@ final class BrowserModel {
     history.saveNow()
   }
 
+  func settleMorph() {
+    guard let settlement = OverviewMorph.settlement(for: morph.phase) else { return }
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      isShowingTabSwitcher = settlement == .showOverview
+      morph.finish()
+    }
+  }
+
+  func ensureSelectedPageIsLive() {
+    WebHostView.reattachDetachedWebViews()
+    guard let tab = selectedTab, tab.url != nil else { return }
+    let webView = ensureLive(tab)
+    if webView.url == nil, !webView.isLoading, let url = tab.url {
+      webView.load(URLRequest(url: url))
+    }
+  }
+
   func scenePhaseChanged(_ phase: ScenePhase) {
     switch phase {
     case .active:
+      settleMorph()
+      ensureSelectedPageIsLive()
       sync.becameActive()
     case .inactive:
-      break
+      settleMorph()
     case .background:
+      settleMorph()
       sync.resignedActive()
       persistEverything()
     @unknown default:

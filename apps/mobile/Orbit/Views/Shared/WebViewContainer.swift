@@ -25,11 +25,13 @@ struct WebViewContainer: UIViewRepresentable {
 }
 
 final class WebHostView: UIView {
+  private static let hosts = NSHashTable<WebHostView>.weakObjects()
   private weak var current: WKWebView?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
     clipsToBounds = true
+    Self.hosts.add(self)
   }
 
   required init?(coder: NSCoder) {
@@ -37,17 +39,46 @@ final class WebHostView: UIView {
   }
 
   func show(_ webView: WKWebView) {
-    guard current !== webView || webView.superview !== self else { return }
-    if let current, current.superview === self { current.removeFromSuperview() }
-    webView.removeFromSuperview()
-    webView.frame = bounds
-    webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    addSubview(webView)
     current = webView
+    guard webView.superview !== self else { return }
+    for subview in subviews where subview is WKWebView { subview.removeFromSuperview() }
+    webView.removeFromSuperview()
+    attach(webView)
   }
 
   func releaseWebView() {
-    if let current, current.superview === self { current.removeFromSuperview() }
-    current = nil
+    guard let current, current.superview === self else {
+      self.current = nil
+      return
+    }
+    current.removeFromSuperview()
+    self.current = nil
+    Self.reattachDetachedWebViews()
+  }
+
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    reclaimIfDetached()
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    reclaimIfDetached()
+  }
+
+  static func reattachDetachedWebViews() {
+    for host in hosts.allObjects { host.reclaimIfDetached() }
+  }
+
+  private func reclaimIfDetached() {
+    guard window != nil, let current, current.superview == nil || current.window == nil else { return }
+    current.removeFromSuperview()
+    attach(current)
+  }
+
+  private func attach(_ webView: WKWebView) {
+    webView.frame = bounds
+    webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    addSubview(webView)
   }
 }

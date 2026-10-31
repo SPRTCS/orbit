@@ -230,3 +230,53 @@ struct WebViewInsetTests {
     #expect(notch == UIEdgeInsets(top: 0, left: 62, bottom: 21, right: 62))
   }
 }
+
+struct MorphRecoveryTests {
+  @Test func backgroundingSettlesEveryPhase() {
+    #expect(OverviewMorph.settlement(for: .idle) == nil)
+    #expect(OverviewMorph.settlement(for: .opening) == .showOverview)
+    #expect(OverviewMorph.settlement(for: .interactive) == .showPage)
+    #expect(OverviewMorph.settlement(for: .closing) == .showPage)
+    #expect(OverviewMorph.settlement(for: .growing) == .showPage)
+  }
+
+  @Test func interruptedSwipeLeavesThePageVisible() {
+    let browser = BrowserModel(
+      persistence: TabPersistence(directory: FileManager.default.temporaryDirectory.appending(path: "OrbitTests-\(UUID().uuidString)")),
+      settings: AppSettings(defaults: UserDefaults(suiteName: "OrbitTests-\(UUID().uuidString)")!),
+      syncClient: PreviewSync())
+    browser.morph.start(.interactive, tabID: UUID(), image: nil, progress: 0.4)
+    browser.isShowingTabSwitcher = true
+    #expect(browser.morph.hidesPage)
+    browser.scenePhaseChanged(.inactive)
+    #expect(!browser.morph.hidesPage)
+    #expect(!browser.isShowingTabSwitcher)
+  }
+
+  @Test func interruptedOpeningLandsInTheOverview() {
+    let browser = BrowserModel(
+      persistence: TabPersistence(directory: FileManager.default.temporaryDirectory.appending(path: "OrbitTests-\(UUID().uuidString)")),
+      settings: AppSettings(defaults: UserDefaults(suiteName: "OrbitTests-\(UUID().uuidString)")!),
+      syncClient: PreviewSync())
+    browser.morph.start(.opening, tabID: UUID(), image: nil, progress: 0.2)
+    browser.isShowingTabSwitcher = true
+    browser.scenePhaseChanged(.background)
+    #expect(!browser.morph.isActive)
+    #expect(browser.isShowingTabSwitcher)
+  }
+}
+
+struct SnapshotFitTests {
+  @Test func snapshotsKeepTheirFullWidth() {
+    let tall = SnapshotFit.size(image: CGSize(width: 400, height: 900), in: CGSize(width: 200, height: 270))
+    #expect(tall.width == 200)
+    #expect(tall.height == 450)
+    let wideIntoLandscapeCard = SnapshotFit.size(image: CGSize(width: 692, height: 1180), in: CGSize(width: 692, height: 653))
+    #expect(wideIntoLandscapeCard.width == 692)
+  }
+
+  @Test func veryWideSnapshotsFillTheHeightInstead() {
+    let wide = SnapshotFit.size(image: CGSize(width: 1000, height: 300), in: CGSize(width: 200, height: 270))
+    #expect(wide.height == 270)
+  }
+}
