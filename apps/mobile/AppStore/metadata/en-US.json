@@ -1,0 +1,12 @@
+{
+  "name": "Orbit Browser Mobile",
+  "supportUrl": "https://github.com/SPRTCS/orbit",
+  "marketingUrl": "https://github.com/SPRTCS/orbit/tree/orbit/apps/mobile",
+  "privacyPolicyUrl": "https://github.com/SPRTCS/orbit/blob/orbit/apps/mobile/PRIVACY.md",
+  "subtitle": "Your web. In your orbit.",
+  "promotionalText": "Make room for the web: a bottom address bar, visual tabs and a look of your own. Bring Mac spaces, pins and open tabs along with optional end-to-end encrypted sync.",
+  "keywords": "web,internet,search,tabs,spaces,icloud,sync,reader,theme,ipad,productivity",
+  "whatsNew": "Welcome to Orbit for iPhone and iPad. Discover the compact address bar, visual tabs, custom themes and optional encrypted sync with Orbit for Mac.",
+  "description": "Your web. In your orbit.\n\nOrbit is a free browser for iPhone and iPad that gives the web room to breathe. The address bar sits within reach of your thumb, shrinks into a small pill as you scroll, and keeps your tabs a gesture away.\n\nMORE PAGE. LESS CHROME.\nTap to search, swipe across the address bar to switch tabs, or swipe up to see your visual tab overview. Long-press the bar to share, find on page, open Reader or copy a link.\n\nTAKE YOUR MAC WITH YOU.\nOptionally connect Orbit to Orbit for Mac. Your spaces, pinned pages, folders and open Mac tabs appear on your iPhone and iPad. Your mobile tabs are available on the Mac too. Sync is end-to-end encrypted through a folder in your own iCloud Drive, unlocked with your recovery phrase.\n\nAT HOME ON IPAD.\nWide displays get a resizable sidebar with three columns of pins. Adjust its width and use keyboard shortcuts for tabs, the address bar and navigation. Resize the window while keeping your current page.\n\nMAKE IT YOURS.\nCreate themes with colours, gradients and textures. Choose a light or dark appearance, set an accent colour and pick an alternate app icon.\n\nYOUR CHOICE.\nSearch with Google, DuckDuckGo, Bing or Ecosia. Turn search suggestions off whenever you like. Clear history, tabs and website data in Settings. Orbit has no developer account requirement, developer advertising, built-in analytics or tracking services. Websites and search engines process data under their own privacy policies.\n\nOrbit works on its own. Only optional Mac sync requires Orbit for Mac, iCloud Drive and your recovery phrase. Orbit for Mac is free and open source: https://github.com/SPRTCS/orbit\n\nRequires iOS or iPadOS 26 or later. The app interface is currently in English.",
+  "locale": "en-US"
+}

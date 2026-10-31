@@ -1,0 +1,5 @@
+Orbit is a standalone WebKit browser for iPhone and iPad. No login, subscription or demo account is required. Enter a public website in the bottom address bar to browse. Swipe up on the bar for the visual tab overview. Settings provides search engine, theme and icon choices.
+
+Optional sync requires the free, open-source Orbit for Mac: https://github.com/SPRTCS/orbit (branch orbit). On the Mac, enable sync and create an Orbit Sync folder in iCloud Drive. On iOS, open Settings > Sync with Mac > Set Up Sync, select that folder, and enter the 24-word recovery phrase from the Mac or scan its Recovery Kit QR code. Sync is end-to-end encrypted using CryptoKit AES-GCM. No developer-operated sync server is used. Browsing works fully without sync.
+
+The screenshots show public websites and fictional sample spaces, pins and folders. Screenshot demo seeding is compiled only in DEBUG and is absent from this Release build. The app interface is English; the store listing and privacy policy are available in German and English.

@@ -2,8 +2,15 @@ import SwiftUI
 
 @main
 struct OrbitApp: App {
-  @State private var browser = BrowserModel()
+  @State private var browser = makeBrowser()
   @Environment(\.scenePhase) private var scenePhase
+
+  private static func makeBrowser() -> BrowserModel {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("-OrbitDemo") { return StoreDemo.makeBrowser() }
+    #endif
+    return BrowserModel()
+  }
 
   var body: some Scene {
     WindowGroup {

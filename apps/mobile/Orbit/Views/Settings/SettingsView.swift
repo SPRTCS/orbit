@@ -123,6 +123,9 @@ struct SettingsView: View {
 
         Section("About") {
           LabeledContent("Version", value: Self.versionString)
+          Link(destination: URL(string: "https://github.com/SPRTCS/orbit/blob/orbit/apps/mobile/PRIVACY.md")!) {
+            Label("Privacy Policy", systemImage: "hand.raised")
+          }
           Link(destination: URL(string: "https://github.com/SPRTCS/orbit")!) {
             Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
           }

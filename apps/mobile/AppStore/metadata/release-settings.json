@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "build": "1",
+  "primaryLocale": "de-DE",
+  "locales": ["de-DE", "en-US"],
+  "name": "Orbit Browser Mobile",
+  "preferredNameUnavailable": "Orbit Browser",
+  "primaryCategory": "PRODUCTIVITY",
+  "secondaryCategory": "UTILITIES",
+  "copyright": "2026 AIS Consulting UG (haftungsbeschränkt)",
+  "price": "Free",
+  "territories": "All 175 currently available territories and new territories",
+  "releaseType": "AFTER_APPROVAL",
+  "unrestrictedWebAccess": true,
+  "usesNonExemptEncryption": false,
+  "appPrivacy": "Data Not Collected",
+  "privacyPolicyUrl": "https://github.com/SPRTCS/orbit/blob/orbit/apps/mobile/PRIVACY.md",
+  "reviewDemoAccountRequired": false
+}

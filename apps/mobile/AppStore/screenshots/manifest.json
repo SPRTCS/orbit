@@ -1,0 +1,134 @@
+[
+  {
+    "file": "de-DE/iphone/01-browser.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "f6fb44ae92a07eaef9ab648872fd3a0ed07bd351038a99a91ab7f865fb9b16e9"
+  },
+  {
+    "file": "de-DE/iphone/02-pill.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "40e70e42b43a6302d1aed0e5468f8f3c5122c571683a8d77a2f3a533c87a9e8f"
+  },
+  {
+    "file": "de-DE/iphone/03-tabs.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "ce86fbcfd43f1705a3ce2ca9a3bf8516e40e41fac53e9c923b3fefdcbd65d828"
+  },
+  {
+    "file": "de-DE/iphone/04-spaces.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "62824055b4bbc35d0d3b5747e9c38e8e7dff703c4be97ab0884ea823712a5201"
+  },
+  {
+    "file": "de-DE/iphone/05-theme.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "0d00f04381a40683ec56d5a040b5eca2a3c97703c53bca47a82f36c3d517faba"
+  },
+  {
+    "file": "de-DE/iphone/06-icons.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "75ea8970d1e269af23e2924146cbae56e6d5b80110fec1306464d1b8fdb3ba11"
+  },
+  {
+    "file": "de-DE/ipad/01-browser.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "19686d848853d72c3c3a9ba37e5d42f8c3a1fc6824ed7b55fa56f0f7b608f051"
+  },
+  {
+    "file": "de-DE/ipad/02-pill.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "5c02213e16f1a1d815205aaf0c162e9c50a36ff446c5baeca2bd7c8c34b499d1"
+  },
+  {
+    "file": "de-DE/ipad/04-spaces.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "bcec9e05d62d398b887de446f693013575357a04ddba1f4081f8b974028b5125"
+  },
+  {
+    "file": "de-DE/ipad/05-theme.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "5ffb4dbcb1cf2475dd14c778d1b8cdc1ddce8b06c22a456515c6ce5f2e1d38e3"
+  },
+  {
+    "file": "de-DE/ipad/06-icons.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "a26d5cdfe80a70b4fbb4b18551dcda7019950d1b320ea1471a78dc62794c41f2"
+  },
+  {
+    "file": "en-US/iphone/01-browser.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "e5b8758f6c9208fe74392edb021f85ff6e919a9a91c19937f7e88fbd2fb78cde"
+  },
+  {
+    "file": "en-US/iphone/02-pill.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "18df225a58ba4b97308dbd0f58efc6e2b08e6acf1bd5e855b6ed801ad32a95e7"
+  },
+  {
+    "file": "en-US/iphone/03-tabs.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "429c6da52cf659231e018255d3b38200ec265230dcb63d6b2e7bcad3056b713e"
+  },
+  {
+    "file": "en-US/iphone/04-spaces.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "bbfcf1909d55d8f39d1aaae40bd69bf071f11649bbcd94314960d0c173301625"
+  },
+  {
+    "file": "en-US/iphone/05-theme.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "b5083e9e580938ffff3514a194c2c7696f30be09c04a10dd177074be36b7d1dd"
+  },
+  {
+    "file": "en-US/iphone/06-icons.png",
+    "width": 1320,
+    "height": 2868,
+    "sha256": "ead2c8c2d5a6c6bd0cb9287c837876f5510105c5b102c5a12eece51768da4d39"
+  },
+  {
+    "file": "en-US/ipad/01-browser.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "463d458bd18c4d0eeb5431997ca0203f086fb91a84ef2cd033bcf983593657ff"
+  },
+  {
+    "file": "en-US/ipad/02-pill.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "3148da43cd46081c73e41b2a1a1dd03c1f1567a4083f7990882ac2594de409d5"
+  },
+  {
+    "file": "en-US/ipad/04-spaces.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "5371ee4cd0506c9d387d90639aa8ccc8ac502c82a06db5943af220b32036adb9"
+  },
+  {
+    "file": "en-US/ipad/05-theme.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "02e122b4ff46cb0b0e32acba60e49a5e2592116b2552db1cecc2b00e7d2441be"
+  },
+  {
+    "file": "en-US/ipad/06-icons.png",
+    "width": 2064,
+    "height": 2752,
+    "sha256": "b0cfc379f63a721088e5adb3ad083e1c929a534f24333a6b76acd44c13fabe11"
+  }
+]
