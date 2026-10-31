@@ -163,6 +163,20 @@ final class SessionTests: XCTestCase {
     XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: quarantine.path))?.count, 1, "the damaged journal is kept aside")
   }
 
+  func testAQuarantinedJournalStillRequiresRotationAfterARelaunch() throws {
+    let first = try session()
+    first.openTabs = [SyncedTab(url: URL(string: "https://one.example/")!, title: "One")]
+    first.writeFile = { _, _, _ in throw CocoaError(.fileWriteNoPermission) }
+    XCTAssertThrowsError(try first.cycle())
+    let journal = storage.appendingPathComponent("journal.nns")
+    let sealed = try Data(contentsOf: journal)
+    try sealed.prefix(sealed.count - 40).write(to: journal)
+    XCTAssertTrue(try session().needsRotation)
+    let afterCrash = try session()
+    XCTAssertTrue(afterCrash.needsRotation, "the quarantine is remembered until the writer is replaced")
+    XCTAssertThrowsError(try afterCrash.cycle())
+  }
+
   func testAWriteThatLandedButReportedFailureDuplicatesTheSameBatchOnly() throws {
     let first = try session()
     first.writeFile = { vault, scope, payload in

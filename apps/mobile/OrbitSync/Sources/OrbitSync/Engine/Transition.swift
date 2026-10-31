@@ -51,7 +51,8 @@ struct Transition: Equatable, Sendable {
     func retireSources() -> Bool {
       let bookmark = storage.read(.bookmark)
       for device in from where !retiring.contains(device) {
-        guard (try? storage.saveRetirement(RetirementRecord(device: device, bookmark: bookmark, created: createdAt))) != nil else { return false }
+        let chain = keyStore.load(account: device).flatMap { $0.count == 32 ? SyncKeys(entropy: $0).chainTag : nil }
+        guard (try? storage.saveRetirement(RetirementRecord(device: device, bookmark: bookmark, chain: chain, created: createdAt))) != nil else { return false }
       }
       return true
     }

@@ -3,15 +3,16 @@ import Foundation
 enum Retirement {
   static let giveUpAfter: Double = ScopeReplica.damagedGiveUp
 
-  static func process(_ record: inout RetirementRecord, storage: LocalStorage, entropy: Data, bookmark: Data, now: Date) throws -> Bool {
+  static func process(_ record: inout RetirementRecord, storage: LocalStorage, entropy: Data, bookmark: Data, ownFolder: Bool, now: Date) throws -> Bool {
     let keys = SyncKeys(entropy: entropy)
+    if let chain = record.chain, chain != keys.chainTag { return false }
     var stale = false
     guard let url = try? FolderBookmark.resolve(bookmark, stale: &stale) else { throw SessionFailure.folderUnavailable }
     let scoped = url.startAccessingSecurityScopedResource()
     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
     let vault = FolderVault(folder: url, keys: keys)
     guard vault.folderExists else { throw SessionFailure.folderUnavailable }
-    guard vault.chainExists() else { return true }
+    guard vault.chainExists() else { return ownFolder }
     try send(&record, storage: storage, vault: vault)
 
     let nowMs = (now.timeIntervalSince1970 * 1000).rounded(.down)

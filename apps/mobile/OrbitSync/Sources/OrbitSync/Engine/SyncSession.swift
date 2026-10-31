@@ -321,6 +321,7 @@ final class SyncSession {
       }
       lastSync = state["lastSync"]?.number.map { Date(timeIntervalSince1970: $0 / 1000) }
     }
+    var unreadableJournal = false
     if storage.exists(.journal) {
       if let entries = readJournal(keys) {
         journal = entries.filter { $0.batch.device == deviceId }
@@ -329,11 +330,11 @@ final class SyncSession {
           update(entry.scope) { $0.restore(entry.batch, clock: &clock) }
         }
       } else {
-        storage.quarantine(.journal)
-        quarantinedJournals += 1
-        needsRotation = true
+        unreadableJournal = true
+        if (try? storage.quarantine(.journal, device: deviceId)) != nil { quarantinedJournals += 1 }
       }
     }
+    needsRotation = unreadableJournal || storage.hasQuarantine(for: deviceId)
     dropUnconfirmedValues()
   }
 

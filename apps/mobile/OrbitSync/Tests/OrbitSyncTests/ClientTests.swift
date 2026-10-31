@@ -362,12 +362,94 @@ final class ClientTests: XCTestCase {
     let client = try await connected()
     let oldId = client.deviceId
     keyStore.items[OrbitSyncClient.identityAccount] = nil
-    try LocalStorage(directory: storage).saveRetirement(RetirementRecord(device: oldId, bookmark: nil, created: 0))
+    try LocalStorage(directory: storage).saveRetirement(RetirementRecord(device: oldId, bookmark: nil, chain: nil, created: 0))
     let relaunched = self.client()
     await relaunched.waitForPendingWork()
     XCTAssertNotEqual(relaunched.deviceId, oldId)
     guard case .idle = relaunched.state else { return XCTFail("relaunched \(relaunched.state)") }
     XCTAssertTrue(FileManager.default.fileExists(atPath: storage.appendingPathComponent("folder.bookmark").path))
+  }
+
+  func otherChainFolder() throws -> (folder: URL, phrase: String) {
+    let other = try Paths.scratch("client-other-folder")
+    let vault = SyncVault(folder: other, keys: ArdiaSyncCore.SyncKeys(entropy: InteropTests.otherEntropy))
+    try vault.createChain()
+    let ops: [[String: Any]] = [["k": "prof:work", "h": "0mubbs7i8.0000.othermac", "v": ["n": "Elsewhere", "c": "blue", "i": NSNull(), "d": true]]]
+    try vault.write(scope: "app", payload: JSONSerialization.data(withJSONObject: ["v": 1, "kind": "log", "device": "othermac", "seq": 1, "at": 1_790_000_000_000, "ops": ops]))
+    return (other, ArdiaSyncCore.RecoveryPhrase.words(for: InteropTests.otherEntropy).joined(separator: " "))
+  }
+
+  func testDisconnectingDuringAStuckRotationRetiresBothIdentities() async throws {
+    let client = try await connected()
+    let a = client.deviceId
+    keyStore.items[OrbitSyncClient.identityAccount] = nil
+    keyStore.refuseSaves(except: [OrbitSyncClient.identityAccount])
+    let stuck = self.client()
+    guard case .failed = stuck.state else { return XCTFail("state \(stuck.state)") }
+    stuck.disconnect()
+    await stuck.waitForPendingWork()
+    keyStore.refuseSaves(except: nil)
+    let relaunched = self.client()
+    await relaunched.waitForPendingWork()
+    XCTAssertEqual(relaunched.state, .notSetUp)
+    XCTAssertTrue(try latest("app", "dev:\(a)") is NSNull, "the rotation's source is retired too")
+    XCTAssertNil(keyStore.items[a])
+    XCTAssertFalse(relaunched.pendingRetirement)
+  }
+
+  func testAStuckDisconnectRefusesNewConnectionsAndKeepsTheOldKey() async throws {
+    let client = try await connected()
+    let a = client.deviceId
+    keyStore.refuseSaves(except: [])
+    client.disconnect()
+    await client.waitForPendingWork()
+    let other = try otherChainFolder()
+    defer { try? FileManager.default.removeItem(at: other.folder) }
+    XCTAssertThrowsError(try client.connect(folder: other.folder), "no new connection while a disconnect is half done")
+    await client.waitForPendingWork()
+    do {
+      try await client.enterRecoveryPhrase(other.phrase)
+      XCTFail("phrase accepted during a pending disconnect")
+    } catch {}
+    XCTAssertEqual(keyStore.items[a], entropy, "the retiring identity's key is untouched")
+    keyStore.refuseSaves(except: nil)
+    let relaunched = self.client()
+    await relaunched.waitForPendingWork()
+    XCTAssertTrue(try latest("app", "dev:\(a)") is NSNull)
+    XCTAssertNil(keyStore.items[a])
+  }
+
+  func testARotationWhoseIntentCantBeSavedDoesntHappen() async throws {
+    let client = try await connected()
+    let a = client.deviceId
+    keyStore.items[OrbitSyncClient.identityAccount] = nil
+    try FileManager.default.createDirectory(at: storage.appendingPathComponent("transition.json"), withIntermediateDirectories: true)
+    let blocked = self.client()
+    guard case .failed = blocked.state else { return XCTFail("state \(blocked.state)") }
+    XCTAssertEqual(LocalStorage(directory: storage).loadWriter()?.device, a, "nothing is committed without a durable transition")
+    try FileManager.default.removeItem(at: storage.appendingPathComponent("transition.json"))
+    let resumed = self.client()
+    await resumed.waitForPendingWork()
+    XCTAssertNotEqual(resumed.deviceId, a)
+    guard case .idle = resumed.state else { return XCTFail("resumed \(resumed.state)") }
+  }
+
+  func testARetirementNeverCompletesAgainstAnotherChainsFolder() async throws {
+    let client = try await connected()
+    await client.publish(openTabs: tabs("Here"))
+    let a = client.deviceId
+    try FileManager.default.removeItem(at: storage)
+    let other = try otherChainFolder()
+    defer { try? FileManager.default.removeItem(at: other.folder) }
+    let restored = self.client()
+    try restored.connect(folder: other.folder)
+    await restored.waitForPendingWork()
+    try await restored.enterRecoveryPhrase(other.phrase)
+    await restored.waitForPendingWork()
+    guard case .idle = restored.state else { return XCTFail("state \(restored.state)") }
+    XCTAssertEqual(keyStore.items[a], entropy, "the key of an identity retired elsewhere stays")
+    XCTAssertTrue(restored.pendingRetirement)
+    XCTAssertNotNil(try latest("app", "dev:\(a)") as? [String: Any])
   }
 }
 #endif

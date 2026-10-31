@@ -426,13 +426,20 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   disk (otherwise the app shows an error, keeps its key and connection, and publishes nothing); it records the
   retirement, then forgets the bookmark, cache and journal and commits the new id. A write gate shared with the
   sync queue closes at once on either, and every folder write checks it, so a cycle queued before a disconnect
-  can't publish under the retiring id.
+  can't publish under the retiring id. Three rules keep it simple: while a transition is pending, nothing new
+  starts (connecting, entering a phrase or another transition first finishes the pending one, and if it can't,
+  the app stays failed and refuses with its message; a disconnect during a pending rotation A→B becomes a
+  disconnect retiring both A and B); every step saves its intent before acting and stops on any save error; and a
+  retiring id's key is never deleted or overwritten while a record or transition still names it.
 - **Journal.** A batch is journalled (sealed, `journal.nns`) before it's written, its seq is made durable before
   any journal is sent, and it's sent again byte for byte until it lands. A journal that can't be read is moved to
-  `quarantine/`, and the writer rotates: going on under the same id would leave a permanent gap in its seqs,
+  `quarantine/` under the writer's id, and the writer rotates (a quarantined journal of the current id keeps
+  requiring the rotation across relaunches until it's done): going on under the same id would leave a permanent gap in its seqs,
   which on a Mac keeps `extra` non-empty, so that writer's logs never compact and tombstones are held 90 days. The
   new id publishes the current values afresh.
-- **Retirement.** Each retired id has a record (`retiring/<id>.json`, one atomic file). Its tombstones for
+- **Retirement.** Each retired id has a record (`retiring/<id>.json`, one atomic file) carrying its chain tag and,
+  when known, its folder's bookmark; it only completes against a folder holding that chain (a record without a
+  bookmark tries the active folder, and a folder of another chain leaves it pending, key kept). Its tombstones for
   `dev:<id>` and `tabs:<id>` (in every space) are written by a fresh one-shot writer id with its own seqs, never
   by the retiring id, so the retiring id never writes again, its unsent live batches are dropped without leaving a
   seq gap on the Macs, and no stale seq can hide the tombstones (Macs merge by HLC, whoever wrote the op). The
@@ -452,7 +459,9 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   compaction); journal retries and quarantine (with the Mac compacting afterwards, no gap left), seq durability
   after cache loss, restore and clone, phrase re-entry, disconnect races (UI state and the folder's contents), a
   disconnect killed before its cleanup or unable to save its intent, rotations that can't save the key or were
-  interrupted, and retirement (tombstones only, retried until written, records kept while a key delete fails).
+  interrupted or whose intent can't be saved, a disconnect during a stuck rotation or after a stuck disconnect,
+  and retirement (tombstones only, retried until written, never completed against another chain's folder,
+  records kept while a key delete fails).
 
 ## Tests
 

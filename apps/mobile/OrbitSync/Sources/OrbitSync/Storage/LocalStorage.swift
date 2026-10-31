@@ -50,6 +50,7 @@ struct RetirementRecord: Equatable, Sendable {
   var device: String
   var retirer: String
   var bookmark: Data?
+  var chain: String?
   var created: Double
   var seqs: [String: Int] = [:]
   var batches: [Batch] = []
@@ -59,10 +60,11 @@ struct RetirementRecord: Equatable, Sendable {
     var payload: String
   }
 
-  init(device: String, bookmark: Data?, created: Double) {
+  init(device: String, bookmark: Data?, chain: String?, created: Double) {
     self.device = device
     retirer = SyncKeys.newFileId()
     self.bookmark = bookmark
+    self.chain = chain
     self.created = created
   }
 
@@ -76,6 +78,7 @@ struct RetirementRecord: Equatable, Sendable {
       "batches": .array(batches.map { .object(["scope": .string($0.scope), "payload": .string($0.payload)]) }),
     ]
     if let bookmark { object["bookmark"] = .string(bookmark.base64EncodedString()) }
+    if let chain { object["chain"] = .string(chain) }
     return .object(object)
   }
 
@@ -84,6 +87,7 @@ struct RetirementRecord: Equatable, Sendable {
     self.device = device
     self.retirer = retirer
     bookmark = json["bookmark"]?.string.flatMap { Data(base64Encoded: $0) }
+    chain = json["chain"]?.string
     created = json["created"]?.number ?? 0
     seqs = json["seqs"]?.object?.compactMapValues { $0.number.map { Int($0) } } ?? [:]
     batches = (json["batches"]?.array ?? []).compactMap { item in
@@ -165,10 +169,15 @@ struct LocalStorage: Sendable {
     try? FileManager.default.removeItem(at: retiringRoot.appendingPathComponent("\(device).json"))
   }
 
-  func quarantine(_ item: Item) {
-    let folder = directory.appendingPathComponent("quarantine", isDirectory: true)
-    try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    try? FileManager.default.moveItem(at: url(item), to: folder.appendingPathComponent("\(UUID().uuidString)-\(item.rawValue)"))
+  var quarantineFolder: URL { directory.appendingPathComponent("quarantine", isDirectory: true) }
+
+  func quarantine(_ item: Item, device: String) throws {
+    try FileManager.default.createDirectory(at: quarantineFolder, withIntermediateDirectories: true)
+    try FileManager.default.moveItem(at: url(item), to: quarantineFolder.appendingPathComponent("\(device)-\(UUID().uuidString)-\(item.rawValue)"))
+  }
+
+  func hasQuarantine(for device: String) -> Bool {
+    ((try? FileManager.default.contentsOfDirectory(atPath: quarantineFolder.path)) ?? []).contains { $0.hasPrefix("\(device)-") }
   }
 
   func excludeFromBackup() {
