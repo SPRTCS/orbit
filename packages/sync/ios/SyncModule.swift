@@ -74,6 +74,11 @@ public class SyncModule: Module {
       return true
     }.runOnQueue(Self.work)
 
+    AsyncFunction("saveKey") { (account: String) -> Bool in
+      guard let entropy = self.state.entropy else { return false }
+      return Self.keyStore.save(entropy, account: account) && Self.keyStore.load(account: account) == entropy
+    }.runOnQueue(Self.work)
+
     AsyncFunction("forget") { (account: String) in
       Self.keyStore.delete(account: account)
       self.state.set(nil)

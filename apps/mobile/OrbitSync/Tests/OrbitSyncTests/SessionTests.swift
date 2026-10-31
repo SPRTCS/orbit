@@ -17,7 +17,7 @@ final class SessionTests: XCTestCase {
     try mac.createChain()
     let profile: [String: Any] = ["v": 1, "kind": "log", "device": "macdevice", "seq": 1, "at": 1_790_000_000_000, "ops": [
       ["k": "prof:personal", "h": "0mubbs7i8.0000.macdevice", "v": ["n": "Personal", "c": "plum", "i": NSNull(), "d": true]],
-      ["k": "dev:macdevice", "h": "0mubbs7i8.0001.macdevice", "v": ["n": "Arman’s MacBook Pro"]],
+      ["k": "dev:macdevice", "h": "0mubbs7i8.0001.macdevice", "v": ["n": "Alex’s MacBook Pro"]],
     ]]
     try mac.write(scope: "app", payload: JSONSerialization.data(withJSONObject: profile))
   }
@@ -28,7 +28,7 @@ final class SessionTests: XCTestCase {
   }
 
   func session(_ deviceId: String = "phonephonephonephonephone2") throws -> SyncSession {
-    let session = SyncSession(storage: LocalStorage(directory: storage), deviceId: deviceId, deviceName: "Arman’s iPhone", deviceKind: "iphone", bookmark: try FolderBookmark.create(for: folder))
+    let session = SyncSession(storage: LocalStorage(directory: storage), deviceId: deviceId, deviceName: "Alex’s iPhone", deviceKind: "iphone", bookmark: try FolderBookmark.create(for: folder))
     session.gate.open(for: deviceId)
     session.unlock(entropy: entropy)
     return session
@@ -68,7 +68,7 @@ final class SessionTests: XCTestCase {
     XCTAssertEqual(ops?.count, 1)
     XCTAssertEqual(ops?.first?["k"] as? String, "tabs:phonephonephonephonephone2")
     let value = ops?.first?["v"] as? [String: Any]
-    XCTAssertEqual(value?["n"] as? String, "Arman’s iPhone")
+    XCTAssertEqual(value?["n"] as? String, "Alex’s iPhone")
     XCTAssertEqual(value?["k"] as? String, "iphone")
     XCTAssertEqual((value?["tabs"] as? [[String: String]])?.first, ["u": "https://two.example/", "t": "Two"])
     XCTAssertEqual(try logs("app").map { $0["seq"] as! Int }, [1])
@@ -117,7 +117,7 @@ final class SessionTests: XCTestCase {
     let journalled = first.journal.map(\.payload)
     XCTAssertEqual(journalled.count, 2)
 
-    let locked = SyncSession(storage: LocalStorage(directory: storage), deviceId: "phonephonephonephonephone2", deviceName: "Arman’s iPhone", deviceKind: "iphone", bookmark: try FolderBookmark.create(for: folder))
+    let locked = SyncSession(storage: LocalStorage(directory: storage), deviceId: "phonephonephonephonephone2", deviceName: "Alex’s iPhone", deviceKind: "iphone", bookmark: try FolderBookmark.create(for: folder))
     locked.gate.open(for: "phonephonephonephonephone2")
     XCTAssertTrue(try locked.adopt(entropy: entropy))
     XCTAssertEqual(locked.journal.map(\.payload), journalled)

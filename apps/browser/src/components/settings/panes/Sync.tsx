@@ -21,6 +21,7 @@ import { ProfileBadge } from "../../profiles/icons";
 import { Button, Group, Row, SectionHeader, Toggle, useFormColors } from "../controls";
 import { folderLabel, showConnectDevice, showPhraseEntry, showRecoveryKit, showStopSync } from "./SyncSheets";
 import { SidebarDevicesRow } from "./SyncedDevicesSetting";
+import { CopiedSyncWarning } from "./CopiedSyncWarning";
 
 export function SyncPane() {
   const theme = useTheme();
@@ -213,6 +214,7 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
           <Text style={{ flex: 1, fontSize: 11.5, lineHeight: 15, color: theme.textSecondary }}>{error}</Text>
         </View>
       ) : null}
+      <CopiedSyncWarning />
 
       <SectionHeader title="Profiles" description="Choose which profiles sync on this Mac. Each syncs on its own." />
       <Group>

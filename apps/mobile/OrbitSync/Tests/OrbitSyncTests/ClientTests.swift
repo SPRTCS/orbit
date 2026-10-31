@@ -19,8 +19,8 @@ final class ClientTests: XCTestCase {
     try mac.createChain()
     let profile: [String: Any] = ["v": 1, "kind": "log", "device": "macdevice", "seq": 1, "at": 1_790_000_000_000, "ops": [
       ["k": "prof:personal", "h": "0mubbs7i8.0000.macdevice", "v": ["n": "Personal", "c": "plum", "i": NSNull(), "d": true]],
-      ["k": "dev:macdevice", "h": "0mubbs7i8.0001.macdevice", "v": ["n": "Arman’s MacBook Pro"]],
-      ["k": "tabs:macdevice", "h": "0mubbs7i8.0002.macdevice", "v": ["n": "Arman’s MacBook Pro", "tabs": [["u": "https://mac.example/", "t": "Mac"]]]],
+      ["k": "dev:macdevice", "h": "0mubbs7i8.0001.macdevice", "v": ["n": "Alex’s MacBook Pro"]],
+      ["k": "tabs:macdevice", "h": "0mubbs7i8.0002.macdevice", "v": ["n": "Alex’s MacBook Pro", "tabs": [["u": "https://mac.example/", "t": "Mac"]]]],
     ]]
     try mac.write(scope: "app", payload: JSONSerialization.data(withJSONObject: profile))
     try mac.write(scope: "p:personal", payload: JSONSerialization.data(withJSONObject: ["v": 1, "kind": "log", "device": "macdevice", "seq": 1, "at": 1_790_000_000_000, "ops": profile["ops"]!]))
@@ -35,7 +35,7 @@ final class ClientTests: XCTestCase {
   var phrase: String { ArdiaSyncCore.RecoveryPhrase.words(for: entropy).joined(separator: " ") }
 
   func client() -> OrbitSyncClient {
-    OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Alex’s iPhone", deviceKind: "iphone")
   }
 
   func connected() async throws -> OrbitSyncClient {
@@ -43,7 +43,7 @@ final class ClientTests: XCTestCase {
     try client.connect(folder: folder)
     await client.waitForPendingWork()
     try await client.enterRecoveryPhrase(phrase)
-    XCTAssertEqual(client.devices.map(\.name), ["Arman’s MacBook Pro"])
+    XCTAssertEqual(client.devices.map(\.name), ["Alex’s MacBook Pro"])
     return client
   }
 
@@ -241,7 +241,7 @@ final class ClientTests: XCTestCase {
     await relaunched.waitForPendingWork()
     await relaunched.syncNow()
     guard case .idle = relaunched.state else { return XCTFail("state \(relaunched.state)") }
-    XCTAssertEqual(relaunched.devices.map(\.name), ["Arman’s MacBook Pro"])
+    XCTAssertEqual(relaunched.devices.map(\.name), ["Alex’s MacBook Pro"])
     XCTAssertTrue(try latest("app", "dev:\(oldId)") is NSNull, "the old identity is retired")
     XCTAssertTrue(try latest("p:personal", "tabs:\(oldId)") is NSNull)
     XCTAssertFalse(try sentTitles("p:personal", from: oldId).contains("Unsent"))

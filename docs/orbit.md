@@ -309,6 +309,10 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `store/settings.ts` | Devices: `showSyncedDevices?: boolean` in `Settings` (unset = on; not synced). |
 | `components/settings/panes/Sync.tsx` | Devices: import; `<SidebarDevicesRow />` last in the Devices group. |
 | `lib/devHarness.ts` | Devices: `ac.syncedDevices` getter (dev only; also exposes `useSync` for injecting fake `remoteTabs`). |
+| `sync/engine.ts` | Copied sync state: import; `home?`, `rejoin?`, `copyConflict?` in `SyncDoc`; in `startSync`, `showCopyWarning(doc)` and, in the unlock, `if (copied) return joinCopy(ok)` before the locked check, then `stampHome(doc)` before `loadState`; a first branch in `enterRecoveryPhrase` for a locked copy (`enterPhrase` under a new id, `joinAsNewDevice`) and `stampHome(doc)` in the locked branch; `stampHome`/`showCopyWarning` in `begin`; `checkedBatches`, `joinAsNewDevice`, `joinCopy` and the exported `rejoinAsNewDevice` next to `begin`; in `runCycle`, `writtenElsewhere(doc)` in the first guard, `watchingOwnBatches(…)` around the transport (setting `conflict`), `conflict ||= anotherWriterAhead(…) \|\| await conflictingBatch(…)` after each `syncScope` and `noteCopyConflict(doc, conflict)` after the scopes; the exported `finishCopyJoin` next to `joinCopy`; `ownsIdentity(doc)` guarding `stopSync`'s retiring cycle and `forget`, and `forget` in `resetFromElsewhere`. |
+| `components/settings/panes/Sync.tsx` | Copied sync state: import; `<CopiedSyncWarning />` after the error line in `SyncOn`. |
+| `packages/shell/ios/AppModule.swift` | Copied sync state: `dataDirectoryIdentity` (volume UUID and inode of the data dir) and `"dataDirectoryId"` in `systemInfo`. |
+| `packages/sync/ios/SyncModule.swift` | Copied sync state: `saveKey(account)`, saving the unlocked key under another account and reading it back. |
 
 ## Shared spaces, sessions and the timeline (Arc)
 
@@ -584,6 +588,38 @@ synced devices and their open tabs, from the same `tabs:<device id>` records as 
   Sync Settings….
 - **Remembered** per window and space (section and each device's open state) in `synced-devices.json` in the data
   dir; entries of closed windows are dropped when it's saved.
+
+## Copied sync state (Orbit)
+
+A data dir copied with its sync state (`sync.json`, `sync-state.nns`), whether by `scripts/orbit/install-local.sh`, a
+copy of Ardia's data dir or a backup, would sync as the same device as the original, with the same seqs: whichever
+of two batches with one seq a reader sees first wins and the other is skipped on every device (`docs/sync.md`).
+Orbit-owned files: `sync/copiedState.ts`, `components/settings/panes/CopiedSyncWarning.tsx` and
+`sync/copiedState.test.mjs`.
+
+- **Prevented at launch.** `sync.json` records the bundle id and the data dir's identity that wrote it
+  (`home: { app, dir }`; `dir` is the volume UUID and the folder's inode after resolving symlinks, from
+  `systemInfo().dataDirectoryId`, so `/Users/…` and `/users/…` are one folder and only a real copy, a restore or a
+  move differs). A stamp naming another app or folder, or the installer's `rejoin: true`, means a copy: before
+  unlocking the old state or publishing anything, the Mac takes the upstream join path, exactly what turning sync off
+  and on does: a new device id, its key saved under that id's own Keychain account (`saveKey`), an empty journal and
+  sealed state (cleared before the new `sync.json` is written, so a crash can't pair the new id with old seqs),
+  `begin(…, joining)`, profiles paired as on joining, and every seq starting at 1. A locked copy joins the same way
+  when the phrase is entered. Until the join has happened no cycle runs at all (`runCycle` returns while the stamp
+  still names another copy), so the old id can't write even through Sync Now or a settings change; if the new key
+  can't be saved, Settings › Sync says so and offers **Try Again** (`finishCopyJoin`). Nothing of the old id is written, retired or forgotten: it belongs to the other copy.
+- **Detected while running, never healed automatically.** After each scope's sync the Mac checks for another writer
+  with its id: a replica holding one of its own seqs beyond the last it allocated, or two different decrypted batches
+  at one of its own `(device, seq)` pairs (byte-identical ones are a crash re-send; a pair it couldn't read yet is
+  checked again). Either sets `copyConflict` in `sync.json`, and Settings › Sync shows "Another copy of Orbit is
+  syncing as this Mac. Turn sync off and on to give this Mac its own identity." with **Rejoin as New Device**, which
+  runs the same clean join. A flagged Mac doesn't retire or forget its id when sync is turned off. The batch check runs
+  as files are read (`watchingOwnBatches` around the transport, comparing each arriving batch of its own id with its
+  own file at that seq), before this cycle's compaction could prune the other batch. Known limit: a
+  collision whose other batch only ever reaches this Mac inside a snapshot (its log compacted before this Mac read
+  it, at a seq this Mac had also used) isn't seen; the warning is best-effort.
+- **Installer.** `install-local.sh` marks a data dir it copies to the default location with `rejoin: true` when its
+  sync is on.
 
 ## Building locally
 

@@ -15,7 +15,8 @@ Builds Orbit from this checkout (Release, ad hoc signed) and installs it as
   4. backs up every Orbit data folder and the old app to
      ~/Library/Application Support/Orbit Backups/<time>/
   5. if the running Orbit used another data folder and the default one is empty, copies that
-     folder to the default location so the installed app finds the same pinned tabs
+     folder to the default location so the installed app finds the same pinned tabs; a copy
+     whose sync is on is marked to join as a new device, so the two folders never sync as one
   6. replaces /Applications/Orbit.app and opens it
 
   --build-only   build and stop
@@ -48,6 +49,22 @@ stamp=$(date +%Y-%m-%d_%H-%M-%S)
 backup="$HOME/Library/Application Support/Orbit Backups/$stamp"
 
 say() { printf '\n==> %s\n' "$*"; }
+
+mark_sync_rejoin() {
+  local doc="$1/sync.json"
+  [ -f "$doc" ] || return 0
+  python3 - "$doc" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    doc = json.load(f)
+if doc.get("enabled"):
+    doc["rejoin"] = True
+    with open(path, "w") as f:
+        json.dump(doc, f)
+    print("    sync will join as a new device")
+PY
+}
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 [ -n "$bundle_id" ] || die "couldn't read the bundle id from the Xcode project"
@@ -144,6 +161,7 @@ for dir in "${data_dirs[@]+"${data_dirs[@]}"}"; do
     say "Copying data from $dir to $default_data"
     mkdir -p "$default_data"
     ditto "$dir" "$default_data"
+    mark_sync_rejoin "$default_data"
   else
     printf '\nnote: Orbit used %s, but %s already has data; left both as they are\n' "$dir" "$default_data"
   fi

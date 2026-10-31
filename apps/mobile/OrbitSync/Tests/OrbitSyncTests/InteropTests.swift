@@ -83,9 +83,9 @@ final class InteropTests: XCTestCase {
     }
     let macA = try MacDevice(entropy: Self.entropy)
     let macB = try MacDevice(entropy: Self.entropy)
-    let a = try macA.command("setupA", ["path": folder.path, "name": "Arman’s MacBook Pro"])
+    let a = try macA.command("setupA", ["path": folder.path, "name": "Alex’s MacBook Pro"])
     XCTAssertEqual(a["status"]?.string, "updated", a["error"]?.string ?? "")
-    let b = try macB.command("setupB", ["path": folder.path, "name": "Arman’s Mac mini", "phrase": Self.words.joined(separator: " ")])
+    let b = try macB.command("setupB", ["path": folder.path, "name": "Alex’s Mac mini", "phrase": Self.words.joined(separator: " ")])
     XCTAssertEqual(b["status"]?.string, "updated", b["error"]?.string ?? "")
     let aSynced = try macA.command("sync")
     let aId = try XCTUnwrap(a["deviceId"]?.string)
@@ -95,7 +95,7 @@ final class InteropTests: XCTestCase {
     let work = try XCTUnwrap(a["profiles"]?.object?.first { $0.key != "default" }?.value["syncId"]?.string)
 
     let keyStore = MemoryKeyStore()
-    let client = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Alex’s iPhone", deviceKind: "iphone")
     XCTAssertEqual(client.state, .notSetUp)
     await expectError(.notConnected) { try await client.enterRecoveryPhrase(Self.words.joined(separator: " ")) }
     try client.connect(folder: folder)
@@ -135,8 +135,8 @@ final class InteropTests: XCTestCase {
 
     let devices = Dictionary(uniqueKeysWithValues: client.devices.map { ("\($0.deviceId) \($0.spaceId)", $0) })
     XCTAssertEqual(Set(devices.keys), ["\(aId) \(personal)", "\(aId) \(work)", "\(bId) \(personal)"])
-    XCTAssertEqual(devices["\(aId) \(personal)"]?.name, "Arman’s MacBook Pro")
-    XCTAssertEqual(devices["\(bId) \(personal)"]?.name, "Arman’s Mac mini")
+    XCTAssertEqual(devices["\(aId) \(personal)"]?.name, "Alex’s MacBook Pro")
+    XCTAssertEqual(devices["\(bId) \(personal)"]?.name, "Alex’s Mac mini")
     XCTAssertEqual(Self.tabsJSON(devices["\(aId) \(personal)"]?.tabs ?? []), aSynced["own"]?[personal]?["tabs"]?["tabs"])
     XCTAssertEqual(Self.tabsJSON(devices["\(aId) \(work)"]?.tabs ?? []), aSynced["own"]?[work]?["tabs"]?["tabs"])
     XCTAssertEqual(devices["\(aId) \(work)"]?.tabs.map(\.title), ["Sprint Board"])
@@ -151,20 +151,20 @@ final class InteropTests: XCTestCase {
     let shared = Array(open.filter { $0.url.scheme == "https" }.prefix(30))
     let phoneId = client.deviceId
 
-    for (mac, peer, peerName) in [(macA, bId, "Arman’s Mac mini"), (macB, aId, "Arman’s MacBook Pro")] {
+    for (mac, peer, peerName) in [(macA, bId, "Alex’s Mac mini"), (macB, aId, "Alex’s MacBook Pro")] {
       let remote = try mac.command("remote")
       let seen = remote["remoteTabs"]?["default"]?.array ?? []
       let phone = seen.first { $0["deviceId"]?.string == phoneId }
-      XCTAssertEqual(phone?["name"]?.string, "Arman’s iPhone")
+      XCTAssertEqual(phone?["name"]?.string, "Alex’s iPhone")
       XCTAssertEqual(phone?["tabs"], .array(shared.map { .object(["url": .string($0.url.absoluteString), "title": .string($0.title)]) }))
       XCTAssertNotNil(seen.first { $0["deviceId"]?.string == peer })
       XCTAssertEqual(remote["menu"]?["title"]?.string, "Your Devices")
-      XCTAssertEqual(Set((remote["menu"]?["children"]?.array ?? []).compactMap { $0["title"]?.string }), ["Arman’s iPhone", peerName])
+      XCTAssertEqual(Set((remote["menu"]?["children"]?.array ?? []).compactMap { $0["title"]?.string }), ["Alex’s iPhone", peerName])
       XCTAssertEqual(remote["raw"]?["p:\(personal) tabs:\(phoneId)"]?["k"]?.string, "iphone")
-      XCTAssertEqual(remote["raw"]?["p:\(personal) tabs:\(phoneId)"]?["n"]?.string, "Arman’s iPhone")
+      XCTAssertEqual(remote["raw"]?["p:\(personal) tabs:\(phoneId)"]?["n"]?.string, "Alex’s iPhone")
       XCTAssertNil(remote["raw"]?["p:\(work) tabs:\(phoneId)"] ?? nil)
-      XCTAssertEqual(remote["raw"]?["app dev:\(phoneId)"]?["n"]?.string, "Arman’s iPhone")
-      XCTAssertTrue((remote["devices"]?.array ?? []).contains { $0["id"]?.string == phoneId && $0["name"]?.string == "Arman’s iPhone" })
+      XCTAssertEqual(remote["raw"]?["app dev:\(phoneId)"]?["n"]?.string, "Alex’s iPhone")
+      XCTAssertTrue((remote["devices"]?.array ?? []).contains { $0["id"]?.string == phoneId && $0["name"]?.string == "Alex’s iPhone" })
     }
     XCTAssertFalse(client.devices.contains { $0.deviceId == phoneId }, "the phone doesn't list itself")
 
@@ -182,13 +182,13 @@ final class InteropTests: XCTestCase {
     XCTAssertFalse(client.spaces[0].pins.contains { $0.title == "Docs" })
     XCTAssertEqual(client.devices.first { $0.deviceId == aId && $0.spaceId == personal }?.tabs.map(\.title).contains("Cart"), false)
 
-    let relaunched = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    let relaunched = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Alex’s iPhone", deviceKind: "iphone")
     XCTAssertEqual(relaunched.spaces, client.spaces, "the last data shows at launch, before any sync")
     XCTAssertEqual(relaunched.devices, client.devices)
     guard case .idle = relaunched.state else { return XCTFail("relaunched state \(relaunched.state)") }
 
     try FileManager.default.removeItem(at: storage.appendingPathComponent("state.nns"))
-    let forgetful = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    let forgetful = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Alex’s iPhone", deviceKind: "iphone")
     XCTAssertTrue(forgetful.spaces.isEmpty)
     let later = [SyncedTab(url: URL(string: "https://after-compaction.example/")!, title: "After compaction")]
     await forgetful.publish(openTabs: later)
@@ -219,10 +219,10 @@ final class InteropTests: XCTestCase {
       try? FileManager.default.removeItem(at: storage)
     }
     let mac = try MacDevice(entropy: Self.entropy)
-    let a = try mac.command("setupA", ["path": folder.path, "name": "Arman’s MacBook Pro"])
+    let a = try mac.command("setupA", ["path": folder.path, "name": "Alex’s MacBook Pro"])
     let personal = try XCTUnwrap(a["profiles"]?["default"]?["syncId"]?.string)
     let keyStore = MemoryKeyStore()
-    let client = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Alex’s iPhone", deviceKind: "iphone")
     try client.connect(folder: folder)
     await client.waitForPendingWork()
     try await client.enterRecoveryPhrase(Self.words.joined(separator: " "))
@@ -238,7 +238,7 @@ final class InteropTests: XCTestCase {
     let sealed = try Data(contentsOf: journal)
     try sealed.prefix(sealed.count - 40).write(to: journal)
 
-    let relaunched = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Arman’s iPhone", deviceKind: "iphone")
+    let relaunched = OrbitSyncClient(storageDirectory: storage, keyStore: keyStore, deviceName: "Alex’s iPhone", deviceKind: "iphone")
     await relaunched.waitForPendingWork()
     await relaunched.publish(openTabs: [SyncedTab(url: URL(string: "https://b.example/")!, title: "B")])
     guard case .idle = relaunched.state else { return XCTFail("state \(relaunched.state)") }
@@ -251,7 +251,7 @@ final class InteropTests: XCTestCase {
       XCTAssertEqual(value["extra"], .object([:]), "\(scope) has a seq gap that stops compaction")
     }
     let remote = try mac.command("remote")
-    let phone = (remote["remoteTabs"]?["default"]?.array ?? []).filter { $0["name"]?.string == "Arman’s iPhone" }
+    let phone = (remote["remoteTabs"]?["default"]?.array ?? []).filter { $0["name"]?.string == "Alex’s iPhone" }
     XCTAssertEqual(phone.count, 1)
     XCTAssertEqual(phone.first?["tabs"]?.array?.compactMap { $0["title"]?.string }, ["B"])
     XCTAssertNotEqual(phone.first?["deviceId"]?.string, firstId, "the writer whose journal was lost is replaced")
@@ -267,9 +267,9 @@ final class InteropTests: XCTestCase {
     let mac = try MacDevice(entropy: Self.entropy)
     var args = scenario
     args["path"] = folder.path
-    args["name"] = "Arman’s MacBook Pro"
+    args["name"] = "Alex’s MacBook Pro"
     let result = try mac.command("setupFolders", args)
-    let client = OrbitSyncClient(storageDirectory: storage, keyStore: MemoryKeyStore(), deviceName: "Arman’s iPad", deviceKind: "ipad")
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: MemoryKeyStore(), deviceName: "Alex’s iPad", deviceKind: "ipad")
     try client.connect(folder: folder)
     await client.waitForPendingWork()
     try await client.enterRecoveryPhrase(Self.words.joined(separator: " "))
@@ -299,13 +299,13 @@ final class InteropTests: XCTestCase {
       try? FileManager.default.removeItem(at: storage)
     }
     let original = try MacDevice(entropy: Self.entropy)
-    let a = try original.command("setupFolders", ["path": folder.path, "name": "Arman’s MacBook Pro", "tilesOnly": true])
+    let a = try original.command("setupFolders", ["path": folder.path, "name": "Alex’s MacBook Pro", "tilesOnly": true])
     let docs = try original.command("exportDocs").object?.mapValues { $0.string ?? "" } ?? [:]
     try original.command("openTabs", ["count": originalWritesAfterCopy])
     let copy = try MacDevice(entropy: Self.entropy)
-    let b = try copy.command("setupFolders", ["path": folder.path, "name": "Arman’s MacBook Pro", "docs": docs, "dataDirectory": "/tmp/orbit-user-test-glass"])
+    let b = try copy.command("setupFolders", ["path": folder.path, "name": "Alex’s MacBook Pro", "docs": docs, "dataDirectoryId": "volume:2"])
     XCTAssertEqual(b["status"]?.string, "updated")
-    let client = OrbitSyncClient(storageDirectory: storage, keyStore: MemoryKeyStore(), deviceName: "Arman’s iPad", deviceKind: "ipad")
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: MemoryKeyStore(), deviceName: "Alex’s iPad", deviceKind: "ipad")
     try client.connect(folder: folder)
     await client.waitForPendingWork()
     try await client.enterRecoveryPhrase(Self.words.joined(separator: " "))

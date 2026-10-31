@@ -44,6 +44,19 @@ import {
 } from "./adapters";
 import { extensionsAdapterFor, extensionSyncAvailable, probeExtensionSync, watchExtensionIntents } from "./extensions";
 import { pinnedFoldersAdapter, watchPinnedFolders } from "./pinnedFolders";
+import {
+  anotherWriterAhead,
+  conflictingBatch,
+  ownsIdentity,
+  noteCopyConflict,
+  saveKeyFor,
+  showCopyWarning,
+  showJoinPending,
+  watchingOwnBatches,
+  stampHome,
+  writtenElsewhere,
+  type SyncHome,
+} from "./copiedState";
 import { recordKind } from "../lib/syncedDevices";
 
 type DataType = "bookmarks" | "history" | "tabs" | "pinned" | "passwords" | "extensions" | "settings";
@@ -78,6 +91,9 @@ type SyncDoc = {
   setupAt: number | null;
   joining: boolean;
   seqs?: Record<string, number>;
+  home?: SyncHome;
+  rejoin?: true;
+  copyConflict?: number;
 };
 
 const DOC = "sync.json";
@@ -321,7 +337,7 @@ export async function syncNow() {
 
 async function runCycle({ retiring = false } = {}) {
   const native = SyncNative;
-  if (!native || !doc.enabled || !doc.folder || !doc.deviceId) return;
+  if (!native || !doc.enabled || !doc.folder || !doc.deviceId || writtenElsewhere(doc)) return;
   if (running) {
     again = true;
     return;
@@ -334,7 +350,10 @@ async function runCycle({ retiring = false } = {}) {
     const status = await native.chainStatus(doc.folder);
     if (status === "unavailable") return publishUi({ status: "offline", error: null });
     if (status === "missing") return await resetFromElsewhere();
-    const transport = folderTransport(native, doc.folder);
+    let conflict = false;
+    const transport = watchingOwnBatches(folderTransport(native, doc.folder), doc.deviceId, () => doc.scopes, () => {
+      conflict = true;
+    });
     const clock = new Clock(doc.deviceId, doc.clock);
     const device = doc.deviceId;
     const app = (doc.scopes[APP_SCOPE] ??= { ...emptyScope(), awaitRemote: doc.joining });
@@ -348,6 +367,7 @@ async function runCycle({ retiring = false } = {}) {
       device,
       options: { persist: persistJournal(APP_SCOPE) },
     });
+    conflict ||= anotherWriterAhead(app, device) || (await conflictingBatch(app, APP_SCOPE, device, transport, checkedBatches));
     if (app.joined) linkProfiles(app);
     confirmThemes(app);
     let pending = app.pending;
@@ -367,6 +387,7 @@ async function runCycle({ retiring = false } = {}) {
         device,
         options: { expired: historyExpired, persist: persistJournal(scope) },
       });
+      conflict ||= anotherWriterAhead(state, device) || (await conflictingBatch(state, scope, device, transport, checkedBatches));
       pending += state.pending;
       if (!retire && doc.types.extensions && !s.profiles[profileId]?.dataId && extensionSyncAvailable()) await extensionsOf(profileId).reconcile(visible(state, "ext:"), Date.now());
       if (retire) {
@@ -379,6 +400,7 @@ async function runCycle({ retiring = false } = {}) {
     }
     doc.clock = clock.last;
     doc.lastSyncedAt = Date.now();
+    noteCopyConflict(doc, conflict);
     if (app.joined) doc.joining = false;
     forcePasswords = false;
     publishUi({ status: "updated", error: null, pending });
@@ -477,7 +499,7 @@ function linkProfiles(app: ScopeState) {
 }
 
 async function resetFromElsewhere() {
-  await SyncNative?.forget(doc.deviceId!);
+  if (ownsIdentity(doc)) await SyncNative?.forget(doc.deviceId!);
   doc = { ...emptyDoc(), folder: doc.folder, types: doc.types };
   clearJournal();
   save();
@@ -540,8 +562,46 @@ export async function chooseSyncFolder(): Promise<string | null> {
   return picked;
 }
 
+const checkedBatches = new Set<string>();
+
+function joinAsNewDevice(folder: string, deviceId: string) {
+  clearJournal();
+  savedState = "";
+  writeDocument(STATE, "");
+  begin(folder, deviceId, true);
+}
+
+async function joinCopy(unlocked: boolean) {
+  if (unlocked && (await finishCopyJoin())) return;
+  showJoinPending(unlocked);
+  publishUi({ status: "locked", error: "This Mac's sync state came from another copy of Orbit. Enter your recovery phrase to give it its own identity." });
+}
+
+export async function finishCopyJoin(): Promise<boolean> {
+  const native = SyncNative;
+  if (!native || !doc.folder || !writtenElsewhere(doc)) return false;
+  const deviceId = native.newDeviceId();
+  if (!(await saveKeyFor(native, deviceId))) return false;
+  joinAsNewDevice(doc.folder, deviceId);
+  return true;
+}
+
+export async function rejoinAsNewDevice(): Promise<boolean> {
+  const native = SyncNative;
+  if (!native || !doc.enabled || !doc.folder) return false;
+  clearTimeout(timer);
+  while (running) await new Promise((r) => setTimeout(r, 100));
+  const deviceId = native.newDeviceId();
+  if (!(await saveKeyFor(native, deviceId))) return false;
+  joinAsNewDevice(doc.folder, deviceId);
+  return true;
+}
+
 function begin(folder: string, deviceId: string, joining: boolean) {
   doc = { ...emptyDoc(), types: doc.types, enabled: true, folder, deviceId, setupAt: Date.now(), joining };
+  stampHome(doc);
+  showCopyWarning(doc);
+  showJoinPending(false);
   clearJournal();
   save();
   publishUi({ status: "starting", error: null });
@@ -566,9 +626,16 @@ export async function turnOnSync(folder: string): Promise<{ ok: true } | { error
 export async function enterRecoveryPhrase(folder: string, text: string): Promise<PhraseResult | { error: "unavailable" }> {
   const native = SyncNative;
   if (!native) return { error: "unavailable" };
+  if (doc.enabled && doc.deviceId && useSync.getState().status === "locked" && writtenElsewhere(doc)) {
+    const deviceId = native.newDeviceId();
+    const result = await native.enterPhrase(deviceId, text, doc.folder ?? folder);
+    if ("ok" in result) joinAsNewDevice(doc.folder ?? folder, deviceId);
+    return result;
+  }
   if (doc.enabled && doc.deviceId && useSync.getState().status === "locked") {
     const result = await native.enterPhrase(doc.deviceId, text, doc.folder ?? folder);
     if ("ok" in result) {
+      stampHome(doc);
       await loadState();
       publishUi({ status: "starting", error: null });
       scheduleSync(0);
@@ -587,7 +654,7 @@ export async function stopSync({ deleteData = false } = {}) {
   clearTimeout(timer);
   while (running) await new Promise((r) => setTimeout(r, 100));
   try {
-    if (useSync.getState().status !== "locked") await runCycle({ retiring: true });
+    if (useSync.getState().status !== "locked" && ownsIdentity(doc)) await runCycle({ retiring: true });
   } catch {}
   clearTimeout(timer);
   const folder = doc.folder;
@@ -598,7 +665,7 @@ export async function stopSync({ deleteData = false } = {}) {
       console.warn("[sync] deleting sync data failed", error);
     }
   }
-  if (doc.deviceId) await native.forget(doc.deviceId);
+  if (doc.deviceId && ownsIdentity(doc)) await native.forget(doc.deviceId);
   doc = { ...emptyDoc(), folder, types: doc.types };
   passwordAdapters.clear();
   extensionAdapters.clear();
@@ -687,9 +754,13 @@ export function startSync() {
   load();
   publishUi({ status: doc.enabled ? "starting" : "off" });
   void watchExtensions();
+  showCopyWarning(doc);
   if (doc.enabled && doc.deviceId) {
+    const copied = writtenElsewhere(doc);
     void SyncNative.unlock(doc.deviceId).then(async (ok) => {
+      if (copied) return void (await joinCopy(ok));
       if (!ok) return publishUi({ status: "locked", error: "Enter your recovery phrase to keep syncing on this Mac." });
+      stampHome(doc);
       await loadState();
       settleAppliedThemes(doc.scopes[APP_SCOPE]);
       publishUi();

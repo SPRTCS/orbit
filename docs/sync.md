@@ -385,6 +385,23 @@ bookmark, settings, profile or group edit, and on Sync Now. A cycle:
 5. Saves `sync.json` (in the app's data folder): links, settings of sync and the last seq written
    per scope; and `sync-state.nns`, sealed: the replica, base, version vectors and known files.
 
+## A copied data dir (Orbit)
+
+Two instances must never write as one device: a reader applies the first batch it sees with a given device and seq
+and skips the other everywhere, so the losing instance's edits (its pinned folders, say) are missing on every other
+device, also on the original. A data dir copied with its sync state (`scripts/orbit/install-local.sh`, a copy of
+Ardia's data dir, a restored backup) would do exactly that. So `sync.json` is stamped with the bundle id and the
+data dir's identity (volume and inode), and the installer marks a copy it makes (`rejoin: true`). A Mac that finds
+either at launch joins as a new device before it writes anything, through the same path as turning sync off and on
+(a new id with its own key, an empty journal and state, every seq from 1), and leaves the old id to the other copy.
+A copy made before the stamp, still writing as one device with another, is only detected (one of its own seqs it
+never allocated, or two different batches at one of its own seqs) and shown in Settings › Sync with a "Rejoin as New
+Device" button; nothing is healed automatically, and a collision visible only inside a snapshot isn't detected.
+Details and hooks: `docs/orbit.md` › Copied sync state. Tested in `apps/browser/src/sync/copiedState.test.mjs` (a
+stamped copy, the installer's mark, a crash right after the switch, a locked copy, the old id never retired or
+forgotten, lockstep and ahead detection, the rejoin button, no flag for a crash re-send) and through the phone in
+`apps/mobile/OrbitSync` (the iPad sees the copy's folder, rows and group, with no seq reused).
+
 ## The phone as a light client (Orbit)
 
 Orbit's iPhone and iPad app joins the same folder as one more device, through the Swift package
@@ -402,8 +419,11 @@ Orbit's iPhone and iPad app joins the same folder as one more device, through th
   keys it shows: `prof:`, `pth:`, `dev:` in the app scope and `tabs:`, `pin:`, `pinrow:`, `pinfolder:` in
   profile scopes. Passwords, history and bookmarks are opened in memory while a file is read but never kept.
   Spaces come from `prof:`; pins from `pin:t:`/`pin:g:` by `pos`, with rows (`pinrow:` 1) placed in the
-  `pinfolder:` tree as `treeFromRecords` does; devices from `tabs:<id>` of devices that have a `dev:` record,
-  itself excluded.
+  `pinfolder:` tree as `treeFromRecords` does, with each folder's emoji and colour from `pinfolder:a:<id>`
+  (sanitised like `appearanceOf`); devices from `tabs:<id>` of devices that have a `dev:` record, itself excluded.
+  A space's theme comes from its `pth:` record (`{ t }`, sanitised like `sanitizeTheme`; `{ preset: true }` means
+  none), or from a legacy `th` on `prof:` while no `pth:` record is known. A space without one shows the Glass
+  sidebar's synthesised theme (`SyncedTheme.glass(for:)`, a port of `glassSpaceTheme` tested against the TS).
 - **What it writes.** Only its own `dev:<id>` (`{ n }`) in the app scope and `tabs:<id>` (`{ n, k, tabs }`, `k`
   is `iphone` or `ipad`, up to 30 http(s) tabs) in the default space's scope, a tombstone for `tabs:<id>` in any
   other space that still has one, and only when a value differs from the replica. Each batch is an immutable log

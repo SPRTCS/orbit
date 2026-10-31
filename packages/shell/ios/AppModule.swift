@@ -3,6 +3,13 @@ import MachO
 import ExpoModulesCore
 
 public class AppModule: Module {
+  static var dataDirectoryIdentity: String? {
+    guard let folder = try? ShellModule.documentURL("sync.json").deletingLastPathComponent().resolvingSymlinksInPath(),
+          let volume = try? folder.resourceValues(forKeys: [.volumeUUIDStringKey]).volumeUUIDString,
+          let inode = (try? FileManager.default.attributesOfItem(atPath: folder.path))?[.systemFileNumber] as? NSNumber else { return nil }
+    return "\(volume):\(inode.uint64Value)"
+  }
+
   public func definition() -> ModuleDefinition {
     Name("ArdiaApp")
     Constant("apiVersion") { () -> Int in 11 }
@@ -116,6 +123,7 @@ public class AppModule: Module {
         "processStart": Self.processStart as Any,
         "bootTime": Self.bootTime as Any,
         "inApplicationsFolder": Self.inApplicationsFolder,
+        "dataDirectoryId": Self.dataDirectoryIdentity as Any,
       ]
     }
 

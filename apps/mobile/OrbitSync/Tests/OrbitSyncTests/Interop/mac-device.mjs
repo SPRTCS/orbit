@@ -46,6 +46,7 @@ globalThis.acTestNativeModules = {
     createPhrase: (account) => rpc("createPhrase", account),
     enterPhrase: (account, text, folder) => rpc("enterPhrase", account, text, folder),
     unlock: (account) => rpc("unlock", account),
+    saveKey: async () => true,
     forget: async () => {},
     chainStatus: (folder) => rpc("chainStatus", folder),
     createChain: (folder) => rpc("createChain", folder),
@@ -146,11 +147,11 @@ const commands = {
     await engine.syncNow();
     return { ...summary(), view: view("default") };
   },
-  async setupFolders({ path, name, syncFirst, tilesOnly, docs, dataDirectory }) {
+  async setupFolders({ path, name, syncFirst, tilesOnly, docs, dataDirectoryId }) {
     folder = path;
     deviceName = name;
     shell.appInfo.bundleId = "com.aisconsulting.orbit";
-    shell.appInfo.dataDirectory = dataDirectory ?? "/Users/me/Library/Application Support/com.aisconsulting.orbit";
+    shell.appInfo.dataDirectoryId = dataDirectoryId ?? "volume:1";
     startWindow([{ url: "https://open.example/", title: "Open Page" }]);
     const build = () => {
       S().pinTabs([1, 2, 3, 4, 5, 6].map((i) => titled(home, `https://tile${i}.example/`, `Tile ${i}`)), true);
