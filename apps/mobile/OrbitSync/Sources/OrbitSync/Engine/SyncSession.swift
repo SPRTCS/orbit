@@ -148,24 +148,32 @@ final class SyncSession {
     return try withFolder { vault in
       guard vault.chainExists() else { throw SessionFailure.chainMissing }
       try flushJournal(vault)
-      pull(vault)
+      let readable = pull(vault)
       try publish(vault)
+      guard readable else {
+        try saveState()
+        throw SessionFailure.folderUnavailable
+      }
       lastSync = now()
       try saveState()
       return views
     }
   }
 
-  private func pull(_ vault: FolderVault) {
+  private func pull(_ vault: FolderVault) -> Bool {
     let started = nowMs
-    app.pull(vault.read(scope: SpaceKeys.appScope, skipping: Set(app.files.keys)), now: started, clock: &clock, keep: SpaceKeys.keepsApp)
+    let appListing = vault.read(scope: SpaceKeys.appScope, skipping: Set(app.files.keys))
+    var readable = !appListing.unreadable
+    if readable { app.pull(appListing, now: started, clock: &clock, keep: SpaceKeys.keepsApp) }
     let ids = SpaceKeys.spaceIds(in: app)
     for id in ids {
       var replica = spaces[id] ?? ScopeReplica()
-      replica.pull(vault.read(scope: SpaceKeys.scope(ofSpace: id), skipping: Set(replica.files.keys)), now: nowMs, clock: &clock, keep: SpaceKeys.keepsSpace)
+      let listing = vault.read(scope: SpaceKeys.scope(ofSpace: id), skipping: Set(replica.files.keys))
+      if listing.unreadable { readable = false } else { replica.pull(listing, now: nowMs, clock: &clock, keep: SpaceKeys.keepsSpace) }
       spaces[id] = replica
     }
     for id in spaces.keys where !ids.contains(id) { spaces[id] = nil }
+    return readable
   }
 
   private func publish(_ vault: FolderVault) throws {

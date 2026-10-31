@@ -59,6 +59,7 @@ struct FolderListing: Sendable {
   var pending: [String] = []
   var damaged: [String] = []
   var present: [String] = []
+  var unreadable = false
 }
 
 enum ParsedFile {

@@ -193,6 +193,18 @@ final class SessionTests: XCTestCase {
     XCTAssertEqual(try logs("p:personal").count, 0, "no tabs are published until the app hands some over")
   }
 
+  func testAnExistingScopeThatCantBeListedIsAnErrorNotAQuietSync() throws {
+    let session = try session()
+    XCTAssertEqual(try session.cycle().spaces.map(\.name), ["Personal"])
+    let scope = mac.chainURL.appendingPathComponent(ArdiaSyncCore.SyncKeys(entropy: entropy).scopeTag("app"))
+    try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: scope.path)
+    defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scope.path) }
+    XCTAssertThrowsError(try session.cycle()) { XCTAssertEqual($0 as? SessionFailure, .folderUnavailable) }
+    XCTAssertEqual(session.spaces.count, 1, "an unreadable scope keeps what it had")
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scope.path)
+    XCTAssertEqual(try session.cycle().spaces.map(\.name), ["Personal"])
+  }
+
   func testTheChainGoneMeansResetElsewhereAndAMissingFolderMeansUnavailable() throws {
     let session = try session()
     _ = try session.cycle()

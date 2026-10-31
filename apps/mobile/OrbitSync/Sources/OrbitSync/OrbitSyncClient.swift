@@ -53,7 +53,7 @@ public final class OrbitSyncClient: OrbitSyncing {
   static let identityAccount = Identity.account
 
   public convenience init() {
-    self.init(storageDirectory: LocalStorage.defaultDirectory, keyStore: KeychainKeyStore(service: Self.keychainService), deviceName: Self.currentDeviceName, deviceKind: Self.currentDeviceKind)
+    self.init(storageDirectory: LocalStorage.defaultDirectory, keyStore: UpdatingKeychainKeyStore(service: Self.keychainService), deviceName: Self.currentDeviceName, deviceKind: Self.currentDeviceKind)
   }
 
   init(storageDirectory: URL, keyStore: any SyncKeyStore, deviceName: String, deviceKind: String = OrbitSyncClient.currentDeviceKind, now: @escaping @Sendable () -> Date = { Date() }) {

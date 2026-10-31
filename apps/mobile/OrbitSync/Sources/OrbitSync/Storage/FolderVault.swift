@@ -23,7 +23,10 @@ struct FolderVault {
     var listing = FolderListing()
     let directory = scopeURL(scope)
     refreshListing(of: directory)
-    guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return listing }
+    guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
+      listing.unreadable = isDirectory(directory)
+      return listing
+    }
     let suffix = ".\(Self.fileExtension)"
     let placeholderSuffix = "\(suffix).icloud"
     let scopeTag = keys.scopeTag(scope)

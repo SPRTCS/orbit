@@ -68,6 +68,7 @@ final class BrowserModel {
       activate(restored, touch: false)
     } else {
       entry.begin(newTab: true, initialText: "")
+      tabsChanged()
     }
   }
 
