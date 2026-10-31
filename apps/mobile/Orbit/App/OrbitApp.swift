@@ -9,6 +9,7 @@ struct OrbitApp: App {
     WindowGroup {
       RootView()
         .environment(browser)
+        .preferredColorScheme(browser.themes.colorScheme)
     }
     .commands { BrowserCommands(browser: browser) }
     .onChange(of: scenePhase, initial: true) { _, phase in

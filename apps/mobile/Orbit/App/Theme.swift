@@ -2,20 +2,10 @@ import OrbitSync
 import SwiftUI
 
 struct OrbitBackdrop: View {
-  var tint: Color?
-  @Environment(\.colorScheme) private var colorScheme
+  @Environment(BrowserModel.self) private var browser
 
   var body: some View {
-    let colors: [Color] =
-      colorScheme == .dark
-      ? [Color(red: 0.10, green: 0.10, blue: 0.17), Color(red: 0.13, green: 0.10, blue: 0.17), Color(red: 0.17, green: 0.09, blue: 0.11)]
-      : [Color(red: 0.93, green: 0.92, blue: 1.0), Color(red: 0.97, green: 0.95, blue: 0.99), Color(red: 0.99, green: 0.93, blue: 0.95)]
-    ZStack {
-      LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-      if let tint {
-        LinearGradient(colors: [tint.opacity(colorScheme == .dark ? 0.28 : 0.22), .clear], startPoint: .topLeading, endPoint: .bottomTrailing)
-      }
-    }
+    ThemeBackdrop(theme: browser.currentTheme)
   }
 }
 

@@ -56,6 +56,12 @@ final class PreviewSync: OrbitSyncing {
 
   private static func url(_ string: String) -> URL { URL(string: string)! }
 
+  static let sampleFolders: [SyncedFolder] = [
+    SyncedFolder(id: "f-reading", name: "Reading", path: ["Reading"], parentId: nil, emoji: "📚", color: "blue"),
+    SyncedFolder(id: "f-dev", name: "Dev", path: ["Reading", "Dev"], parentId: "f-reading", emoji: nil, color: "#3EB489"),
+    SyncedFolder(id: "f-mlp", name: "MLP", path: ["MLP"], parentId: nil, emoji: nil, color: nil),
+  ]
+
   static let sampleSpaces: [SyncedSpace] = [
     SyncedSpace(
       id: "space-personal", name: "Personal", color: "#8B7CF6", icon: "🪐", isDefault: true,
@@ -63,13 +69,14 @@ final class PreviewSync: OrbitSyncing {
         SyncedPin(id: "t:1", title: "GitHub", url: url("https://github.com"), groupId: nil, folderPath: [], isTile: true),
         SyncedPin(id: "t:2", title: "YouTube", url: url("https://www.youtube.com"), groupId: nil, folderPath: [], isTile: true),
         SyncedPin(id: "t:3", title: "Gmail", url: url("https://mail.google.com"), groupId: nil, folderPath: [], isTile: true),
-        SyncedPin(id: "t:4", title: "Hacker News", url: url("https://news.ycombinator.com"), groupId: nil, folderPath: ["Reading"]),
-        SyncedPin(id: "g:1", title: "Morning news", url: nil, groupId: nil, folderPath: ["Reading"]),
-        SyncedPin(id: "t:5", title: "The Verge", url: url("https://www.theverge.com"), groupId: "g:1", folderPath: ["Reading"]),
-        SyncedPin(id: "t:6", title: "Engadget", url: url("https://www.engadget.com"), groupId: "g:1", folderPath: ["Reading"]),
-        SyncedPin(id: "t:7", title: "Swift Forums", url: url("https://forums.swift.org"), groupId: nil, folderPath: ["Reading", "Dev"]),
+        SyncedPin(id: "t:4", title: "Hacker News", url: url("https://news.ycombinator.com"), groupId: nil, folderPath: ["Reading"], folderId: "f-reading"),
+        SyncedPin(id: "g:1", title: "Morning news", url: nil, groupId: nil, folderPath: ["Reading"], folderId: "f-reading"),
+        SyncedPin(id: "t:5", title: "The Verge", url: url("https://www.theverge.com"), groupId: "g:1", folderPath: ["Reading"], folderId: "f-reading"),
+        SyncedPin(id: "t:6", title: "Engadget", url: url("https://www.engadget.com"), groupId: "g:1", folderPath: ["Reading"], folderId: "f-reading"),
+        SyncedPin(id: "t:7", title: "Swift Forums", url: url("https://forums.swift.org"), groupId: nil, folderPath: ["Reading", "Dev"], folderId: "f-dev"),
+        SyncedPin(id: "t:12", title: "MLP Portal", url: url("https://www.mlp.de"), groupId: nil, folderPath: ["MLP"], folderId: "f-mlp"),
         SyncedPin(id: "t:8", title: "Weather", url: url("https://weather.com"), groupId: nil, folderPath: []),
-      ]),
+      ], folders: sampleFolders),
     SyncedSpace(
       id: "space-work", name: "Work", color: "#4FA3F7", icon: "💼", isDefault: false,
       pins: [

@@ -58,7 +58,7 @@ struct StartPageView: View {
   var body: some View {
     let devices = browser.sync.recentDevices
     ZStack {
-      OrbitBackdrop(tint: browser.currentSpace?.tint)
+      OrbitBackdrop()
       ScrollView {
         VStack(spacing: 28) {
           OrbitMark(size: 54)

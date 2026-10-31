@@ -121,6 +121,12 @@ final class MergeTests: XCTestCase {
       "t:r4|Orphan|||",
     ])
     XCTAssertNil(pins.first { $0.id == "g:g1" }?.url)
+    XCTAssertEqual(pins.filter(\.isGroup).map(\.id), ["g:g1"])
+    let folders = ViewBuilder.pinned(in: scope).folders
+    XCTAssertEqual(folders.map(\.path), [["Projects"], ["Projects", "Inner"], ["Loop X"], ["Loop X", "Loop Y"]])
+    XCTAssertEqual(folders.first?.emoji, "📁")
+    XCTAssertEqual(folders[1].parentId, "f:p")
+    XCTAssertEqual(pins.first { $0.title == "Spec" }?.folderId, "f:i")
     XCTAssertEqual(pins.first { $0.id == "t:t1" }?.url, URL(string: "https://t1.example/"))
   }
 }

@@ -86,18 +86,93 @@ struct TabPersistenceTests {
     #expect(published.allSatisfy { $0.url.scheme == "https" })
   }
 
-  @Test func pinLayoutSplitsTilesFoldersAndGroups() {
-    let layout = PinLayout(pins: PreviewSync.sampleSpaces[0].pins)
-    #expect(layout.tiles.map(\.title) == ["GitHub", "YouTube", "Gmail"])
-    #expect(layout.sections.map(\.title) == ["", "Reading", "Reading › Dev"])
-    #expect(layout.sections[0].entries.map(\.id) == ["t:8"])
-    #expect(layout.sections[1].entries.map(\.id) == ["t:4", "g:1"])
-    guard case .group(let group, let members) = layout.sections[1].entries[1] else {
-      Issue.record("Expected a tab group")
+  @Test func pinTreeNestsFoldersGroupsAndTiles() {
+    let tree = PinTree(space: PreviewSync.sampleSpaces[0])
+    #expect(tree.tiles.map(\.title) == ["GitHub", "YouTube", "Gmail"])
+    #expect(tree.roots.map(\.id) == ["folder:f-reading", "folder:f-mlp", "t:8"])
+    guard case .folder(let reading, let children) = tree.roots[0] else {
+      Issue.record("Expected the Reading folder")
       return
     }
-    #expect(group.title == "Morning news")
+    #expect(reading.emoji == "📚")
+    #expect(children.map(\.id) == ["t:4", "g:1", "folder:f-dev"])
+    guard case .group(_, let members) = children[1], case .folder(let dev, let devChildren) = children[2] else {
+      Issue.record("Expected a group and the nested Dev folder")
+      return
+    }
     #expect(members.map(\.title) == ["The Verge", "Engadget"])
+    #expect(dev.name == "Dev")
+    #expect(devChildren.map(\.id) == ["t:7"])
+    guard case .folder(let mlp, let mlpChildren) = tree.roots[1] else {
+      Issue.record("Expected the MLP folder")
+      return
+    }
+    #expect(mlp.name == "MLP")
+    #expect(mlpChildren.map(\.id) == ["t:12"])
+  }
+
+  @Test func pinTreeShowsEmptyFoldersAndSkipsEmptyRows() {
+    let folders = [
+      SyncedFolder(id: "f:a", name: "Empty", path: ["Empty"], parentId: nil, emoji: "🗂", color: "green"),
+      SyncedFolder(id: "f:b", name: "Docs", path: ["Docs"], parentId: nil, emoji: nil, color: nil),
+    ]
+    let pins = [
+      SyncedPin(id: "t:1", title: "Blank", url: nil, groupId: nil, folderPath: ["Docs"], folderId: "f:b"),
+      SyncedPin(id: "t:2", title: "Spec", url: URL(string: "https://example.com/spec")!, groupId: nil, folderPath: ["Docs"], folderId: "f:b"),
+    ]
+    let tree = PinTree(pins: pins, folders: folders)
+    #expect(tree.roots.map(\.id) == ["folder:f:b", "folder:f:a"])
+    guard case .folder(_, let docs) = tree.roots[0], case .folder(let empty, let emptyChildren) = tree.roots[1] else {
+      Issue.record("Expected two folders")
+      return
+    }
+    #expect(docs.map(\.id) == ["t:2"])
+    #expect(empty.emoji == "🗂")
+    #expect(emptyChildren.isEmpty)
+  }
+
+  @Test func pinTreeFallsBackToFolderPaths() {
+    let tree = PinTree(space: PreviewSync.sampleSpaces[1])
+    #expect(tree.roots.map(\.id) == ["folder:path:Shipping"])
+  }
+
+  @Test func pinTabsAreSeparateFromRegularTabs() {
+    let browser = BrowserModel(
+      persistence: makePersistence(),
+      settings: AppSettings(defaults: UserDefaults(suiteName: "OrbitTests-\(UUID().uuidString)")!),
+      syncClient: PreviewSync(populated: true))
+    let pin = PreviewSync.sampleSpaces[0].pins[3]
+    browser.openPin(pin)
+    #expect(browser.tabs.isEmpty)
+    #expect(browser.selectedTab?.pinID == pin.id)
+    let first = browser.selectedTab?.id
+    browser.openNewTab(with: URL(string: "https://example.com")!)
+    browser.openPin(pin)
+    #expect(browser.selectedTab?.id == first)
+    #expect(browser.tabs.count == 1)
+    #expect(SyncCoordinator.publishable(browser.tabs.map(\.record)).map(\.url.host) == ["example.com"])
+    browser.closeAllTabs()
+    #expect(browser.pinTabs[pin.id] != nil)
+    #expect(browser.selectedTab?.pinID == pin.id)
+  }
+
+  @Test func pinTabsPersistAndFollowTheMac() {
+    let persistence = makePersistence()
+    let settings = AppSettings(defaults: UserDefaults(suiteName: "OrbitTests-\(UUID().uuidString)")!)
+    let browser = BrowserModel(persistence: persistence, settings: settings, syncClient: PreviewSync(populated: true))
+    let kept = PreviewSync.sampleSpaces[0].pins[3]
+    let removed = PreviewSync.sampleSpaces[0].pins[0]
+    browser.openPin(kept)
+    browser.openPin(removed)
+    browser.persistEverything()
+    persistence.flush()
+    let restored = BrowserModel(
+      persistence: TabPersistence(directory: persistence.directory), settings: settings, syncClient: PreviewSync(populated: true))
+    #expect(Set(restored.pinTabs.keys) == [kept.id, removed.id])
+    var spaces = PreviewSync.sampleSpaces
+    spaces[0].pins.removeAll { $0.id == removed.id }
+    restored.reconcilePinTabs(with: spaces)
+    #expect(Set(restored.pinTabs.keys) == [kept.id])
   }
 
   @Test func recentDevicesAreUniquePerDevice() {

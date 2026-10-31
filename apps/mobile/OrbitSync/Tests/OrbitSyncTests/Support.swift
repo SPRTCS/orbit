@@ -149,7 +149,7 @@ final class MacDevice {
   private func handle(_ method: String, _ args: [JSONValue]) throws -> Any {
     let string = { (index: Int) in args.indices.contains(index) ? args[index].string ?? "" : "" }
     switch method {
-    case "createPhrase":
+    case "createPhrase", "unlock":
       keys = ArdiaSyncCore.SyncKeys(entropy: entropy)
       return true
     case "enterPhrase":

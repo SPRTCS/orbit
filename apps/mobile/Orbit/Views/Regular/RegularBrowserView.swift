@@ -19,7 +19,7 @@ struct RegularBrowserView: View {
       let sidebarWidth = layout.sidebarWidth
       let edgeGap = layout.edgeGap
       ZStack {
-        OrbitBackdrop(tint: browser.currentSpace?.tint)
+        OrbitBackdrop()
         HStack(spacing: 0) {
           if browser.isSidebarVisible {
             SidebarView(width: sidebarWidth, safeArea: safeArea, edgeGap: edgeGap)
@@ -222,8 +222,13 @@ struct ResizeHandleSurface: UIViewRepresentable {
   }
 }
 
+struct TopRowGeometry: Equatable {
+  var cornerInsets = EdgeInsets()
+  var statusBarOverlap: CGFloat = 0
+}
+
 struct LayoutRegionInsetsReader: UIViewRepresentable {
-  let onChange: (EdgeInsets) -> Void
+  let onChange: (TopRowGeometry) -> Void
 
   func makeUIView(context: Context) -> ReaderView {
     let view = ReaderView()
@@ -238,8 +243,8 @@ struct LayoutRegionInsetsReader: UIViewRepresentable {
   }
 
   final class ReaderView: UIView {
-    var onChange: ((EdgeInsets) -> Void)?
-    private var lastInsets: UIEdgeInsets?
+    var onChange: ((TopRowGeometry) -> Void)?
+    private var lastGeometry: TopRowGeometry?
 
     override func layoutSubviews() {
       super.layoutSubviews()
@@ -252,13 +257,21 @@ struct LayoutRegionInsetsReader: UIViewRepresentable {
     }
 
     func report() {
-      guard window != nil else { return }
+      guard let window else { return }
       let insets = edgeInsets(for: .margins(cornerAdaptation: .horizontal))
-      guard insets != lastInsets else { return }
-      lastInsets = insets
+      var overlap: CGFloat = 0
+      if let statusBar = window.windowScene?.statusBarManager?.statusBarFrame, !statusBar.isEmpty {
+        let local = convert(statusBar, from: window)
+        let intersection = local.intersection(bounds)
+        if !intersection.isNull, intersection.width > 0 { overlap = intersection.maxY - bounds.minY }
+      }
+      let geometry = TopRowGeometry(
+        cornerInsets: EdgeInsets(top: insets.top, leading: insets.left, bottom: insets.bottom, trailing: insets.right),
+        statusBarOverlap: max(0, overlap.rounded(.up)))
+      guard geometry != lastGeometry else { return }
+      lastGeometry = geometry
       let callback = onChange
-      let edgeInsets = EdgeInsets(top: insets.top, leading: insets.left, bottom: insets.bottom, trailing: insets.right)
-      DispatchQueue.main.async { callback?(edgeInsets) }
+      DispatchQueue.main.async { callback?(geometry) }
     }
   }
 }

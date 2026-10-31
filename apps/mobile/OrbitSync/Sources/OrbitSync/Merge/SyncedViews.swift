@@ -152,13 +152,16 @@ enum ViewBuilder {
     var built: [SyncedSpace] = []
     for (key, value) in profiles {
       let id = String(key.dropFirst(SpaceKeys.profile.count))
+      let pinned = spaces[id].map(pinned(in:))
       built.append(SyncedSpace(
         id: id,
         name: value["n"]?.string ?? "",
         color: value["c"]?.string,
         icon: value["i"]?.string,
         isDefault: value["d"]?.bool == true,
-        pins: spaces[id].map(pins(in:)) ?? []
+        pins: pinned?.pins ?? [],
+        theme: theme(of: id, profile: value, app: app),
+        folders: pinned?.folders ?? []
       ))
     }
     views.spaces = built.sorted { a, z in
@@ -205,12 +208,54 @@ enum ViewBuilder {
     return views
   }
 
+  static func theme(of id: String, profile: JSONValue, app: ScopeReplica) -> SyncedTheme? {
+    if let record = app.records[SpaceKeys.theme + id] { return SyncedTheme(record: record.v) }
+    return SyncedTheme(json: profile["th"])
+  }
+
   static func byPosition(_ a: (id: String, pos: String), _ z: (id: String, pos: String)) -> Bool {
     if a.pos != z.pos { return jsLess(a.pos, z.pos) }
     return jsLess(a.id, z.id)
   }
 
-  static func pins(in scope: ScopeReplica) -> [SyncedPin] {
+  static func pins(in scope: ScopeReplica) -> [SyncedPin] { pinned(in: scope).pins }
+
+  static let folderColors: Set<String> = ["grey", "blue", "red", "yellow", "green", "pink", "purple", "cyan", "orange"]
+
+  static func folderEmoji(_ value: String?) -> String? {
+    guard let text = value?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty, text.utf16.count <= 32 else { return nil }
+    func within(_ cp: UInt32, _ ranges: [ClosedRange<UInt32>]) -> Bool { ranges.contains { $0.contains(cp) } }
+    let pictographs: [ClosedRange<UInt32>] = [
+      0xa9...0xa9, 0xae...0xae, 0x203c...0x203c, 0x2049...0x2049, 0x2122...0x2122, 0x2139...0x2139, 0x2194...0x21aa,
+      0x231a...0x23ff, 0x24c2...0x24c2, 0x25aa...0x25fe, 0x2600...0x27bf, 0x2934...0x2935, 0x2b05...0x2b55,
+      0x3030...0x3030, 0x303d...0x303d, 0x3297...0x3299, 0x1f000...0x1f1e5, 0x1f200...0x1faff,
+    ]
+    let regional: [ClosedRange<UInt32>] = [0x1f1e6...0x1f1ff]
+    let modifiers: [ClosedRange<UInt32>] = [0xfe0e...0xfe0f, 0x1f3fb...0x1f3ff, 0x20e3...0x20e3, 0xe0020...0xe007f]
+    let keycapBases: Set<UInt32> = [0x23, 0x2a, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39]
+    let cps = text.unicodeScalars.map(\.value)
+    var i = 0
+    func next() -> UInt32? {
+      defer { i += 1 }
+      return i < cps.count ? cps[i] : nil
+    }
+    while true {
+      guard let base = next() else { return nil }
+      if within(base, regional) {
+        guard within(next() ?? 0, regional) else { return nil }
+      } else if keycapBases.contains(base) {
+        while i < cps.count, cps[i] == 0xfe0f { i += 1 }
+        guard next() == 0x20e3 else { return nil }
+      } else if !within(base, pictographs) {
+        return nil
+      }
+      while i < cps.count, within(cps[i], modifiers) { i += 1 }
+      if i >= cps.count { return text }
+      guard next() == 0x200d else { return nil }
+    }
+  }
+
+  static func pinned(in scope: ScopeReplica) -> (pins: [SyncedPin], folders: [SyncedFolder]) {
     var tabs: [String: PinTab] = [:]
     var groups: [String: PinGroup] = [:]
     for (key, value) in scope.visible("pin:g:") {
@@ -234,8 +279,10 @@ enum ViewBuilder {
     for tab in tabs.values { if let group = tab.group { members[group, default: []].append(tab) } }
 
     var out: [SyncedPin] = []
+    var folders: [SyncedFolder] = []
+    var at: (path: [String], id: String?) = ([], nil)
     func pin(_ tab: PinTab, groupId: String?, path: [String], isTile: Bool) -> SyncedPin {
-      SyncedPin(id: "t:\(tab.id)", title: tab.title, url: tab.url.isEmpty ? nil : URL(string: tab.url), groupId: groupId, folderPath: path, isTile: isTile)
+      SyncedPin(id: "t:\(tab.id)", title: tab.title, url: tab.url.isEmpty ? nil : URL(string: tab.url), groupId: groupId, folderPath: path, isTile: isTile, folderId: isTile ? nil : at.id)
     }
     for tile in tiles { out.append(pin(tile, groupId: nil, path: [], isTile: true)) }
 
@@ -246,12 +293,17 @@ enum ViewBuilder {
     }
     func emitGroup(_ id: String, _ path: [String]) {
       guard let group = groups[id], placed.insert("g:\(id)").inserted else { return }
-      out.append(SyncedPin(id: "g:\(id)", title: group.name, url: nil, groupId: nil, folderPath: path))
+      out.append(SyncedPin(id: "g:\(id)", title: group.name, url: nil, groupId: nil, folderPath: path, folderId: at.id))
       for member in sortedTabs(members[id] ?? []) { out.append(pin(member, groupId: "g:\(id)", path: path, isTile: false)) }
     }
     let tree = PinnedTree(records: scope.visible(SpaceKeys.pinFolder)) { ref in
       if let record = scope.records["pin:\(ref)"] { return record.v.isNull }
       return false
+    }
+    var looks: [String: (emoji: String?, color: String?)] = [:]
+    for (key, value) in scope.visible(SpaceKeys.pinFolder + "a:") {
+      let id = String(key.dropFirst((SpaceKeys.pinFolder + "a:").count))
+      looks[id] = (folderEmoji(value["e"]?.string), value["c"]?.string.flatMap { folderColors.contains($0) ? $0 : nil })
     }
     var visited = Set<String>()
     func walk(_ refs: [String], _ path: [String]) {
@@ -259,7 +311,11 @@ enum ViewBuilder {
         if PinnedTree.isFolderRef(ref) {
           let id = PinnedTree.folderId(of: ref)
           guard let folder = tree.folders[id], visited.insert(id).inserted else { continue }
+          let outer = at
+          folders.append(SyncedFolder(id: ref, name: folder.name, path: path + [folder.name], parentId: outer.id, emoji: looks[id]?.emoji, color: looks[id]?.color))
+          at = (path + [folder.name], ref)
           walk(folder.children, path + [folder.name])
+          at = outer
         } else if ref.hasPrefix("t:") {
           emitRow(String(ref.dropFirst(2)), path)
         } else if ref.hasPrefix("g:") {
@@ -270,6 +326,6 @@ enum ViewBuilder {
     walk(tree.root, [])
     for row in rowTabs { emitRow(row.id, []) }
     for group in groups.values.sorted(by: { byPosition(($0.id, $0.pos), ($1.id, $1.pos)) }) { emitGroup(group.id, []) }
-    return out
+    return (out, folders)
   }
 }

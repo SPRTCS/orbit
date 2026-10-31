@@ -140,12 +140,19 @@ struct SidebarLayoutTests {
     let toggleTop = SidebarLayout.topRowInset(edgeGap: gap)
     #expect(toggleLeft + SidebarLayout.iconButtonSize / 2 == footerCenter)
     #expect(toggleTop + SidebarLayout.iconButtonSize / 2 == gap + ChromeMetrics.regularControlSize / 2)
-    #expect(toggleTop == 28)
+    #expect(toggleTop == 23)
+    #expect(SidebarLayout.iconButtonSize >= 44)
   }
 
   @Test func topRowClearsStageManagerWindowControls() {
     #expect(SidebarLayout.topRowLeading(edgeGap: 22, safeLeading: 0, cornerAdaptedLeading: 84) == 84)
-    #expect(SidebarLayout.topRowLeading(edgeGap: 22, safeLeading: 0, cornerAdaptedLeading: 24) == 28)
+    #expect(SidebarLayout.topRowLeading(edgeGap: 22, safeLeading: 0, cornerAdaptedLeading: 24) == 23)
+  }
+
+  @Test func topRowStaysBelowAStatusBarAcrossTheTop() {
+    #expect(SidebarLayout.topRowInset(edgeGap: 36, statusBarOverlap: 0) == 37)
+    #expect(SidebarLayout.topRowInset(edgeGap: 36, statusBarOverlap: 54) == 58)
+    #expect(SidebarLayout.topRowInset(edgeGap: 22, statusBarOverlap: 24) == 28)
   }
 }
 

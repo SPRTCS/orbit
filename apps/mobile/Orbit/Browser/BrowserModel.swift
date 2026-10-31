@@ -7,6 +7,8 @@ final class BrowserModel {
   static let maxLiveWebViews = 6
 
   private(set) var tabs: [BrowserTab] = []
+  private(set) var pinTabs: [String: BrowserTab] = [:]
+  let pinFolders = PinFolderState()
   private(set) var selectedTabID: UUID?
   var chromeCollapsed = false
   var isShowingTabSwitcher = false {
@@ -21,6 +23,8 @@ final class BrowserModel {
   var selectedSpaceID: String?
 
   let entry = AddressEntryModel()
+  let themes = ThemeStore()
+  var themeEditTarget: ThemeEditTarget?
   let morph = OverviewMorph()
   @ObservationIgnored var isCompactLayout = true
   let suggestions = SuggestionEngine()
@@ -71,9 +75,68 @@ final class BrowserModel {
     if visible { setChromeCollapsed(false) }
   }
 
+  var currentTheme: ProfileTheme {
+    themes.theme(for: currentSpace)
+  }
+
   var selectedTab: BrowserTab? {
     guard let selectedTabID else { return nil }
-    return tabs.first { $0.id == selectedTabID }
+    return tabs.first { $0.id == selectedTabID } ?? pinTabs.values.first { $0.id == selectedTabID }
+  }
+
+  var allTabs: [BrowserTab] { tabs + Array(pinTabs.values) }
+
+  func pinTab(for pin: SyncedPin) -> BrowserTab? { pinTabs[pin.id] }
+
+  func isPinSelected(_ pin: SyncedPin) -> Bool {
+    selectedTab?.pinID == pin.id
+  }
+
+  func openPin(_ pin: SyncedPin) {
+    guard let url = pin.url else { return }
+    isShowingDevices = false
+    isShowingTabSwitcher = false
+    if let existing = pinTabs[pin.id] {
+      if existing.id == selectedTabID {
+        load(url, in: existing)
+      } else {
+        select(existing)
+      }
+      return
+    }
+    let tab = BrowserTab(url: url, title: pin.title, pinID: pin.id, homeURL: url)
+    pinTabs[pin.id] = tab
+    select(tab)
+  }
+
+  func returnToPinnedURL(_ pin: SyncedPin) {
+    guard let url = pin.url, let tab = pinTabs[pin.id] else { return }
+    if tab.id != selectedTabID { select(tab) }
+    load(url, in: tab)
+  }
+
+  func returnSelectedPinToHome() {
+    guard let tab = selectedTab, tab.isPinTab, let home = tab.homeURL else { return }
+    load(home, in: tab)
+  }
+
+  func closePinTab(_ tab: BrowserTab) {
+    guard let pinID = tab.pinID else { return }
+    tab.controller?.tearDown()
+    tab.controller = nil
+    pinTabs[pinID] = nil
+    persistence.removeArtifacts(for: tab.id)
+    if selectedTabID == tab.id {
+      selectedTabID = nil
+      if let next = tabs.max(by: { $0.lastActive < $1.lastActive }) { activate(next) }
+    }
+    tabsChanged()
+  }
+
+  func reconcilePinTabs(with spaces: [SyncedSpace]) {
+    guard sync.isConnected, !spaces.isEmpty else { return }
+    let pins = Dictionary(spaces.flatMap(\.pins).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    for (id, tab) in pinTabs where pins[id]?.url == nil { closePinTab(tab) }
   }
 
   var currentSpace: SyncedSpace? {
@@ -84,9 +147,13 @@ final class BrowserModel {
 
   private func restoreSession() {
     let session = persistence.loadSession()
-    tabs = session.tabs.map(BrowserTab.init(record:))
-    persistence.pruneArtifacts(keeping: Set(tabs.map(\.id)))
-    let restored = tabs.first { $0.id == session.selectedID } ?? tabs.max { $0.lastActive < $1.lastActive }
+    tabs = session.tabs.filter { $0.pinID == nil }.map(BrowserTab.init(record:))
+    for record in session.pinTabs ?? [] {
+      guard let pinID = record.pinID else { continue }
+      pinTabs[pinID] = BrowserTab(record: record)
+    }
+    persistence.pruneArtifacts(keeping: Set(allTabs.map(\.id)))
+    let restored = allTabs.first { $0.id == session.selectedID } ?? tabs.max { $0.lastActive < $1.lastActive }
     if let restored {
       activate(restored, touch: false)
     } else {
@@ -117,7 +184,7 @@ final class BrowserModel {
   }
 
   private func enforceLiveLimit() {
-    let background = tabs.filter { $0.controller != nil && $0.id != selectedTabID }
+    let background = allTabs.filter { $0.controller != nil && $0.id != selectedTabID }
       .sorted { $0.lastActive > $1.lastActive }
     for tab in background.dropFirst(Self.maxLiveWebViews - 1) { unload(tab) }
   }
@@ -132,7 +199,7 @@ final class BrowserModel {
   }
 
   func unloadBackgroundTabs() {
-    for tab in tabs where tab.id != selectedTabID { unload(tab) }
+    for tab in allTabs where tab.id != selectedTabID { unload(tab) }
     factory.dropSpare()
   }
 
@@ -148,7 +215,7 @@ final class BrowserModel {
   }
 
   func select(tabID: UUID) {
-    if let tab = tabs.first(where: { $0.id == tabID }) { select(tab) }
+    if let tab = allTabs.first(where: { $0.id == tabID }) { select(tab) }
   }
 
   func selectAdjacent(_ offset: Int, wrap: Bool) {
@@ -227,6 +294,10 @@ final class BrowserModel {
   }
 
   func close(_ tab: BrowserTab) {
+    if tab.isPinTab {
+      closePinTab(tab)
+      return
+    }
     guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
     if tab.url != nil {
       recentlyClosed.append(tab.record)
@@ -248,13 +319,14 @@ final class BrowserModel {
   }
 
   func closeAllTabs() {
+    let selectedWasRegular = tabs.contains { $0.id == selectedTabID }
     for tab in tabs {
       tab.controller?.tearDown()
       tab.controller = nil
       persistence.removeArtifacts(for: tab.id)
     }
     tabs.removeAll()
-    selectedTabID = nil
+    if selectedWasRegular { selectedTabID = nil }
     tabsChanged()
   }
 
@@ -524,7 +596,7 @@ final class BrowserModel {
   }
 
   private var session: TabSession {
-    TabSession(tabs: tabs.map(\.record), selectedID: selectedTabID)
+    TabSession(tabs: tabs.map(\.record), selectedID: selectedTabID, pinTabs: pinTabs.values.map(\.record))
   }
 
   private func scheduleSave() {
@@ -538,7 +610,7 @@ final class BrowserModel {
 
   func persistEverything() {
     saveTask?.cancel()
-    for tab in tabs {
+    for tab in allTabs {
       if let webView = tab.webView {
         persistence.saveInteractionState(webView.interactionState as? Data, for: tab.id)
       }

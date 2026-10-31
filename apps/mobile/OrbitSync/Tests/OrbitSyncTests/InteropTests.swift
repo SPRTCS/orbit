@@ -256,5 +256,85 @@ final class InteropTests: XCTestCase {
     XCTAssertEqual(phone.first?["tabs"]?.array?.compactMap { $0["title"]?.string }, ["B"])
     XCTAssertNotEqual(phone.first?["deviceId"]?.string, firstId, "the writer whose journal was lost is replaced")
   }
+
+  func phoneReading(_ scenario: [String: Any]) async throws -> (mac: JSONValue, space: SyncedSpace?) {
+    let folder = try Paths.scratch("folders-folder")
+    let storage = try Paths.scratch("folders-phone")
+    defer {
+      try? FileManager.default.removeItem(at: folder)
+      try? FileManager.default.removeItem(at: storage)
+    }
+    let mac = try MacDevice(entropy: Self.entropy)
+    var args = scenario
+    args["path"] = folder.path
+    args["name"] = "Arman’s MacBook Pro"
+    let result = try mac.command("setupFolders", args)
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: MemoryKeyStore(), deviceName: "Arman’s iPad", deviceKind: "ipad")
+    try client.connect(folder: folder)
+    await client.waitForPendingWork()
+    try await client.enterRecoveryPhrase(Self.words.joined(separator: " "))
+    return (result, client.spaces.first { $0.isDefault })
+  }
+
+  func testPinnedFoldersWithRowsGroupsAndAppearanceReachThePhone() async throws {
+    for syncFirst in [false, true] {
+      let (mac, space) = try await phoneReading(["syncFirst": syncFirst])
+      let pins = space?.pins ?? []
+      XCTAssertEqual(pins.filter(\.isTile).map(\.title), (1...6).map { "Tile \($0)" }, "syncFirst \(syncFirst)")
+      assertSidebar(space, matches: mac["view"], "folders built \(syncFirst ? "after" : "before") sync was turned on")
+      XCTAssertEqual(pins.first { $0.title == "Deep Row" }?.folderPath, ["MLP", "Inner"])
+      XCTAssertEqual(pins.first { $0.title == "Crew A" }?.folderPath, ["MLP"])
+      let mlp = space?.folders.first { $0.name == "MLP" }
+      XCTAssertEqual(mlp?.emoji, "🟡")
+      XCTAssertEqual(mlp?.color, "yellow")
+      XCTAssertEqual(space?.folders.first { $0.name == "Inner" }?.path, ["MLP", "Inner"])
+    }
+  }
+
+  func copiedMac(originalWritesAfterCopy: Int) async throws -> (pins: [SyncedPin], mac: JSONValue, original: JSONValue, sameDevice: Bool, collisions: Int) {
+    let folder = try Paths.scratch("copy-folder")
+    let storage = try Paths.scratch("copy-phone")
+    defer {
+      try? FileManager.default.removeItem(at: folder)
+      try? FileManager.default.removeItem(at: storage)
+    }
+    let original = try MacDevice(entropy: Self.entropy)
+    let a = try original.command("setupFolders", ["path": folder.path, "name": "Arman’s MacBook Pro", "tilesOnly": true])
+    let docs = try original.command("exportDocs").object?.mapValues { $0.string ?? "" } ?? [:]
+    try original.command("openTabs", ["count": originalWritesAfterCopy])
+    let copy = try MacDevice(entropy: Self.entropy)
+    let b = try copy.command("setupFolders", ["path": folder.path, "name": "Arman’s MacBook Pro", "docs": docs, "dataDirectory": "/tmp/orbit-user-test-glass"])
+    XCTAssertEqual(b["status"]?.string, "updated")
+    let client = OrbitSyncClient(storageDirectory: storage, keyStore: MemoryKeyStore(), deviceName: "Arman’s iPad", deviceKind: "ipad")
+    try client.connect(folder: folder)
+    await client.waitForPendingWork()
+    try await client.enterRecoveryPhrase(Self.words.joined(separator: " "))
+    let vault = ArdiaSyncCore.SyncVault(folder: folder, keys: ArdiaSyncCore.SyncKeys(entropy: Self.entropy))
+    var batches: [String: Set<Data>] = [:]
+    for scope in ["app", "p:\(b["profiles"]?["default"]?["syncId"]?.string ?? "")"] {
+      for file in vault.read(scope: scope, skipping: []).files {
+        guard let json = try? JSONSerialization.jsonObject(with: file.payload) as? [String: Any], json["kind"] as? String == "log",
+              let device = json["device"] as? String, let seq = json["seq"] as? Int else { continue }
+        batches["\(scope) \(device) \(seq)", default: []].insert(file.payload)
+      }
+    }
+    let collisions = batches.values.filter { $0.count > 1 }.count
+    let originalSidebar = try original.command("sidebar")
+    return (client.spaces.first { $0.isDefault }?.pins ?? [], b, originalSidebar, a["deviceId"] == b["deviceId"], collisions)
+  }
+
+  func testAMacStartedFromACopiedDataDirJoinsAsANewDeviceSoItsFoldersReachEveryone() async throws {
+    for writes in [0, 4] {
+      let copied = try await copiedMac(originalWritesAfterCopy: writes)
+      XCTAssertFalse(copied.sameDevice, "the copy takes a device id of its own")
+      XCTAssertEqual(copied.collisions, 0, "no batch reuses a device and seq")
+      XCTAssertTrue(copied.mac["view"]?.serialized.contains("MLP") ?? false)
+      XCTAssertTrue(copied.original["view"]?.serialized.contains("MLP") ?? false, "the original Mac now gets the copy's folder")
+      XCTAssertEqual(Set(copied.pins.filter(\.isTile).map(\.title)), Set((1...6).map { "Tile \($0)" }))
+      XCTAssertEqual(copied.pins.first { $0.title == "Deep Row" }?.folderPath, ["MLP", "Inner"], "and so does the phone")
+      XCTAssertEqual(copied.pins.first { $0.title == "MLP One" }?.folderPath, ["MLP"])
+      XCTAssertEqual(copied.pins.first { $0.title == "Crew A" }?.folderPath, ["MLP"])
+    }
+  }
 }
 #endif

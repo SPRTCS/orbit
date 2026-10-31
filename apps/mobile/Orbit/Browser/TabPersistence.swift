@@ -5,11 +5,14 @@ struct TabRecord: Codable, Equatable, Identifiable, Sendable {
   var url: URL?
   var title: String
   var lastActive: Date
+  var pinID: String?
+  var homeURL: URL?
 }
 
 struct TabSession: Codable, Equatable, Sendable {
   var tabs: [TabRecord]
   var selectedID: UUID?
+  var pinTabs: [TabRecord]?
 
   static let empty = TabSession(tabs: [], selectedID: nil)
 }

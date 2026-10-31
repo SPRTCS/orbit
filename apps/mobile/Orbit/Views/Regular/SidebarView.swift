@@ -6,17 +6,18 @@ struct SidebarView: View {
   let width: CGFloat
   let safeArea: EdgeInsets
   let edgeGap: CGFloat
-  @State private var topRowInsets = EdgeInsets(top: 24, leading: 20, bottom: 0, trailing: 0)
+  @State private var topRow = TopRowGeometry()
 
   var body: some View {
     VStack(spacing: 0) {
       SidebarTopBar()
         .padding(.leading, topRowLeading)
         .padding(.trailing, 10)
-        .padding(.top, SidebarLayout.topRowInset(edgeGap: edgeGap))
+        .padding(.top, SidebarLayout.topRowInset(edgeGap: edgeGap, statusBarOverlap: topRow.statusBarOverlap))
         .background {
-          LayoutRegionInsetsReader { topRowInsets = $0 }
+          LayoutRegionInsetsReader { topRow = $0 }
         }
+        .zIndex(1)
       ScrollView {
         VStack(alignment: .leading, spacing: 18) {
           if browser.sync.client.spaces.count > 1 { SpacePicker() }
@@ -64,20 +65,24 @@ struct SidebarView: View {
 
 extension SidebarView {
   private var topRowLeading: CGFloat {
-    SidebarLayout.topRowLeading(edgeGap: edgeGap, safeLeading: safeArea.leading, cornerAdaptedLeading: topRowInsets.leading)
+    SidebarLayout.topRowLeading(
+      edgeGap: edgeGap, safeLeading: safeArea.leading, cornerAdaptedLeading: topRow.cornerInsets.leading)
   }
 }
 
 enum SidebarLayout {
-  static let iconButtonSize: CGFloat = 34
+  static let iconButtonSize: CGFloat = 44
+  static let statusBarClearance: CGFloat = 4
   static let windowControlsThreshold: CGFloat = 30
 
   static func footerLeading(edgeGap: CGFloat, safeLeading: CGFloat) -> CGFloat {
     max(edgeGap, safeLeading + 8)
   }
 
-  static func topRowInset(edgeGap: CGFloat) -> CGFloat {
-    edgeGap + (ChromeMetrics.regularControlSize - iconButtonSize) / 2
+  static func topRowInset(edgeGap: CGFloat, statusBarOverlap: CGFloat = 0) -> CGFloat {
+    let mirrored = edgeGap + (ChromeMetrics.regularControlSize - iconButtonSize) / 2
+    guard statusBarOverlap > 0 else { return mirrored }
+    return max(mirrored, statusBarOverlap + statusBarClearance)
   }
 
   static func topRowLeading(edgeGap: CGFloat, safeLeading: CGFloat, cornerAdaptedLeading: CGFloat) -> CGFloat {
@@ -92,7 +97,7 @@ struct SidebarTopBar: View {
 
   var body: some View {
     let tab = browser.selectedTab
-    HStack(spacing: 2) {
+    HStack(spacing: 0) {
       SidebarIconButton(systemImage: "sidebar.left", label: "Hide Sidebar") { browser.isSidebarVisible = false }
       Spacer(minLength: 0)
       SidebarIconButton(systemImage: "chevron.backward", label: "Back") { browser.goBack() }
@@ -148,6 +153,9 @@ struct SpacePicker: View {
             }
             .buttonStyle(.plain)
             .hoverEffect(.highlight)
+            .contextMenu {
+              Button("Edit Theme…", systemImage: "paintpalette") { browser.themeEditTarget = ThemeEditTarget(space: space) }
+            }
             .accessibilityLabel(space.name)
             .accessibilityAddTraits(space.id == current ? .isSelected : [])
           }
@@ -181,32 +189,28 @@ struct PinnedSection: View {
   let tileColumns: Int
 
   var body: some View {
-    let layout = PinLayout(pins: space.pins)
+    let tree = PinTree(space: space)
     VStack(alignment: .leading, spacing: 2) {
       SidebarSectionHeader(title: "Pinned on Mac")
-      if !layout.tiles.isEmpty {
-        PinTileGrid(tiles: layout.tiles, columns: tileColumns)
+      if !tree.tiles.isEmpty {
+        PinTileGrid(tiles: tree.tiles, columns: tileColumns)
           .padding(.bottom, 6)
       }
-      ForEach(layout.sections) { section in
-        if section.path.isEmpty {
-          SidebarPinEntries(entries: section.entries)
-        } else {
-          SidebarFolder(section: section)
-        }
-      }
+      SidebarPinNodes(nodes: tree.roots, depth: 0)
     }
   }
 }
 
-struct SidebarPinEntries: View {
-  let entries: [PinLayout.Entry]
+struct SidebarPinNodes: View {
+  let nodes: [PinTree.Node]
+  let depth: Int
 
   var body: some View {
-    ForEach(entries) { entry in
-      switch entry {
+    ForEach(nodes) { node in
+      switch node {
       case .pin(let pin):
         SidebarPinRow(pin: pin)
+          .padding(.leading, CGFloat(depth) * 14)
       case .group(let group, let members):
         VStack(alignment: .leading, spacing: 2) {
           Label(group.title.isEmpty ? "Tab Group" : group.title, systemImage: "square.split.2x1")
@@ -216,29 +220,35 @@ struct SidebarPinEntries: View {
             .padding(.top, 4)
           ForEach(members) { pin in SidebarPinRow(pin: pin).padding(.leading, 10) }
         }
+        .padding(.leading, CGFloat(depth) * 14)
+      case .folder(let folder, let children):
+        SidebarFolder(folder: folder, children: children, depth: depth)
       }
     }
   }
 }
 
 struct SidebarFolder: View {
-  let section: PinLayout.Section
-  @State private var isExpanded = true
+  @Environment(BrowserModel.self) private var browser
+  let folder: PinFolderInfo
+  let children: [PinTree.Node]
+  let depth: Int
 
   var body: some View {
+    let expanded = browser.pinFolders.isExpanded(folder.id)
     VStack(alignment: .leading, spacing: 2) {
       Button {
-        withAnimation(.snappy) { isExpanded.toggle() }
+        withAnimation(.snappy) { browser.pinFolders.toggle(folder.id) }
       } label: {
         HStack(spacing: 8) {
-          Image(systemName: isExpanded ? "folder" : "folder.fill")
-            .frame(width: 20)
-          Text(section.title).lineLimit(1)
-          Spacer(minLength: 0)
           Image(systemName: "chevron.right")
             .font(.caption2.weight(.bold))
-            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+            .rotationEffect(.degrees(expanded ? 90 : 0))
             .foregroundStyle(.tertiary)
+            .frame(width: 10)
+          FolderGlyph(folder: folder, expanded: expanded)
+          Text(folder.name).lineLimit(1)
+          Spacer(minLength: 0)
         }
         .font(.system(size: 14, weight: .medium))
         .padding(.horizontal, 8)
@@ -247,11 +257,30 @@ struct SidebarFolder: View {
       }
       .buttonStyle(.plain)
       .hoverEffect(.highlight)
-      if isExpanded {
-        SidebarPinEntries(entries: section.entries)
-          .padding(.leading, 14)
+      .padding(.leading, CGFloat(depth) * 14)
+      .accessibilityLabel(folder.name)
+      .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+      if expanded {
+        SidebarPinNodes(nodes: children, depth: depth + 1)
       }
     }
+  }
+}
+
+struct FolderGlyph: View {
+  let folder: PinFolderInfo
+  let expanded: Bool
+
+  var body: some View {
+    Group {
+      if let emoji = folder.emoji, !emoji.isEmpty {
+        Text(emoji).font(.system(size: 14))
+      } else {
+        Image(systemName: expanded ? "folder" : "folder.fill")
+          .foregroundStyle(folder.tint ?? .secondary)
+      }
+    }
+    .frame(width: 20)
   }
 }
 
@@ -261,13 +290,35 @@ struct SidebarPinRow: View {
 
   var body: some View {
     if let url = pin.url {
+      let tab = browser.pinTab(for: pin)
       SidebarRow(
-        title: pin.title, url: url,
-        isSelected: browser.selectedTab?.url.map(Omnibox.matchKey) == Omnibox.matchKey(url),
-        close: nil
+        title: tab.map { $0.title.isEmpty ? pin.title : $0.title } ?? pin.title,
+        url: tab?.url ?? url,
+        isSelected: browser.isPinSelected(pin),
+        isLoading: tab?.isLoading ?? false,
+        close: tab.map { tab in { browser.closePinTab(tab) } }
       ) {
-        browser.openSynced(url)
+        browser.openPin(pin)
       }
+      .contextMenu { PinMenu(pin: pin) }
+    }
+  }
+}
+
+struct PinMenu: View {
+  @Environment(BrowserModel.self) private var browser
+  let pin: SyncedPin
+
+  var body: some View {
+    if browser.pinTab(for: pin) != nil {
+      Button("Back to Pinned URL", systemImage: "arrow.uturn.backward") { browser.returnToPinnedURL(pin) }
+    }
+    if let url = pin.url {
+      Button("Open in New Tab", systemImage: "plus.square.on.square") { browser.open(url, inNewTab: true) }
+      Button("Copy Link", systemImage: "link") { UIPasteboard.general.url = url }
+    }
+    if let tab = browser.pinTab(for: pin) {
+      Button("Unload Pin", systemImage: "xmark", role: .destructive) { browser.closePinTab(tab) }
     }
   }
 }

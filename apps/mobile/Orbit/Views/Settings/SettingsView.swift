@@ -62,6 +62,46 @@ struct SettingsView: View {
           Text("Your open tabs show up in Orbit on your Mac under this device’s name, and your Mac’s spaces, pinned tabs and open tabs show up here. Everything is end-to-end encrypted with your recovery phrase.")
         }
 
+        Section {
+          Picker("Appearance", selection: Bindable(browser.themes).appearance) {
+            ForEach(ThemeMode.allCases) { mode in Label(mode.title, systemImage: mode.symbol).tag(mode) }
+          }
+          Toggle("Accent Follows Space Theme", isOn: Binding(
+            get: { browser.themes.accentOverride == nil },
+            set: { follows in browser.themes.accentOverride = follows ? nil : Color.accentColor.themeColor }))
+          if let accent = browser.themes.accentOverride {
+            ColorPicker("Accent Colour", selection: Binding(
+              get: { Color(theme: accent) }, set: { browser.themes.accentOverride = $0.themeColor }), supportsOpacity: false)
+          }
+          ForEach(themeTargets) { target in
+            NavigationLink {
+              ThemeEditorView(target: target)
+            } label: {
+              HStack {
+                ThemePreview(theme: browser.themes.theme(for: target.space))
+                  .frame(width: 44, height: 28)
+                  .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                Text("\(target.title) Theme")
+              }
+            }
+          }
+          NavigationLink {
+            AppIconPickerView()
+          } label: {
+            HStack {
+              Image("IconPreview-\(currentIconID)")
+                .resizable()
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+              Text("App Icon")
+            }
+          }
+        } header: {
+          Text("Appearance")
+        } footer: {
+          Text("Themes start from your Mac's space colours. Changes stay on this device.")
+        }
+
         Section("Search") {
           Picker("Search Engine", selection: $settings.searchEngine) {
             ForEach(SearchEngine.allCases) { engine in
@@ -122,6 +162,15 @@ struct SettingsView: View {
     case .websiteData: Task { await browser.clearWebsiteData() }
     case .tabs: browser.closeAllTabs()
     }
+  }
+
+  private var themeTargets: [ThemeEditTarget] {
+    let spaces = browser.sync.client.spaces
+    return spaces.isEmpty ? [ThemeEditTarget(space: nil)] : spaces.map { ThemeEditTarget(space: $0) }
+  }
+
+  private var currentIconID: String {
+    UIApplication.shared.alternateIconName.map { $0.replacingOccurrences(of: "AppIcon-", with: "").lowercased() } ?? "default"
   }
 
   static var versionString: String {

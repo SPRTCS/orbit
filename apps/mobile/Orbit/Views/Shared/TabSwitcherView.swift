@@ -16,7 +16,7 @@ struct TabSwitcherView: View {
         edgeGap: gap, safeLeading: safeArea.leading, safeTrailing: safeArea.trailing)
       let barWidth = proxy.size.width + safeArea.leading + safeArea.trailing - 2 * horizontalGap
       ZStack(alignment: .bottom) {
-        OrbitBackdrop(tint: browser.currentSpace?.tint)
+        OrbitBackdrop()
         if browser.tabs.isEmpty {
           emptyState
         } else {

@@ -56,23 +56,13 @@ struct SpaceSection: View {
   let devices: [SyncedDevice]
 
   var body: some View {
-    let layout = PinLayout(pins: space.pins)
+    let tree = PinTree(space: space)
     Section {
-      if !layout.tiles.isEmpty {
-        PinTileGrid(tiles: layout.tiles, minimumWidth: 64)
+      if !tree.tiles.isEmpty {
+        PinTileGrid(tiles: tree.tiles, minimumWidth: 64)
           .padding(.vertical, 4)
       }
-      ForEach(layout.sections) { section in
-        if section.path.isEmpty {
-          PinEntryRows(entries: section.entries)
-        } else {
-          DisclosureGroup {
-            PinEntryRows(entries: section.entries)
-          } label: {
-            Label(section.title, systemImage: "folder")
-          }
-        }
-      }
+      PinNodeRows(nodes: tree.roots)
       ForEach(devices) { device in
         DisclosureGroup {
           DeviceTabRows(device: device)
@@ -80,7 +70,7 @@ struct SpaceSection: View {
           DeviceLabel(device: device)
         }
       }
-      if layout.isEmpty && devices.isEmpty {
+      if tree.isEmpty && devices.isEmpty {
         Text("Nothing pinned yet")
           .foregroundStyle(.secondary)
       }
@@ -94,12 +84,13 @@ struct SpaceSection: View {
   }
 }
 
-struct PinEntryRows: View {
-  let entries: [PinLayout.Entry]
+struct PinNodeRows: View {
+  @Environment(BrowserModel.self) private var browser
+  let nodes: [PinTree.Node]
 
   var body: some View {
-    ForEach(entries) { entry in
-      switch entry {
+    ForEach(nodes) { node in
+      switch node {
       case .pin(let pin):
         PinRow(pin: pin)
       case .group(let group, let members):
@@ -107,6 +98,15 @@ struct PinEntryRows: View {
           ForEach(members) { pin in PinRow(pin: pin) }
         } label: {
           Label(group.title.isEmpty ? "Tab Group" : group.title, systemImage: "square.split.2x1")
+        }
+      case .folder(let folder, let children):
+        DisclosureGroup(isExpanded: browser.pinFolders.binding(folder.id)) {
+          PinNodeRows(nodes: children)
+        } label: {
+          HStack(spacing: 10) {
+            FolderGlyph(folder: folder, expanded: browser.pinFolders.isExpanded(folder.id))
+            Text(folder.name)
+          }
         }
       }
     }
@@ -131,17 +131,15 @@ struct PinTileGrid: View {
       ForEach(tiles) { tile in
         if let url = tile.url {
           Button {
-            browser.openSynced(url)
+            browser.openPin(tile)
           } label: {
-            PinTile(url: url)
+            PinTile(url: url, isSelected: browser.isPinSelected(tile))
           }
           .buttonStyle(.plain)
           .hoverEffect(.highlight)
           .accessibilityLabel(tile.title)
-          .contextMenu {
-            Button("Open in New Tab", systemImage: "plus.square.on.square") { browser.openSynced(url) }
-            Button("Copy Link", systemImage: "link") { UIPasteboard.general.url = url }
-          }
+          .accessibilityAddTraits(browser.isPinSelected(tile) ? .isSelected : [])
+          .contextMenu { PinMenu(pin: tile) }
         }
       }
     }
@@ -150,6 +148,7 @@ struct PinTileGrid: View {
 
 struct PinTile: View {
   let url: URL
+  var isSelected = false
 
   var body: some View {
     Color.clear
@@ -160,7 +159,15 @@ struct PinTile: View {
           let iconSize = min(max(proxy.size.height * 0.38, 18), 28)
           Favicon(url: url, size: iconSize)
             .frame(width: proxy.size.width, height: proxy.size.height)
-            .background(.fill.tertiary, in: .rect(cornerRadius: radius, style: .continuous))
+            .background(
+              isSelected ? AnyShapeStyle(.background.opacity(0.85)) : AnyShapeStyle(.fill.tertiary),
+              in: .rect(cornerRadius: radius, style: .continuous)
+            )
+            .overlay {
+              if isSelected {
+                RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Color.accentColor, lineWidth: 2)
+              }
+            }
             .contentShape(.rect(cornerRadius: radius, style: .continuous))
         }
       }
@@ -174,7 +181,7 @@ struct PinRow: View {
   var body: some View {
     if let url = pin.url {
       Button {
-        browser.openSynced(url)
+        browser.openPin(pin)
       } label: {
         HStack(spacing: 12) {
           Favicon(url: url, size: 20)
@@ -183,11 +190,14 @@ struct PinRow: View {
             Text(Omnibox.displayHost(url)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
           }
           Spacer(minLength: 0)
-          Image(systemName: "pin.fill").font(.caption2).foregroundStyle(.tertiary)
+          Image(systemName: browser.isPinSelected(pin) ? "checkmark.circle.fill" : "pin.fill")
+            .font(.caption)
+            .foregroundStyle(browser.isPinSelected(pin) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
         }
         .contentShape(.rect)
       }
       .buttonStyle(.plain)
+      .contextMenu { PinMenu(pin: pin) }
     }
   }
 }

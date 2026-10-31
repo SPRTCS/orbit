@@ -97,6 +97,11 @@ struct PageActionsMenu: View {
       Button("Copy Link", systemImage: "link") { browser.copyLink() }
         .disabled(!hasPage)
     }
+    if tab?.isPinTab == true {
+      Section {
+        Button("Back to Pinned URL", systemImage: "arrow.uturn.backward") { browser.returnSelectedPinToHome() }
+      }
+    }
     Section {
       Button("Back", systemImage: "chevron.backward") { browser.goBack() }
         .disabled(tab?.canGoBack != true)

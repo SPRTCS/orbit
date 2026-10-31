@@ -45,7 +45,7 @@ globalThis.acTestNativeModules = {
     deviceName: () => deviceName,
     createPhrase: (account) => rpc("createPhrase", account),
     enterPhrase: (account, text, folder) => rpc("enterPhrase", account, text, folder),
-    unlock: async () => true,
+    unlock: (account) => rpc("unlock", account),
     forget: async () => {},
     chainStatus: (folder) => rpc("chainStatus", folder),
     createChain: (folder) => rpc("createChain", folder),
@@ -59,6 +59,7 @@ globalThis.acTestNativeModules = {
   },
 };
 
+const shell = await import("@ardia/shell");
 const { useBrowser } = await import(src("store/browser.ts"));
 const F = await import(src("store/pinnedFolders.ts"));
 const L = await import(src("lib/pinnedFolders.ts"));
@@ -144,6 +145,57 @@ const commands = {
     await engine.syncNow();
     await engine.syncNow();
     return { ...summary(), view: view("default") };
+  },
+  async setupFolders({ path, name, syncFirst, tilesOnly, docs, dataDirectory }) {
+    folder = path;
+    deviceName = name;
+    shell.appInfo.bundleId = "com.aisconsulting.orbit";
+    shell.appInfo.dataDirectory = dataDirectory ?? "/Users/me/Library/Application Support/com.aisconsulting.orbit";
+    startWindow([{ url: "https://open.example/", title: "Open Page" }]);
+    const build = () => {
+      S().pinTabs([1, 2, 3, 4, 5, 6].map((i) => titled(home, `https://tile${i}.example/`, `Tile ${i}`)), true);
+      if (tilesOnly) return;
+      S().pinTabs(["MLP One", "MLP Two", "MLP Three", "Deep Row", "Loose Row"].map((t) => titled(home, `https://${t.toLowerCase().replace(" ", "-")}.example/`, t)), true, true);
+      S().groupTabs([titled(home, "https://crew.example/a", "Crew A"), titled(home, "https://crew.example/b", "Crew B")], { pinned: true, name: "Crew" });
+      const mlp = L.newPinnedFolder(home, { name: "MLP", contents: ["MLP One", "MLP Two", "MLP Three"].map((t) => F.tabRef(tabByTitle(t))), rename: false });
+      L.setPinnedFolderEmoji("default", mlp, "🟡");
+      L.setPinnedFolderColor("default", mlp, "yellow");
+      L.newPinnedFolder(home, { name: "Inner", target: { parent: mlp }, contents: [F.tabRef(tabByTitle("Deep Row"))], rename: false });
+      const crew = Object.values(S().groups).find((g) => g.name === "Crew");
+      L.movePinnedNodes("default", [F.groupRef(crew)], { parent: mlp });
+    };
+    if (!syncFirst) build();
+    if (docs) {
+      for (const [name, contents] of Object.entries(docs)) shell.docs.set(name, contents);
+      engine.startSync();
+      for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+    } else {
+      engine.startSync();
+      const result = await engine.turnOnSync(folder);
+      if (!("ok" in result)) throw new Error(result.error);
+    }
+    await engine.syncNow();
+    if (syncFirst) build();
+    await engine.syncNow();
+    await engine.syncNow();
+    const doc = globalThis.acSync.doc();
+    const scope = doc.scopes[`p:${doc.profiles.default.syncId}`];
+    const records = Object.fromEntries(Object.entries(scope.records).filter(([k]) => k.startsWith("pin")).map(([k, r]) => [k, r.v]));
+    return { ...summary(), view: view("default"), records, tree: F.usePinnedFolders.getState().trees.default ?? null };
+  },
+  async sidebar() {
+    await engine.syncNow();
+    return { view: view("default") };
+  },
+  exportDocs() {
+    return Object.fromEntries(shell.docs);
+  },
+  async openTabs({ count }) {
+    for (let i = 0; i < count; i++) {
+      titled(home, `https://busy${i}-${Date.now()}.example/`, `Busy ${i}`);
+      await engine.syncNow();
+    }
+    return summary();
   },
   async setupB({ path, name, phrase }) {
     folder = path;
