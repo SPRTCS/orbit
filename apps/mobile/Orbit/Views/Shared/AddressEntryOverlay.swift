@@ -19,7 +19,8 @@ struct AddressEntryOverlay: View {
   var body: some View {
     GeometryReader { proxy in
       let margin: CGFloat = layout == .compact ? 8 : 12
-      let bottom = max(keyboard.overlap, keyboard.safeArea.bottom) + margin
+      let bottom = KeyboardMetrics.entryBottomPadding(
+        overlap: keyboard.overlap, safeBottom: keyboard.safeArea.bottom, margin: margin)
       let available = proxy.size.height - bottom - keyboard.safeArea.top - margin - fieldBlockHeight
       ZStack(alignment: .bottom) {
         Rectangle()

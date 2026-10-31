@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 
 @testable import Orbit
@@ -28,9 +29,14 @@ struct LayoutTests {
 
   @Test func bottomRowSitsAtTheSameGapFromBottomAndSides() {
     #expect(ChromeMetrics.edgeGap(displayCornerRadius: 55, controlSize: 50, safeBottom: 34) == 36)
-    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 70, controlSize: 50, safeBottom: 34) == 45)
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 70, controlSize: 50, safeBottom: 34) == 39)
     #expect(ChromeMetrics.edgeGap(displayCornerRadius: 18, controlSize: 46, safeBottom: 20) == 22)
     #expect(ChromeMetrics.edgeGap(displayCornerRadius: 0, controlSize: 50, safeBottom: 0) == 12)
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 480, controlSize: 46, safeBottom: 20) == 41)
+    #expect(ChromeMetrics.edgeGap(displayCornerRadius: 18, controlSize: 46, safeBottom: 400) == 42)
+    #expect(ChromeMetrics.displayCornerRadius(isPad: true, safeBottom: 20) == 18)
+    #expect(ChromeMetrics.displayCornerRadius(isPad: false, safeBottom: 34) == 55)
+    #expect(ChromeMetrics.displayCornerRadius(isPad: false, safeBottom: 0) == 0)
 
     let phone = ChromeMetrics.compact(safeBottom: 34, width: 402, displayCornerRadius: 55)
     #expect(phone.barBottomPadding == 36)
@@ -64,5 +70,62 @@ struct LayoutTests {
     morph.finish()
     #expect(!morph.isActive)
     #expect(morph.targetFrame == nil)
+  }
+}
+
+struct RegularLayoutTests {
+  private func layout(width: CGFloat, sidebar: Bool, overview: Bool = false, stored: CGFloat = 290) -> RegularLayout {
+    RegularLayout(
+      windowWidth: width, safeArea: EdgeInsets(top: 24, leading: 0, bottom: 20, trailing: 0),
+      storedSidebarWidth: stored, isSidebarVisible: sidebar, isShowingOverview: overview,
+      displayCornerRadius: ChromeMetrics.displayCornerRadius(isPad: true, safeBottom: 20))
+  }
+
+  @Test func portraitWithSidebarFitsTheWindow() {
+    let portrait = layout(width: 834, sidebar: true)
+    #expect(portrait.sidebarWidth == 290)
+    #expect(portrait.cardLeading == 300)
+    #expect(portrait.cardWidth == 526)
+    #expect(portrait.cardLeading + portrait.cardWidth + RegularLayout.cardInset == 834)
+    #expect(portrait.edgeGap == 22)
+    #expect(portrait.entryLeadingInset == 300)
+  }
+
+  @Test func landscapeWithSidebarFitsTheWindow() {
+    let landscape = layout(width: 1210, sidebar: true, stored: 420)
+    #expect(landscape.sidebarWidth == 420)
+    #expect(landscape.cardWidth == CGFloat(772))
+    #expect(landscape.edgeGap == 22)
+  }
+
+  @Test func storedWidthIsClampedToTheWindow() {
+    let narrow = layout(width: 700, sidebar: true, stored: 420)
+    #expect(narrow.sidebarWidth == 280)
+    #expect(narrow.cardWidth == CGFloat(402))
+    let tooSmall = layout(width: 1210, sidebar: true, stored: 100)
+    #expect(tooSmall.sidebarWidth == 240)
+  }
+
+  @Test func hiddenSidebarGivesEvenCardInsets() {
+    for width in [834.0, 1210.0] {
+      let hidden = layout(width: CGFloat(width), sidebar: false)
+      #expect(hidden.cardLeading == RegularLayout.cardInset)
+      #expect(hidden.cardWidth == CGFloat(width) - 16)
+      #expect(hidden.entryLeadingInset == 0)
+    }
+  }
+
+  @Test func entrySpansTheWindowOverTheOverview() {
+    #expect(layout(width: 834, sidebar: true, overview: true).entryLeadingInset == 0)
+  }
+
+  @Test func keyboardOverlapCoversDockedFloatingAndHidden() {
+    let window = CGRect(x: 0, y: 0, width: 834, height: 1210)
+    #expect(KeyboardMetrics.overlap(viewBounds: window, keyboardFrame: CGRect(x: 0, y: 871, width: 834, height: 339)) == 339)
+    #expect(KeyboardMetrics.overlap(viewBounds: window, keyboardFrame: CGRect(x: 0, y: 1210, width: 834, height: 0)) == 0)
+    #expect(KeyboardMetrics.overlap(viewBounds: window, keyboardFrame: CGRect(x: 0, y: 1155, width: 834, height: 55)) == 55)
+    #expect(KeyboardMetrics.overlap(viewBounds: window, keyboardFrame: CGRect(x: 200, y: 700, width: 320, height: 250)) == 510)
+    #expect(KeyboardMetrics.entryBottomPadding(overlap: 0, safeBottom: 20, margin: 12) == 32)
+    #expect(KeyboardMetrics.entryBottomPadding(overlap: 339, safeBottom: 20, margin: 12) == 351)
   }
 }

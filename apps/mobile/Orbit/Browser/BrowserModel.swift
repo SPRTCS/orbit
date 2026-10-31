@@ -305,11 +305,7 @@ final class BrowserModel {
       let morph = self.morph
       morph.start(.opening, tabID: tab.id, image: image, progress: 0)
       self.isShowingTabSwitcher = true
-      await Task.yield()
-      withAnimation(OverviewMorph.animation) {
-        morph.progress = 1
-        morph.cardReveal = 1
-      } completion: {
+      self.animateMorph(to: 1, reveal: 1) {
         morph.finish()
       }
     }
@@ -332,10 +328,7 @@ final class BrowserModel {
     loadSnapshotIfNeeded(tab)
     morph.start(.closing, tabID: tab.id, image: tab.snapshot, progress: 1)
     select(tab, keepingOverview: true)
-    withAnimation(OverviewMorph.animation) {
-      morph.progress = 0
-      morph.cardReveal = 0
-    } completion: { [weak self] in
+    animateMorph(to: 0, reveal: 0) { [weak self] in
       self?.isShowingTabSwitcher = false
       self?.morph.finish()
     }
@@ -377,10 +370,21 @@ final class BrowserModel {
   private func growNewTabFromPlusButton(_ tab: BrowserTab) {
     guard usesOverviewMorph, let source = morph.plusFrame, !morph.isActive else { return }
     morph.start(.growing, tabID: tab.id, image: nil, progress: 1, sourceFrame: source)
-    withAnimation(OverviewMorph.animation) {
-      morph.progress = 0
-    } completion: { [weak self] in
+    animateMorph(to: 0, reveal: 1) { [weak self] in
       withAnimation(.easeOut(duration: 0.18)) { self?.morph.finish() }
+    }
+  }
+
+  private func animateMorph(to progress: CGFloat, reveal: CGFloat, completion: @escaping () -> Void) {
+    let morph = self.morph
+    Task {
+      try? await Task.sleep(for: .milliseconds(24))
+      withAnimation(OverviewMorph.animation) {
+        morph.progress = progress
+        morph.cardReveal = reveal
+      } completion: {
+        completion()
+      }
     }
   }
 

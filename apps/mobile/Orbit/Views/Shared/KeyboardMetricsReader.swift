@@ -4,6 +4,15 @@ import UIKit
 struct KeyboardMetrics: Equatable {
   var overlap: CGFloat = 0
   var safeArea = EdgeInsets()
+
+  static func overlap(viewBounds: CGRect, keyboardFrame: CGRect) -> CGFloat {
+    guard keyboardFrame.height > 1, keyboardFrame.minY < viewBounds.maxY else { return 0 }
+    return max(0, viewBounds.maxY - keyboardFrame.minY).rounded()
+  }
+
+  static func entryBottomPadding(overlap: CGFloat, safeBottom: CGFloat, margin: CGFloat) -> CGFloat {
+    max(overlap, safeBottom) + margin
+  }
 }
 
 struct KeyboardMetricsReader: UIViewRepresentable {
@@ -62,11 +71,10 @@ struct KeyboardMetricsReader: UIViewRepresentable {
 
     func report() {
       guard window != nil else { return }
-      let keyboardFrame = keyboardLayoutGuide.layoutFrame
-      let overlap = keyboardFrame.height > 1 ? max(0, bounds.maxY - keyboardFrame.minY) : 0
+      let overlap = KeyboardMetrics.overlap(viewBounds: bounds, keyboardFrame: keyboardLayoutGuide.layoutFrame)
       let insets = safeAreaInsets
       let metrics = KeyboardMetrics(
-        overlap: overlap.rounded(),
+        overlap: overlap,
         safeArea: EdgeInsets(top: insets.top, leading: insets.left, bottom: insets.bottom, trailing: insets.right))
       guard metrics != lastMetrics else { return }
       lastMetrics = metrics

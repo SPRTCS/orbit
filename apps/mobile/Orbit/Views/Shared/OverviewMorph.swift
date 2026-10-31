@@ -220,12 +220,7 @@ struct DisplayCornerReader: View {
   }
 
   private static func displayCornerRadius(_ proxy: GeometryProxy) -> CGFloat {
-    if #available(iOS 27.0, *),
-      let radii = proxy.concentricCornerRadii(in: CGRect(origin: .zero, size: proxy.size))
-    {
-      return max(radii.bottomLeading, radii.bottomTrailing)
-    }
-    guard proxy.safeAreaInsets.bottom > 0 else { return 0 }
-    return UIDevice.current.userInterfaceIdiom == .pad ? 18 : 55
+    ChromeMetrics.displayCornerRadius(
+      isPad: UIDevice.current.userInterfaceIdiom == .pad, safeBottom: proxy.safeAreaInsets.bottom)
   }
 }

@@ -6,17 +6,18 @@ struct RegularBrowserView: View {
   @AppStorage("sidebarWidth.verticalRegular") private var storedWidthTall = SidebarWidth.defaultWidth
   @AppStorage("sidebarWidth.verticalCompact") private var storedWidthShort = SidebarWidth.defaultWidth
 
-  private let cardInset: CGFloat = 8
+  private let cardInset = RegularLayout.cardInset
 
   var body: some View {
     GeometryReader { proxy in
       let safeArea = proxy.safeAreaInsets
-      let windowWidth = proxy.size.width + safeArea.leading + safeArea.trailing
-      let range = SidebarWidth.range(windowWidth: windowWidth)
-      let sidebarWidth = min(max(storedWidth, range.lowerBound), range.upperBound)
-      let edgeGap = ChromeMetrics.edgeGap(
-        displayCornerRadius: browser.morph.displayCornerRadius, controlSize: ChromeMetrics.regularControlSize,
-        safeBottom: safeArea.bottom)
+      let layout = RegularLayout(
+        windowWidth: proxy.size.width + safeArea.leading + safeArea.trailing, safeArea: safeArea,
+        storedSidebarWidth: CGFloat(storedWidth), isSidebarVisible: browser.isSidebarVisible,
+        isShowingOverview: browser.isShowingTabSwitcher, displayCornerRadius: browser.morph.displayCornerRadius)
+      let range = layout.sidebarRange
+      let sidebarWidth = layout.sidebarWidth
+      let edgeGap = layout.edgeGap
       ZStack {
         OrbitBackdrop(tint: browser.currentSpace?.tint)
         HStack(spacing: 0) {
@@ -26,13 +27,11 @@ struct RegularBrowserView: View {
               .transition(.move(edge: .leading).combined(with: .opacity))
             SidebarResizeHandle(width: widthBinding, range: range)
           }
-          contentColumn(
-            safeArea: safeArea, edgeGap: edgeGap,
-            contentWidth: windowWidth - (browser.isSidebarVisible ? sidebarWidth + SidebarResizeHandle.width : cardInset) - cardInset)
+          contentColumn(safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth)
         }
         .animation(.snappy(duration: 0.3), value: browser.isSidebarVisible)
         if browser.isShowingTabSwitcher {
-          TabSwitcherView()
+          TabSwitcherView(windowSafeArea: safeArea)
             .ignoresSafeArea(.keyboard)
             .transition(.opacity)
             .zIndex(1)
@@ -40,18 +39,15 @@ struct RegularBrowserView: View {
         OverviewMorphLayer()
           .zIndex(1.5)
         if browser.entry.isPresented {
-          let besideSidebar = browser.isSidebarVisible && !browser.isShowingTabSwitcher
           AddressEntryOverlay(
-            layout: .regular,
-            leadingInset: besideSidebar ? sidebarWidth + SidebarResizeHandle.width - safeArea.leading : 0,
-            trailingInset: cardInset
-          )
+            layout: .regular, leadingInset: layout.entryLeadingInset, trailingInset: layout.entryTrailingInset)
           .transition(.opacity.combined(with: .move(edge: .bottom)))
           .zIndex(2)
         }
       }
-      .ignoresSafeArea(.container)
+      .ignoresSafeArea()
     }
+    .ignoresSafeArea(.keyboard)
   }
 
   private var storedWidth: Double {
@@ -276,4 +272,40 @@ enum PageCardShape {
       topLeadingCorner: sidebarCorner, topTrailingCorner: displayCorner, bottomLeadingCorner: sidebarCorner,
       bottomTrailingCorner: displayCorner)
   }
+}
+
+struct RegularLayout {
+  static let cardInset: CGFloat = 8
+
+  let windowWidth: CGFloat
+  let safeArea: EdgeInsets
+  let storedSidebarWidth: CGFloat
+  let isSidebarVisible: Bool
+  let isShowingOverview: Bool
+  let displayCornerRadius: CGFloat
+
+  var sidebarRange: ClosedRange<CGFloat> { SidebarWidth.range(windowWidth: windowWidth) }
+
+  var sidebarWidth: CGFloat {
+    min(max(storedSidebarWidth, sidebarRange.lowerBound), sidebarRange.upperBound)
+  }
+
+  var edgeGap: CGFloat {
+    ChromeMetrics.edgeGap(
+      displayCornerRadius: displayCornerRadius, controlSize: ChromeMetrics.regularControlSize, safeBottom: safeArea.bottom)
+  }
+
+  var cardLeading: CGFloat {
+    isSidebarVisible ? sidebarWidth + SidebarResizeHandle.width : Self.cardInset
+  }
+
+  var cardWidth: CGFloat {
+    max(0, windowWidth - cardLeading - Self.cardInset)
+  }
+
+  var entryLeadingInset: CGFloat {
+    isSidebarVisible && !isShowingOverview ? cardLeading - safeArea.leading : 0
+  }
+
+  var entryTrailingInset: CGFloat { Self.cardInset }
 }

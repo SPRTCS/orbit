@@ -7,9 +7,18 @@ struct ChromeMetrics {
   let pillWidth: CGFloat
   var horizontalPadding: CGFloat = 14
 
+  static let maximumDisplayCornerRadius: CGFloat = 64
+
+  static func displayCornerRadius(isPad: Bool, safeBottom: CGFloat) -> CGFloat {
+    guard safeBottom > 0 else { return 0 }
+    return isPad ? 18 : 55
+  }
+
   static func edgeGap(displayCornerRadius: CGFloat, controlSize: CGFloat, safeBottom: CGFloat) -> CGFloat {
     guard safeBottom > 0 else { return 12 }
-    return max(displayCornerRadius - controlSize / 2, safeBottom + 2, 12)
+    let radius = min(max(displayCornerRadius, 0), maximumDisplayCornerRadius)
+    let homeIndicatorClearance = min(safeBottom, 40) + 2
+    return max(radius - controlSize / 2, homeIndicatorClearance, 12)
   }
 
   var expandedObscured: CGFloat { barBottomPadding + barHeight + 8 }

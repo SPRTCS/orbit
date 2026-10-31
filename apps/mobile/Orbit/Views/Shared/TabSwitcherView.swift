@@ -3,10 +3,11 @@ import SwiftUI
 struct TabSwitcherView: View {
   @Environment(BrowserModel.self) private var browser
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  var windowSafeArea: EdgeInsets?
 
   var body: some View {
     GeometryReader { proxy in
-      let safeArea = proxy.safeAreaInsets
+      let safeArea = windowSafeArea ?? proxy.safeAreaInsets
       let isRegular = horizontalSizeClass == .regular
       let buttonSize: CGFloat = isRegular ? ChromeMetrics.regularControlSize : 50
       let gap = ChromeMetrics.edgeGap(
