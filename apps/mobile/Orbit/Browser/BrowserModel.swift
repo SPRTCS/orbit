@@ -511,6 +511,17 @@ final class BrowserModel {
     withAnimation(.snappy(duration: 0.25)) { entry.begin(newTab: true, initialText: "", isPrivate: isPrivate) }
   }
 
+  func openIncoming(_ url: URL) {
+    guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return }
+    isShowingDevices = false
+    isShowingSettings = false
+    isShowingSyncSetup = false
+    if isShowingTabSwitcher { settleMorph() }
+    isShowingTabSwitcher = false
+    cancelEntry()
+    openNewTab(with: url)
+  }
+
   func perform(_ action: QuickAction) {
     isShowingDevices = false
     isShowingSettings = false

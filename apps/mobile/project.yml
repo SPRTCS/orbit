@@ -58,6 +58,11 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        CFBundleURLTypes:
+          - CFBundleURLName: Web site URL
+            CFBundleURLSchemes:
+              - http
+              - https
         UIApplicationShortcutItems:
           - UIApplicationShortcutItemType: com.ais.orbit-mobile.new-private-tab
             UIApplicationShortcutItemTitle: New Private Tab

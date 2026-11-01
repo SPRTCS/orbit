@@ -19,6 +19,7 @@ struct OrbitApp: App {
       RootView()
         .environment(browser)
         .preferredColorScheme(browser.themes.colorScheme)
+        .onOpenURL { url in browser.openIncoming(url) }
         .onChange(of: quickActions.pending, initial: true) { _, action in
           guard let action else { return }
           quickActions.pending = nil
