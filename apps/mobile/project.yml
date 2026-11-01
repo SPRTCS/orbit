@@ -58,6 +58,13 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        UIApplicationShortcutItems:
+          - UIApplicationShortcutItemType: com.ais.orbit-mobile.new-private-tab
+            UIApplicationShortcutItemTitle: New Private Tab
+            UIApplicationShortcutItemIconSymbolName: plus.square.fill.on.square.fill
+          - UIApplicationShortcutItemType: com.ais.orbit-mobile.new-tab
+            UIApplicationShortcutItemTitle: New Tab
+            UIApplicationShortcutItemIconSymbolName: plus.square.on.square
         NSAppTransportSecurity:
           NSAllowsArbitraryLoadsInWebContent: true
         NSCameraUsageDescription: Orbit uses the camera to scan your Recovery Kit QR code, and for websites you allow to use it.

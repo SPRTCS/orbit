@@ -126,6 +126,7 @@ struct SwitcherBottomBar: View {
     GlassCircleButton(systemImage: "plus", label: "New Tab", size: buttonSize) {
       browser.beginNewTab()
     }
+    .contextMenu { NewTabMenu() }
     .reportsGlobalFrame { browser.morph.plusFrame = $0 }
   }
 
@@ -162,6 +163,12 @@ struct TabCard: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 6) {
+        if tab.isPrivate {
+          Image(systemName: "hand.raised.fill")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(.purple)
+            .accessibilityLabel("Private")
+        }
         Favicon(url: tab.url, size: 16)
         Text(tab.displayTitle)
           .font(.system(size: 13, weight: .semibold))

@@ -178,7 +178,7 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
       return .cancel
     }
     if navigationAction.navigationType == .linkActivated, navigationAction.modifierFlags.contains(.command) {
-      browser?.openInBackground(url)
+      browser?.openInBackground(url, isPrivate: tab?.isPrivate == true)
       return .cancel
     }
     return .allow
@@ -233,7 +233,7 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
     _ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures
   ) -> WKWebView? {
-    browser?.openPopup(configuration: configuration)
+    browser?.openPopup(configuration: configuration, isPrivate: tab?.isPrivate == true)
   }
 
   func webViewDidClose(_ webView: WKWebView) {
@@ -261,10 +261,10 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
     guard let linkURL = elementInfo.linkURL else { return nil }
     return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] suggested in
       let openNew = UIAction(title: "Open in New Tab", image: UIImage(systemName: "plus.square.on.square")) { _ in
-        self?.browser?.open(linkURL, inNewTab: true)
+        self?.browser?.open(linkURL, inNewTab: true, isPrivate: self?.tab?.isPrivate == true)
       }
       let openBackground = UIAction(title: "Open in Background", image: UIImage(systemName: "square.on.square")) { _ in
-        self?.browser?.openInBackground(linkURL)
+        self?.browser?.openInBackground(linkURL, isPrivate: self?.tab?.isPrivate == true)
       }
       return UIMenu(children: [UIMenu(options: .displayInline, children: [openNew, openBackground])] + suggested)
     }

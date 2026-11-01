@@ -17,12 +17,18 @@ final class BrowserTab: Identifiable {
 
   let pinID: String?
   let homeURL: URL?
+  let isPrivate: Bool
   @ObservationIgnored var controller: TabWebController?
+  @ObservationIgnored var privateInteractionState: Data?
   @ObservationIgnored var snapshotLoaded = false
   @ObservationIgnored var failedURL: URL?
 
-  init(id: UUID = UUID(), url: URL?, title: String = "", lastActive: Date = .now, pinID: String? = nil, homeURL: URL? = nil) {
+  init(
+    id: UUID = UUID(), url: URL?, title: String = "", lastActive: Date = .now, pinID: String? = nil, homeURL: URL? = nil,
+    isPrivate: Bool = false
+  ) {
     self.id = id
+    self.isPrivate = isPrivate
     self.url = url
     self.title = title
     self.lastActive = lastActive

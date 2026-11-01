@@ -6,10 +6,12 @@ final class AddressEntryModel {
   var text = ""
   var selection: TextSelection?
   var opensInNewTab = false
+  var opensPrivateTab = false
   var highlightedIndex: Int?
 
-  func begin(newTab: Bool, initialText: String) {
+  func begin(newTab: Bool, initialText: String, isPrivate: Bool = false) {
     opensInNewTab = newTab
+    opensPrivateTab = newTab && isPrivate
     text = initialText
     selection = initialText.isEmpty ? nil : TextSelection(range: initialText.startIndex..<initialText.endIndex)
     highlightedIndex = nil

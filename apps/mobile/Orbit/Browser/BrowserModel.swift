@@ -39,6 +39,7 @@ final class BrowserModel {
   @ObservationIgnored private var memoryWarningObserver: NSObjectProtocol?
   @ObservationIgnored private var keyboardObservers: [NSObjectProtocol] = []
   @ObservationIgnored private(set) var isKeyboardVisible = false
+  @ObservationIgnored private var privateDataStore: WKWebsiteDataStore?
 
   init(
     persistence: TabPersistence = .standard(), settings: AppSettings = AppSettings(),
@@ -173,14 +174,28 @@ final class BrowserModel {
   @discardableResult
   func ensureLive(_ tab: BrowserTab) -> WKWebView {
     if let webView = tab.webView { return webView }
-    let webView = factory.makeWebView()
+    let webView = tab.isPrivate ? factory.makeWebView(configuration: privateConfiguration()) : factory.makeWebView()
     tab.controller = TabWebController(webView: webView, tab: tab, browser: self)
-    if let state = persistence.interactionState(for: tab.id) {
+    if tab.isPrivate, let state = tab.privateInteractionState {
+      webView.interactionState = state
+    } else if !tab.isPrivate, let state = persistence.interactionState(for: tab.id) {
       webView.interactionState = state
     } else if let url = tab.url {
       webView.load(URLRequest(url: url))
     }
     return webView
+  }
+
+  private func privateConfiguration() -> WKWebViewConfiguration {
+    let store = privateDataStore ?? .nonPersistent()
+    privateDataStore = store
+    return factory.makeConfiguration(dataStore: store)
+  }
+
+  var hasPrivateTabs: Bool { tabs.contains(where: \.isPrivate) }
+
+  private func endPrivateSessionIfUnused() {
+    if !hasPrivateTabs { privateDataStore = nil }
   }
 
   private func enforceLiveLimit() {
@@ -191,7 +206,11 @@ final class BrowserModel {
 
   private func unload(_ tab: BrowserTab) {
     guard let controller = tab.controller else { return }
-    persistence.saveInteractionState(controller.webView.interactionState as? Data, for: tab.id)
+    if tab.isPrivate {
+      tab.privateInteractionState = controller.webView.interactionState as? Data
+    } else {
+      persistence.saveInteractionState(controller.webView.interactionState as? Data, for: tab.id)
+    }
     controller.tearDown()
     tab.controller = nil
     tab.isLoading = false
@@ -235,8 +254,8 @@ final class BrowserModel {
   }
 
   @discardableResult
-  func openNewTab(with url: URL?, select shouldSelect: Bool = true) -> BrowserTab {
-    let tab = BrowserTab(url: url)
+  func openNewTab(with url: URL?, select shouldSelect: Bool = true, isPrivate: Bool = false) -> BrowserTab {
+    let tab = BrowserTab(url: url, isPrivate: isPrivate)
     tabs.append(tab)
     if shouldSelect {
       select(tab)
@@ -247,20 +266,20 @@ final class BrowserModel {
     return tab
   }
 
-  func openInBackground(_ url: URL) {
-    openNewTab(with: url, select: false)
+  func openInBackground(_ url: URL, isPrivate: Bool = false) {
+    openNewTab(with: url, select: false, isPrivate: isPrivate)
   }
 
-  func open(_ url: URL, inNewTab: Bool, preferExisting: Bool = false) {
+  func open(_ url: URL, inNewTab: Bool, preferExisting: Bool = false, isPrivate: Bool = false) {
     if preferExisting {
       let key = Omnibox.matchKey(url)
-      if let existing = tabs.first(where: { $0.url.map(Omnibox.matchKey) == key }) {
+      if let existing = tabs.first(where: { !$0.isPrivate && $0.url.map(Omnibox.matchKey) == key }) {
         select(existing)
         return
       }
     }
     if inNewTab || selectedTab == nil {
-      openNewTab(with: url)
+      openNewTab(with: url, isPrivate: isPrivate)
     } else if let tab = selectedTab {
       load(url, in: tab)
     }
@@ -284,8 +303,8 @@ final class BrowserModel {
     tabsChanged()
   }
 
-  func openPopup(configuration: WKWebViewConfiguration) -> WKWebView {
-    let tab = BrowserTab(url: nil)
+  func openPopup(configuration: WKWebViewConfiguration, isPrivate: Bool = false) -> WKWebView {
+    let tab = BrowserTab(url: nil, isPrivate: isPrivate)
     let webView = factory.makeWebView(configuration: configuration)
     tab.controller = TabWebController(webView: webView, tab: tab, browser: self)
     tabs.append(tab)
@@ -299,7 +318,7 @@ final class BrowserModel {
       return
     }
     guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
-    if tab.url != nil {
+    if tab.url != nil, !tab.isPrivate {
       recentlyClosed.append(tab.record)
       if recentlyClosed.count > 20 { recentlyClosed.removeFirst() }
     }
@@ -307,6 +326,7 @@ final class BrowserModel {
     tab.controller = nil
     tabs.remove(at: index)
     persistence.removeArtifacts(for: tab.id)
+    if tab.isPrivate { endPrivateSessionIfUnused() }
     if selectedTabID == tab.id {
       selectedTabID = nil
       if let next = tabs.max(by: { $0.lastActive < $1.lastActive }) { activate(next) }
@@ -326,6 +346,7 @@ final class BrowserModel {
       persistence.removeArtifacts(for: tab.id)
     }
     tabs.removeAll()
+    privateDataStore = nil
     if selectedWasRegular { selectedTabID = nil }
     tabsChanged()
   }
@@ -485,9 +506,18 @@ final class BrowserModel {
 
 
 
-  func beginNewTab() {
+  func beginNewTab(isPrivate: Bool = false) {
     setChromeCollapsed(false)
-    withAnimation(.snappy(duration: 0.25)) { entry.begin(newTab: true, initialText: "") }
+    withAnimation(.snappy(duration: 0.25)) { entry.begin(newTab: true, initialText: "", isPrivate: isPrivate) }
+  }
+
+  func perform(_ action: QuickAction) {
+    isShowingDevices = false
+    isShowingSettings = false
+    isShowingSyncSetup = false
+    if isShowingTabSwitcher { settleMorph() }
+    isShowingTabSwitcher = false
+    beginNewTab(isPrivate: action == .newPrivateTab)
   }
 
   func beginEditingCurrent() {
@@ -515,19 +545,21 @@ final class BrowserModel {
     }
     guard let url = Omnibox.url(for: entry.text, engine: settings.searchEngine) else { return }
     let newTab = entry.opensInNewTab
+    let isPrivate = entry.opensPrivateTab
     cancelEntry()
     isShowingTabSwitcher = false
-    open(url, inNewTab: newTab)
+    open(url, inNewTab: newTab, isPrivate: isPrivate)
     if newTab, let tab = selectedTab { growNewTabFromPlusButton(tab) }
   }
 
   func choose(_ suggestion: Suggestion) {
     let newTab = entry.opensInNewTab
+    let isPrivate = entry.opensPrivateTab
     cancelEntry()
     isShowingTabSwitcher = false
     switch suggestion.action {
-    case .open(let url): open(url, inNewTab: newTab)
-    case .search(let query): open(settings.searchEngine.searchURL(for: query), inNewTab: newTab)
+    case .open(let url): open(url, inNewTab: newTab, isPrivate: isPrivate)
+    case .search(let query): open(settings.searchEngine.searchURL(for: query), inNewTab: newTab, isPrivate: isPrivate)
     case .switchToTab(let id):
       select(tabID: id)
       return
@@ -577,12 +609,13 @@ final class BrowserModel {
       guard let image = try? await webView.takeSnapshot(configuration: configuration), let self, let tab else { return }
       tab.snapshot = image
       tab.snapshotLoaded = true
-      if let data = image.jpegData(compressionQuality: 0.72) { self.persistence.saveSnapshot(data, for: tab.id) }
+      guard !tab.isPrivate, let data = image.jpegData(compressionQuality: 0.72) else { return }
+      self.persistence.saveSnapshot(data, for: tab.id)
     }
   }
 
   func tabDidFinishLoading(_ tab: BrowserTab) {
-    if let url = tab.url { history.recordVisit(url: url, title: tab.title) }
+    if !tab.isPrivate, let url = tab.url { history.recordVisit(url: url, title: tab.title) }
     tabsChanged()
   }
 
@@ -592,11 +625,13 @@ final class BrowserModel {
 
   private func tabsChanged() {
     scheduleSave()
-    sync.tabsChanged(tabs.map(\.record))
+    sync.tabsChanged(tabs.filter { !$0.isPrivate }.map(\.record))
   }
 
   private var session: TabSession {
-    TabSession(tabs: tabs.map(\.record), selectedID: selectedTabID, pinTabs: pinTabs.values.map(\.record))
+    let saved = tabs.filter { !$0.isPrivate }
+    let selectedID = selectedTab?.isPrivate == true ? saved.max { $0.lastActive < $1.lastActive }?.id : selectedTabID
+    return TabSession(tabs: saved.map(\.record), selectedID: selectedID, pinTabs: pinTabs.values.map(\.record))
   }
 
   private func scheduleSave() {
@@ -610,7 +645,7 @@ final class BrowserModel {
 
   func persistEverything() {
     saveTask?.cancel()
-    for tab in allTabs {
+    for tab in allTabs where !tab.isPrivate {
       if let webView = tab.webView {
         persistence.saveInteractionState(webView.interactionState as? Data, for: tab.id)
       }
@@ -674,6 +709,9 @@ final class BrowserModel {
   func clearWebsiteData() async {
     let store = WKWebsiteDataStore.default()
     await store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+    if let privateDataStore {
+      await privateDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast)
+    }
     URLCache.shared.removeAllCachedResponses()
   }
 }

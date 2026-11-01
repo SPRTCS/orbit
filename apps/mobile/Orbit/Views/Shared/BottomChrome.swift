@@ -94,6 +94,7 @@ struct BottomChrome: View {
           ) {
             browser.beginNewTab()
           }
+          .contextMenu { NewTabMenu() }
           .reportsGlobalFrame { browser.morph.plusFrame = $0 }
         }
         .modifier(OverviewSwipeModifier(gesture: overviewSwipe))

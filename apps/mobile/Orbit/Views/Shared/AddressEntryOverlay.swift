@@ -78,10 +78,12 @@ struct AddressEntryOverlay: View {
   private var field: some View {
     @Bindable var entry = browser.entry
     return HStack(spacing: 10) {
-      Image(systemName: "magnifyingglass")
+      Image(systemName: entry.opensPrivateTab ? "hand.raised.fill" : "magnifyingglass")
         .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(.secondary)
-      TextField("Search or enter address", text: $entry.text, selection: $entry.selection)
+        .foregroundStyle(entry.opensPrivateTab ? AnyShapeStyle(.purple) : AnyShapeStyle(.secondary))
+      TextField(
+        entry.opensPrivateTab ? "Private: search or enter address" : "Search or enter address", text: $entry.text,
+        selection: $entry.selection)
         .font(.system(size: 17))
         .focused($fieldFocused)
         .keyboardType(.webSearch)

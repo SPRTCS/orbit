@@ -9,7 +9,15 @@ struct URLCapsule: View {
   var body: some View {
     let tab = browser.selectedTab
     HStack(spacing: 6) {
-      Color.clear.frame(width: 30, height: 30)
+      Group {
+        if tab?.isPrivate == true {
+          Image(systemName: "hand.raised.fill")
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.purple)
+            .accessibilityLabel("Private")
+        }
+      }
+      .frame(width: 30, height: 30)
       Spacer(minLength: 0)
       HStack(spacing: 5) {
         if let url = tab?.url, url.scheme == "http" {
@@ -75,9 +83,18 @@ struct URLCapsule: View {
   }
 
   private func label(for tab: BrowserTab?) -> String {
-    guard let tab, let url = tab.url else { return "Search or enter address" }
+    guard let tab, let url = tab.url else { return tab?.isPrivate == true ? "Private" : "Search or enter address" }
     if let query = SearchEngine.query(fromResultsPage: url) { return query }
     return Omnibox.displayHost(url)
+  }
+}
+
+struct NewTabMenu: View {
+  @Environment(BrowserModel.self) private var browser
+
+  var body: some View {
+    Button("New Tab", systemImage: "plus.square.on.square") { browser.beginNewTab() }
+    Button("New Private Tab", systemImage: "plus.square.fill.on.square.fill") { browser.beginNewTab(isPrivate: true) }
   }
 }
 

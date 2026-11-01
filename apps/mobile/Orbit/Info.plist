@@ -44,6 +44,25 @@
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>plus.square.fill.on.square.fill</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>New Private Tab</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.ais.orbit-mobile.new-private-tab</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>plus.square.on.square</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>New Tab</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.ais.orbit-mobile.new-tab</string>
+		</dict>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

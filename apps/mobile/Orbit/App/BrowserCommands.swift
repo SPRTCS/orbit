@@ -7,6 +7,8 @@ struct BrowserCommands: Commands {
     CommandGroup(replacing: .newItem) {
       Button("New Tab") { browser.beginNewTab() }
         .keyboardShortcut("t")
+      Button("New Private Tab") { browser.beginNewTab(isPrivate: true) }
+        .keyboardShortcut("n", modifiers: [.command, .shift])
       Button("Reopen Closed Tab") { browser.reopenClosedTab() }
         .keyboardShortcut("t", modifiers: [.command, .shift])
       Button("Open Location") { browser.beginEditingCurrent() }

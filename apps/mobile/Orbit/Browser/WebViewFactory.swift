@@ -6,9 +6,9 @@ final class WebViewFactory {
   private var spare: WKWebView?
   private var prewarmTask: Task<Void, Never>?
 
-  func makeConfiguration() -> WKWebViewConfiguration {
+  func makeConfiguration(dataStore: WKWebsiteDataStore = .default()) -> WKWebViewConfiguration {
     let configuration = WKWebViewConfiguration()
-    configuration.websiteDataStore = .default()
+    configuration.websiteDataStore = dataStore
     configuration.allowsInlineMediaPlayback = true
     configuration.allowsPictureInPictureMediaPlayback = true
     configuration.mediaTypesRequiringUserActionForPlayback = .audio

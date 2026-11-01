@@ -341,6 +341,7 @@ struct OpenTabsSection: View {
       }
       .buttonStyle(.plain)
       .hoverEffect(.highlight)
+      .contextMenu { NewTabMenu() }
       ForEach(browser.tabs.reversed()) { tab in
         SidebarRow(
           title: tab.displayTitle, url: tab.url, isSelected: tab.id == browser.selectedTabID,
