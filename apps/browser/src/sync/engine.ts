@@ -57,6 +57,7 @@ import {
   writtenElsewhere,
   type SyncHome,
 } from "./copiedState";
+import { forgetting, forgottenKeys, markForgotten, reviveOwn, stillListed } from "./forgottenDevices";
 import { recordKind } from "../lib/syncedDevices";
 
 type DataType = "bookmarks" | "history" | "tabs" | "pinned" | "passwords" | "extensions" | "settings";
@@ -94,6 +95,7 @@ type SyncDoc = {
   home?: SyncHome;
   rejoin?: true;
   copyConflict?: number;
+  forgetDevices?: string[];
 };
 
 const DOC = "sync.json";
@@ -358,11 +360,15 @@ async function runCycle({ retiring = false } = {}) {
     const device = doc.deviceId;
     const app = (doc.scopes[APP_SCOPE] ??= { ...emptyScope(), awaitRemote: doc.joining });
     settleAppliedThemes(app);
+    const forgotten = retiring ? new Set<string>() : forgottenKeys(doc.forgetDevices ?? [], device);
+    const forgetIn = (adapters: Adapter[]) => adapters.map((adapter) => forgetting(adapter, forgotten));
+    markForgotten(app, forgotten, clock);
+    if (!retiring) reviveOwn(app, device);
     await syncScope({
       scope: APP_SCOPE,
       state: app,
       transport,
-      adapters: appAdapters(retiring),
+      adapters: forgetIn(appAdapters(retiring)),
       clock,
       device,
       options: { persist: persistJournal(APP_SCOPE) },
@@ -378,11 +384,15 @@ async function runCycle({ retiring = false } = {}) {
       if (!retire && !link.enabled) continue;
       const scope = `p:${link.syncId}`;
       const state = (doc.scopes[scope] ??= emptyScope());
+      if (!retire) {
+        markForgotten(state, forgotten, clock);
+        reviveOwn(state, device);
+      }
       await syncScope({
         scope,
         state,
         transport,
-        adapters: profileAdapters(profileId, retire),
+        adapters: retire ? profileAdapters(profileId, retire) : forgetIn(profileAdapters(profileId, retire)),
         clock,
         device,
         options: { expired: historyExpired, persist: persistJournal(scope) },
@@ -397,6 +407,10 @@ async function runCycle({ retiring = false } = {}) {
           delete doc.profiles[profileId];
         }
       }
+    }
+    if (doc.forgetDevices) {
+      doc.forgetDevices = doc.forgetDevices.filter((id) => stillListed(Object.values(doc.scopes), id));
+      if (!doc.forgetDevices.length) delete doc.forgetDevices;
     }
     doc.clock = clock.last;
     doc.lastSyncedAt = Date.now();
@@ -513,7 +527,8 @@ function summarize(): Pick<SyncUi, "devices" | "remoteTabs" | "remoteProfiles"> 
   for (const scope of Object.values(doc.scopes)) {
     for (const [device, at] of Object.entries(scope.seen)) lastSeen.set(device, Math.max(at, lastSeen.get(device) ?? 0));
   }
-  const names = new Map([...visible(app, "dev:")].map(([k, v]) => [k.slice(4), (v as DeviceRecord).n]));
+  const forgotten = new Set(doc.forgetDevices ?? []);
+  const names = new Map([...visible(app, "dev:")].filter(([k]) => !forgotten.has(k.slice(4))).map(([k, v]) => [k.slice(4), (v as DeviceRecord).n]));
   const devices: SyncedDevice[] = [...names].map(([id, name]) => ({ id, name, lastSeen: lastSeen.get(id) ?? null, current: id === doc.deviceId }));
   devices.sort((a, b) => Number(b.current) - Number(a.current) || (b.lastSeen ?? 0) - (a.lastSeen ?? 0));
   const remoteTabs: Record<string, RemoteTabs[]> = {};
@@ -575,6 +590,14 @@ async function joinCopy(unlocked: boolean) {
   if (unlocked && (await finishCopyJoin())) return;
   showJoinPending(unlocked);
   publishUi({ status: "locked", error: "This Mac's sync state came from another copy of Orbit. Enter your recovery phrase to give it its own identity." });
+}
+
+export function forgetDevice(deviceId: string) {
+  if (!doc.enabled || !deviceId || deviceId === doc.deviceId) return;
+  doc.forgetDevices = [...new Set([...(doc.forgetDevices ?? []), deviceId])];
+  save();
+  publishUi();
+  scheduleSync(0);
 }
 
 export async function finishCopyJoin(): Promise<boolean> {

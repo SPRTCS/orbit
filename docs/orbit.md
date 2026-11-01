@@ -326,6 +326,21 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `components/settings/panes/Sync.tsx` | Copied sync state: import; `<CopiedSyncWarning />` after the error line in `SyncOn`. |
 | `packages/shell/ios/AppModule.swift` | Copied sync state: `dataDirectoryIdentity` (volume UUID and inode of the data dir) and `"dataDirectoryId"` in `systemInfo`. |
 | `packages/sync/ios/SyncModule.swift` | Copied sync state: `saveKey(account)`, saving the unlocked key under another account and reading it back. |
+| `sync/engine.ts` | Removing a device: import; `forgetDevices?` in `SyncDoc`; in `runCycle`, `forgotten`/`forgetIn` after `settleAppliedThemes`, `markForgotten(…, clock)` and `reviveOwn(…)` before the app scope's and each non-retiring profile scope's `syncScope`, whose adapters go through `forgetIn`, and the `stillListed` filter of `doc.forgetDevices` before `doc.clock` is saved; forgotten ids left out of `summarize`'s `names`; the exported `forgetDevice` next to `finishCopyJoin`. |
+| `components/settings/panes/Sync.tsx` | Removing a device: import; a "Remove…" button (`showForgetDevice(d)`) as the child of each other device's row in Devices. |
+
+## Removing a synced device (Orbit)
+
+A device only ever tombstones its own `dev:` and `tabs:` records (when it stops syncing or retires an id), so one that's
+gone (a lost Mac, the old identity of a Mac that rejoined as a new device) stayed in every device list. Settings ›
+Sync › Devices › Remove… (`ForgetDeviceSheet.tsx`) adds its id to `forgetDevices` in `sync.json`; it leaves the list
+at once. Each cycle then has this Mac write the tombstones itself (`sync/forgottenDevices.ts`): `markForgotten` lets
+the clock observe the record and seeds `base` with the key, and `forgetting` stops the adapters ignoring it, so
+`publishAdapter` publishes a newer null (the merge is last writer wins by HLC, whoever writes). An id stays in
+`forgetDevices` while any scope, a disabled profile's too, still holds a live record of it. A device removed by
+mistake comes back: when a Mac sees its own record tombstoned while `base` still holds it, `reviveOwn` drops the
+base entry and the next cycle republishes it; the iPhone app republishes its name on the cycle that pulls the
+tombstone. Tests: `sync/forgottenDevices.test.mjs`.
 
 ## Shared spaces, sessions and the timeline (Arc)
 

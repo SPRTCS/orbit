@@ -22,6 +22,7 @@ import { Button, Group, Row, SectionHeader, Toggle, useFormColors } from "../con
 import { folderLabel, showConnectDevice, showPhraseEntry, showRecoveryKit, showStopSync } from "./SyncSheets";
 import { SidebarDevicesRow } from "./SyncedDevicesSetting";
 import { CopiedSyncWarning } from "./CopiedSyncWarning";
+import { showForgetDevice } from "./ForgetDeviceSheet";
 
 export function SyncPane() {
   const theme = useTheme();
@@ -257,7 +258,9 @@ function SyncOn({ info }: { info: FolderInfo | null }) {
               icon={<Symbol name="laptopcomputer" size={15} color={theme.icon} style={{ width: 24, height: 20 }} />}
               title={d.current ? `${d.name} (This Mac)` : d.name}
               description={d.current ? statusLine(status, lastSyncedAt, 0) : d.lastSeen ? `last synced ${ago(d.lastSeen)}` : "hasn’t synced yet"}
-            />
+            >
+              {d.current ? null : <Button title="Remove…" onPress={() => showForgetDevice(d)} />}
+            </Row>
           ))
         ) : (
           <Row title="Just this Mac so far" description="Other devices show here once they sync." />
