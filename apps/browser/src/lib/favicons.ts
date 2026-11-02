@@ -29,6 +29,7 @@ export const useFavicons = create<Favicons>(() => ({ profiles: {}, themes: {} })
 
 const cacheKey = (profileId: string) => (isIncognitoProfile(profileId) ? profileId : engineProfile(profileId));
 export const pageKey = (url: string) => url.replace(/#.*$/, "");
+const hasOwnFavicon = (url: string) => !!url && !/^about:/i.test(url);
 
 type Change = (f: Favicons) => Favicons;
 const FLUSH_MS = 16;
@@ -111,7 +112,7 @@ const inflight = new Map<string, Promise<string | null>>();
 
 export function noteFavicon(tabId: string, src: string) {
   const tab = useBrowser.getState().tabs[tabId];
-  if (!tab?.url || !src) return;
+  if (!tab || !hasOwnFavicon(tab.url) || !src) return;
   const key = cacheKey(tab.profileId);
   const page = pageKey(tab.url);
   const known = useFavicons.getState().profiles[key]?.srcs[src];
@@ -153,7 +154,7 @@ const failedFetches = new Set<string>();
 
 function fetchMissing(profileId: string, url: string, src: string) {
   const key = cacheKey(profileId);
-  if (isIncognitoProfile(profileId) || !/^https?:/i.test(src)) return;
+  if (isIncognitoProfile(profileId) || !hasOwnFavicon(url) || !/^https?:/i.test(src)) return;
   const id = `${key}|${src}`;
   if (inflight.has(id) || failedFetches.has(id)) return;
   const pending = fetchFavicon(src, key, pageKey(url))
@@ -184,6 +185,7 @@ export type ResolvedFavicon = { uri: string; profileId: string };
 function lookupIn(key: string, url: string, src: string | null | undefined): string | undefined {
   const icons = useFavicons.getState().profiles[key];
   if (!icons) return undefined;
+  if (!hasOwnFavicon(url)) return src ? icons.srcs[src] : undefined;
   const page = pageKey(url);
   const pair = icons.appearances[page];
   if (pair) return pair[useBrowser.getState().ui.appDark ? 1 : 0];
@@ -251,7 +253,7 @@ export function useFavicon(url: string, src?: string | null, profileId?: string)
     const found = resolveFavicon(url, src, profileId);
     return found ? `${found.profileId} ${found.uri}` : null;
   });
-  const missing = !!url && !key;
+  const missing = hasOwnFavicon(url) && !key;
   const order = missing ? lookupOrder(profileId).join(" ") : "";
   useEffect(() => (missing ? watch({ url, src, profileId }) : undefined), [missing, order, profileId, url, src]);
   const split = key?.indexOf(" ") ?? -1;
