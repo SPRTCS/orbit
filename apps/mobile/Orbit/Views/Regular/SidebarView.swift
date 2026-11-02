@@ -329,19 +329,7 @@ struct OpenTabsSection: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
       SidebarSectionHeader(title: "Tabs")
-      Button {
-        browser.beginNewTab()
-      } label: {
-        Label("New Tab", systemImage: "plus")
-          .font(.system(size: 14, weight: .medium))
-          .foregroundStyle(.secondary)
-          .padding(.horizontal, 8)
-          .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
-          .contentShape(.rect)
-      }
-      .buttonStyle(.plain)
-      .hoverEffect(.highlight)
-      .contextMenu { NewTabMenu() }
+      NewTabRow()
       ForEach(browser.tabs.reversed()) { tab in
         SidebarRow(
           title: tab.displayTitle, url: tab.url, isSelected: tab.id == browser.selectedTabID,

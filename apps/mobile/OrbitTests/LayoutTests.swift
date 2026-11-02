@@ -157,6 +157,16 @@ struct SidebarLayoutTests {
 }
 
 struct OverviewBarTests {
+  @Test func iPadOverviewShowsThreeByTwoInLandscapeAndTwoByThreeInPortrait() {
+    let landscape = RegularOverviewGrid(width: 1154, height: 708)
+    #expect(landscape.columns == 3)
+    let landscapeCardWidth = (1154 - 2 * RegularOverviewGrid.columnSpacing) / 3
+    let landscapeRows = (landscapeCardWidth / landscape.cardAspect + RegularOverviewGrid.titleHeight) * 2 + RegularOverviewGrid.rowSpacing
+    #expect(abs(landscapeRows - 708) < 1)
+    let portrait = RegularOverviewGrid(width: 778, height: 1084)
+    #expect(portrait.columns == 2)
+    #expect(portrait.cardAspect > 1)
+  }
   @Test(arguments: [375.0, 402.0, 430.0, 500.0, 600.0, 700.0])
   func doneNeverOverlapsTheLeadingButtons(width: Double) {
     let gap = ChromeMetrics.edgeGap(displayCornerRadius: 55, controlSize: 50, safeBottom: 34)
@@ -286,4 +296,5 @@ struct SnapshotFitTests {
     let wide = SnapshotFit.size(image: CGSize(width: 1000, height: 300), in: CGSize(width: 200, height: 270))
     #expect(wide.height == 270)
   }
+
 }

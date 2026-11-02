@@ -41,6 +41,19 @@ struct OrbitMark: View {
 }
 
 extension Color {
+  static let privateTabFill = Color(
+    uiColor: UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor(red: 99 / 255, green: 99 / 255, blue: 102 / 255, alpha: 1)
+        : UIColor(red: 58 / 255, green: 58 / 255, blue: 60 / 255, alpha: 1)
+    })
+  static let privateTab = Color(
+    uiColor: UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor(red: 152 / 255, green: 152 / 255, blue: 157 / 255, alpha: 1)
+        : UIColor(red: 58 / 255, green: 58 / 255, blue: 60 / 255, alpha: 1)
+    })
+
   init?(hex: String) {
     var text = hex.trimmingCharacters(in: .whitespacesAndNewlines)
     if text.hasPrefix("#") { text.removeFirst() }

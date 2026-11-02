@@ -20,7 +20,11 @@ struct TabSwitcherView: View {
         if browser.tabs.isEmpty {
           emptyState
         } else {
-          grid(safeArea: safeArea, isRegular: isRegular, bottomInset: gap + buttonSize + 20)
+          grid(
+            size: CGSize(
+              width: proxy.size.width + proxy.safeAreaInsets.leading + proxy.safeAreaInsets.trailing,
+              height: proxy.size.height + proxy.safeAreaInsets.top + proxy.safeAreaInsets.bottom),
+            safeArea: safeArea, isRegular: isRegular, bottomInset: gap + buttonSize + 20)
         }
         SwitcherBottomBar(
           buttonSize: buttonSize,
@@ -33,20 +37,27 @@ struct TabSwitcherView: View {
     .opacity(browser.morph.overviewOpacity)
   }
 
-  private func grid(safeArea: EdgeInsets, isRegular: Bool, bottomInset: CGFloat) -> some View {
-    let cardAspect = isRegular ? min(max(browser.morph.pageAspectRatio, 0.75), 1.6) : 0.74
-    let columns = [
-      GridItem(.adaptive(minimum: isRegular ? 250 : 150, maximum: isRegular ? 380 : 260), spacing: isRegular ? 22 : 16)
-    ]
+  private func grid(size: CGSize, safeArea: EdgeInsets, isRegular: Bool, bottomInset: CGFloat) -> some View {
+    let horizontalPadding = max(isRegular ? 28 : 16, min(safeArea.leading, safeArea.trailing) + 8)
+    let layout =
+      isRegular
+      ? RegularOverviewGrid(
+        width: size.width - 2 * horizontalPadding,
+        height: size.height - safeArea.top - 16 - bottomInset)
+      : nil
+    let cardAspect = layout?.cardAspect ?? 0.74
+    let columns =
+      layout.map { Array(repeating: GridItem(.flexible(), spacing: RegularOverviewGrid.columnSpacing), count: $0.columns) }
+      ?? [GridItem(.adaptive(minimum: 150, maximum: 260), spacing: 16)]
     return ScrollViewReader { proxy in
       ScrollView {
-        LazyVGrid(columns: columns, spacing: isRegular ? 26 : 20) {
+        LazyVGrid(columns: columns, spacing: isRegular ? RegularOverviewGrid.rowSpacing : 20) {
           ForEach(browser.tabs) { tab in
             TabCard(tab: tab, isSelected: tab.id == browser.selectedTabID, aspectRatio: cardAspect)
               .id(tab.id)
           }
         }
-        .padding(.horizontal, max(16, min(safeArea.leading, safeArea.trailing) + 8))
+        .padding(.horizontal, horizontalPadding)
         .padding(.top, safeArea.top + 16)
         .padding(.bottom, bottomInset)
       }
@@ -66,6 +77,24 @@ struct TabSwitcherView: View {
         .foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+}
+
+struct RegularOverviewGrid {
+  static let columnSpacing: CGFloat = 24
+  static let rowSpacing: CGFloat = 26
+  static let titleHeight: CGFloat = 26
+
+  let columns: Int
+  let cardAspect: CGFloat
+
+  init(width: CGFloat, height: CGFloat) {
+    let isLandscape = width >= height
+    columns = isLandscape ? 3 : 2
+    let rows: CGFloat = isLandscape ? 2 : 3
+    let cardWidth = (width - CGFloat(columns - 1) * Self.columnSpacing) / CGFloat(columns)
+    let cardHeight = (height - (rows - 1) * Self.rowSpacing) / rows - Self.titleHeight
+    cardAspect = cardHeight > 0 ? min(max(cardWidth / cardHeight, 0.6), 2.2) : 4 / 3
   }
 }
 
@@ -123,11 +152,8 @@ struct SwitcherBottomBar: View {
   }
 
   private var plusButton: some View {
-    GlassCircleButton(systemImage: "plus", label: "New Tab", size: buttonSize) {
-      browser.beginNewTab()
-    }
-    .contextMenu { NewTabMenu() }
-    .reportsGlobalFrame { browser.morph.plusFrame = $0 }
+    NewTabButton(size: buttonSize)
+      .reportsGlobalFrame { browser.morph.plusFrame = $0 }
   }
 
   @ViewBuilder
@@ -160,15 +186,19 @@ struct TabCard: View {
     browser.morph.isActive && browser.morph.tabID == tab.id
   }
 
+  @ViewBuilder
+  private var cardBorder: some View {
+    let shape = RoundedRectangle(cornerRadius: OverviewMorph.cardCornerRadius, style: .continuous)
+    if tab.isPrivate {
+      shape.strokeBorder(Color.privateTab, lineWidth: isSelected ? 4 : 2.5)
+    } else {
+      shape.strokeBorder(isSelected ? Color.accentColor : Color.white.opacity(0.12), lineWidth: isSelected ? 3 : 1)
+    }
+  }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 6) {
-        if tab.isPrivate {
-          Image(systemName: "hand.raised.fill")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.purple)
-            .accessibilityLabel("Private")
-        }
         Favicon(url: tab.url, size: 16)
         Text(tab.displayTitle)
           .font(.system(size: 13, weight: .semibold))
@@ -195,8 +225,13 @@ struct TabCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: OverviewMorph.cardCornerRadius, style: .continuous))
         .overlay {
-          RoundedRectangle(cornerRadius: OverviewMorph.cardCornerRadius, style: .continuous)
-            .strokeBorder(isSelected ? Color.accentColor : Color.white.opacity(0.12), lineWidth: isSelected ? 3 : 1)
+          cardBorder
+        }
+        .overlay(alignment: .topLeading) {
+          if tab.isPrivate {
+            PrivateTabBadge()
+              .padding(8)
+          }
         }
         .overlay(alignment: .topTrailing) {
           Button {

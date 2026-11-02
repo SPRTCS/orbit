@@ -89,13 +89,8 @@ struct BottomChrome: View {
           URLCapsule(height: metrics.barHeight, glassNamespace: glass)
             .frame(maxWidth: style == .regular ? 560 : .infinity)
           if style == .regular { Spacer(minLength: 0) }
-          GlassCircleButton(
-            systemImage: "plus", label: "New Tab", size: metrics.barHeight, glassID: "trailing", glassNamespace: glass
-          ) {
-            browser.beginNewTab()
-          }
-          .contextMenu { NewTabMenu() }
-          .reportsGlobalFrame { browser.morph.plusFrame = $0 }
+          NewTabButton(size: metrics.barHeight, glassID: "trailing", glassNamespace: glass)
+            .reportsGlobalFrame { browser.morph.plusFrame = $0 }
         }
         .modifier(OverviewSwipeModifier(gesture: overviewSwipe))
       }

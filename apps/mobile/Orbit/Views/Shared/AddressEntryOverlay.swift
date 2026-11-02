@@ -80,7 +80,7 @@ struct AddressEntryOverlay: View {
     return HStack(spacing: 10) {
       Image(systemName: entry.opensPrivateTab ? "hand.raised.fill" : "magnifyingglass")
         .font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(entry.opensPrivateTab ? AnyShapeStyle(.purple) : AnyShapeStyle(.secondary))
+        .foregroundStyle(entry.opensPrivateTab ? AnyShapeStyle(Color.privateTab) : AnyShapeStyle(.secondary))
       TextField(
         entry.opensPrivateTab ? "Private: search or enter address" : "Search or enter address", text: $entry.text,
         selection: $entry.selection)
