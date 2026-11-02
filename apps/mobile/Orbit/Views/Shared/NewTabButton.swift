@@ -6,11 +6,9 @@ final class PrivateTabPress {
   static let holdDuration: Duration = .milliseconds(380)
 
   private(set) var isArmed = false
-  private(set) var isPressed = false
   @ObservationIgnored private var hold: Task<Void, Never>?
 
   func pressChanged(_ isPressed: Bool) {
-    withAnimation(.spring(duration: 0.25, bounce: 0.35)) { self.isPressed = isPressed }
     hold?.cancel()
     if isPressed {
       isArmed = false
@@ -62,9 +60,8 @@ struct NewTabButton: View {
         .contentShape(.circle)
     }
     .buttonStyle(PrivateTabPressStyle(press: press))
-    .glassEffect(.regular, in: .circle)
+    .glassEffect(press.isArmed ? .identity : .regular, in: .circle)
     .glassID(glassID ?? "plus", in: glassNamespace)
-    .scaleEffect(press.isArmed ? 1.14 : press.isPressed ? 1.08 : 1)
     .hoverEffect(.lift)
     .sensoryFeedback(.impact(weight: .medium), trigger: press.isArmed) { _, isArmed in isArmed }
     .accessibilityLabel(press.isArmed ? "New Private Tab" : "New Tab")
