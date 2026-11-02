@@ -209,7 +209,7 @@ source of truth for the pins themselves, and the overlay only adds hierarchy, or
 
 Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 (`store/pinnedFolders.ts`, `lib/pinnedFolders.ts`, `components/sidebar/PinnedFolders.tsx`,
-`components/sidebar/pinnedFolderDrop.ts`, `components/sidebar/pinnedFolderMenus.ts`,
+`components/sidebar/pinnedFolderDrop.ts`, `components/sidebar/pinnedFolderMenus.ts`, `components/sidebar/folderFold.ts`,
 `components/import/arcFolders.ts`, `sync/pinnedFolders.ts`, and their tests).
 
 | File (apps/browser/src unless noted) | Hook |

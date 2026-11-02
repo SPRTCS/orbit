@@ -25,7 +25,8 @@ import {
 } from "../../store/pinnedFolders";
 import { useHover } from "../primitives";
 import { useDragController, useDragItem } from "./dnd";
-import { useFold } from "./Fold";
+import { Fold } from "./Fold";
+import { useFolderFold } from "./folderFold";
 import { GroupBlock } from "./GroupBlock";
 import { dismissHover, suppressHover } from "./hover";
 import { headerAt, nextSibling, registerPinnedTree, type Frame, type PinnedTreeHandle } from "./pinnedFolderDrop";
@@ -208,29 +209,17 @@ const FolderBlock = memo(function FolderBlock({ node, parent }: { node: Resolved
   const id = folderIdOf(node.ref);
   const folder = ctx.tree.folders[id];
   const collapsed = !!folder?.collapsed;
-  const fold = useFold(collapsed);
-  const [height, setHeight] = useState(0);
+  const fold = useFolderFold(collapsed);
   if (!folder) return null;
-  const kept = ctx.keep.get(id);
-  const all = node.children ?? [];
-  const shown = !collapsed || fold.moving ? all : all.filter((c) => c.ref === kept);
-  const clamp = fold.moving && height > 0 ? { height: fold.open.interpolate({ inputRange: [0, 1], outputRange: [0, height] }), overflow: "hidden" as const } : null;
+  const kept = ctx.keep.get(id) ?? null;
+  const entries = (node.children ?? []).map((c) => ({ key: c.ref, node: <Node node={c} parent={id} /> }));
   return (
-    <View style={{ gap: GAP }}>
+    <View>
       <FolderHeader folderId={id} name={folder.name} collapsed={collapsed} open={fold.open} appearance={appearanceOf(folder)} />
-      {shown.length ? (
-        <Animated.View style={clamp}>
-          <View
-            onLayout={(e) => {
-              if (!collapsed && !fold.moving) setHeight(e.nativeEvent.layout.height);
-            }}
-            style={{ paddingLeft: INDENT, gap: GAP }}
-          >
-            {shown.map((c) => (
-              <Node key={c.ref} node={c} parent={id} />
-            ))}
-          </View>
-        </Animated.View>
+      {entries.length ? (
+        <View style={{ paddingLeft: INDENT }}>
+          <Fold fold={fold} collapsed={collapsed} entries={entries} keep={kept} gap={GAP} padTop={GAP} />
+        </View>
       ) : null}
     </View>
   );
