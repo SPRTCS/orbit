@@ -43,6 +43,13 @@ struct AddressEntryOverlay: View {
       fieldFocused = true
       browser.updateSuggestions()
     }
+    .onChange(of: fieldFocused) { _, focused in
+      guard focused else { return }
+      Task { @MainActor in
+        try? await Task.sleep(for: .milliseconds(60))
+        browser.entry.selectAll()
+      }
+    }
     .onChange(of: browser.entry.text) {
       browser.entry.highlightedIndex = nil
       browser.updateSuggestions()

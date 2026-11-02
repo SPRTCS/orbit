@@ -13,9 +13,13 @@ final class AddressEntryModel {
     opensInNewTab = newTab
     opensPrivateTab = newTab && isPrivate
     text = initialText
-    selection = initialText.isEmpty ? nil : TextSelection(range: initialText.startIndex..<initialText.endIndex)
+    selectAll()
     highlightedIndex = nil
     isPresented = true
+  }
+
+  func selectAll() {
+    selection = text.isEmpty ? nil : TextSelection(range: text.startIndex..<text.endIndex)
   }
 
   func dismiss() {

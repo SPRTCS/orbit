@@ -56,25 +56,15 @@ struct NewTabButton: View {
     } label: {
       Image(systemName: "plus")
         .font(.system(size: size * 0.38, weight: .semibold))
-        .foregroundStyle(Color.primary)
+        .foregroundStyle(press.isArmed ? Color.white : Color.primary)
         .frame(width: size, height: size)
+        .background(Circle().fill(Color.privateTabFill).opacity(press.isArmed ? 1 : 0))
         .contentShape(.circle)
     }
     .buttonStyle(PrivateTabPressStyle(press: press))
     .glassEffect(.regular, in: .circle)
-    .overlay {
-      Circle()
-        .fill(Color.privateTabFill)
-        .overlay {
-          Image(systemName: "plus")
-            .font(.system(size: size * 0.38, weight: .semibold))
-            .foregroundStyle(.white)
-        }
-        .opacity(press.isArmed ? 1 : 0)
-        .allowsHitTesting(false)
-    }
-    .scaleEffect(press.isArmed ? 1.14 : press.isPressed ? 1.08 : 1)
     .glassID(glassID ?? "plus", in: glassNamespace)
+    .scaleEffect(press.isArmed ? 1.14 : press.isPressed ? 1.08 : 1)
     .hoverEffect(.lift)
     .sensoryFeedback(.impact(weight: .medium), trigger: press.isArmed) { _, isArmed in isArmed }
     .accessibilityLabel(press.isArmed ? "New Private Tab" : "New Tab")
