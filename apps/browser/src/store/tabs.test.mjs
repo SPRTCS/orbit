@@ -81,17 +81,19 @@ test("closing a group that holds the shown tab shows the tab just above the grou
   assert.equal(shown(w), "home", "not the pinned opener");
 });
 
-test("a pinned tab's links keep their group down to the last one; a loose tab's group of two ends with one", () => {
+test("a pinned tab's links group from the second one and keep their group down to the last one; a loose tab's group of two ends with one", () => {
   reset({ cmdClickCreatesTabGroup: true });
   const [w, pin, home] = setup("pin", "home");
   S().togglePin(pin);
   S().activate(pin);
-  const c1 = open(w, "c1", pin);
-  const c2 = open(w, "c2", pin);
   const gathered = () => Object.values(S().groups).find((g) => g.pinnedOpenerId === pin);
-  assert.deepEqual(gathered()?.tabIds, [c1, c2]);
+  const c1 = open(w, "c1", pin);
+  assert.equal(gathered(), undefined, "a single link from a pinned tab stays a plain tab");
+  assert.ok(!Object.values(S().groups).some((g) => g.tabIds.includes(c1)));
+  const c2 = open(w, "c2", pin);
+  assert.deepEqual(gathered()?.tabIds, [c1, c2], "the second link gathers both");
   S().closeTab(c1);
-  assert.deepEqual(gathered()?.tabIds, [c2], "the pinned tab's group started with one link and keeps its last");
+  assert.deepEqual(gathered()?.tabIds, [c2], "once gathered, the pinned tab's group keeps its last link");
   const c3 = open(w, "c3", pin);
   assert.deepEqual(gathered()?.tabIds, [c2, c3]);
   S().activate(home);

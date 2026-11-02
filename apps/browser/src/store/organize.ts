@@ -184,7 +184,9 @@ export function groupWithOpener(s: BrowserState, tabId: string, openerId: string
     const gathered = pinnedChildGroup(s, openerId, tab.profileId);
     if (gathered) return joinGroup(s, w, gathered, tabId);
     if (!background || !s.settings.cmdClickCreatesTabGroup) return s;
-    return withGroup(s, [tabId], { autoUngroup: true, pinnedOpenerId: openerId })[0];
+    const firstLink = looseLinkOf(s, w, openerId, tabId);
+    if (!firstLink) return s;
+    return withGroup(s, [firstLink, tabId], { autoUngroup: true, pinnedOpenerId: openerId })[0];
   }
   const existing = groupOf(s, openerId);
   if (!existing && !(background && s.settings.cmdClickCreatesTabGroup)) return s;
@@ -193,7 +195,10 @@ export function groupWithOpener(s: BrowserState, tabId: string, openerId: string
   return withGroup(s, [...panes, tabId], { autoUngroup: true })[0];
 }
 
-export const pinnedChildGroup = (s: Pick<BrowserState, "groups">, openerId: string, profileId: string): TabGroup | undefined =>
+const looseLinkOf = (s: BrowserState, w: BrowserWindow, openerId: string, tabId: string): string | undefined =>
+  w.tabIds.find((id) => id !== tabId && s.tabs[id]?.openerId === openerId && !s.tabs[id]!.pinned && !groupOf(s, id));
+
+export const pinnedChildGroup =(s: Pick<BrowserState, "groups">, openerId: string, profileId: string): TabGroup | undefined =>
   Object.values(s.groups).find((g) => g.pinnedOpenerId === openerId && g.profileId === profileId && g.tabIds.length);
 
 function joinGroup(s: BrowserState, w: BrowserWindow, group: TabGroup, tabId: string): BrowserState {
