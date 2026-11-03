@@ -81,11 +81,12 @@ function AvatarButton({ windowId, incognito, open, onPress }: { windowId: string
   );
 }
 
+const DOWNLOADS_OPTICAL_CENTER = [{ translateX: 0.5 }, { translateY: -1 }];
+
 function DownloadsCircle({ windowId }: { windowId: string }) {
+  const chrome = glassChrome(useTheme().dark);
   return (
     <GlassIconButton
-      icon="square.and.arrow.down"
-      glyph={15}
       hit={{ width: HIT, height: HIT }}
       style={{ position: "absolute", top: TOP, right: GLASS.footerInsetRight + GLASS.button / 2 - HIT / 2 }}
       tooltip="Downloads (⇧⌘J)"
@@ -93,7 +94,15 @@ function DownloadsCircle({ windowId }: { windowId: string }) {
         const s = useBrowser.getState();
         s.setDownloadsOpen(windowId, !s.windowUi[windowId]?.downloadsOpen);
       }}
-    />
+    >
+      <Symbol
+        name="square.and.arrow.down"
+        size={15}
+        weight="medium"
+        color={chrome.ink}
+        style={{ width: GLASS.button, height: GLASS.button, transform: DOWNLOADS_OPTICAL_CENTER }}
+      />
+    </GlassIconButton>
   );
 }
 
