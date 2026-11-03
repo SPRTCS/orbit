@@ -131,6 +131,74 @@ struct RegularLayoutTests {
   }
 }
 
+struct SidebarDockTests {
+  @Test func narrowDragSnapsIntoTheDockAndWideDragSnapsBack() {
+    let range = SidebarWidth.range(windowWidth: 1210)
+    #expect(SidebarWidth.resized(from: 290, by: -40, range: range) == 250)
+    #expect(SidebarWidth.resized(from: 290, by: -60, range: range) == 240)
+    #expect(SidebarWidth.resized(from: 290, by: -121, range: range) == SidebarWidth.dock)
+    #expect(SidebarWidth.resized(from: SidebarWidth.dock, by: 60, range: range) == SidebarWidth.dock)
+    #expect(SidebarWidth.resized(from: SidebarWidth.dock, by: 110, range: range) == 240)
+    #expect(SidebarWidth.stepped(240, by: -20, range: range) == SidebarWidth.dock)
+    #expect(SidebarWidth.stepped(SidebarWidth.dock, by: 20, range: range) == 240)
+  }
+
+  @Test func dockLayoutKeepsTheIconColumnBesideTheCard() {
+    let dock = RegularLayout(
+      windowWidth: 1210, safeArea: EdgeInsets(top: 24, leading: 0, bottom: 20, trailing: 0),
+      storedSidebarWidth: SidebarWidth.dock, isSidebarVisible: true, isShowingOverview: false,
+      displayCornerRadius: ChromeMetrics.displayCornerRadius(isPad: true, safeBottom: 20))
+    #expect(dock.isDock)
+    #expect(dock.sidebarWidth == 72)
+    #expect(dock.cardLeading == 82)
+    #expect(dock.cardLeading + dock.cardWidth + RegularLayout.cardInset == 1210)
+    let notched = RegularLayout(
+      windowWidth: 956, safeArea: EdgeInsets(top: 0, leading: 62, bottom: 21, trailing: 62),
+      storedSidebarWidth: SidebarWidth.dock, isSidebarVisible: true, isShowingOverview: false,
+      displayCornerRadius: 55)
+    #expect(notched.sidebarWidth == 134)
+  }
+
+  @Test func iconsShrinkToFitLikeTheDock() {
+    let roomy = DockMagnification(separators: Array(repeating: false, count: 5), availableHeight: 800)
+    #expect(roomy.tile == DockMagnification.restTile)
+    let crowded = DockMagnification(separators: Array(repeating: false, count: 30), availableHeight: 800)
+    #expect(crowded.tile < DockMagnification.restTile)
+    #expect(crowded.restHeight <= 800)
+    #expect(abs(crowded.layout(focus: crowded.rest[10].center)[10].size - DockMagnification.peakSize) < 0.001)
+  }
+
+  @Test func theIconUnderTheFingerGrowsMostAndStaysUnderIt() {
+    let dock = DockMagnification(separators: [false, false, true, false, false, false], availableHeight: 900)
+    let rest = dock.rest
+    #expect(dock.layout(focus: nil) == rest)
+    let focus = rest[3].center
+    let grown = dock.layout(focus: focus)
+    #expect(abs(grown[3].size - dock.peak) < 0.001)
+    #expect(dock.peak == DockMagnification.peakSize)
+    #expect(abs(grown[3].center - focus) < 0.001)
+    #expect(grown[4].size < grown[3].size && grown[4].size > dock.tile)
+    let even = DockMagnification(separators: Array(repeating: false, count: 5), availableHeight: 900)
+    let around = even.layout(focus: even.rest[2].center)
+    #expect(abs(around[1].size - around[3].size) < 0.001)
+    #expect(abs((around[2].center - around[1].center) - (around[3].center - around[2].center)) < 0.001)
+    #expect(grown[2].size == DockMagnification.separatorHeight)
+    #expect(grown[0].center < rest[0].center)
+    #expect(grown[5].center > rest[5].center)
+    for i in 1..<grown.count { #expect(grown[i].center > grown[i - 1].center) }
+  }
+
+  @Test func fingerPicksTheNearestIconNeverTheSeparator() {
+    let dock = DockMagnification(separators: [false, true, false], availableHeight: 900)
+    let rest = dock.rest
+    #expect(dock.index(at: rest[0].center) == 0)
+    #expect(dock.index(at: rest[1].center + 1) == 2)
+    #expect(dock.index(at: rest[2].center + 10) == 2)
+    #expect(dock.index(at: -40) == nil)
+    #expect(dock.index(at: dock.restHeight + 40) == nil)
+  }
+}
+
 struct SidebarLayoutTests {
   @Test func topRowMirrorsTheFooterCorner() {
     let gap: CGFloat = 22
@@ -297,4 +365,33 @@ struct SnapshotFitTests {
     #expect(wide.height == 270)
   }
 
+}
+
+struct SiteIconLinkTests {
+  @Test func touchIconsWinThenTheLargestIconAndSvgIsSkipped() {
+    let html = """
+      <head>
+      <link rel="icon" href="/favicon-16.png" sizes="16x16">
+      <link rel="mask-icon" href="/mask.svg">
+      <link rel='icon' type='image/svg+xml' href='/icon.svg'>
+      <LINK REL="shortcut icon" HREF="https://cdn.example.com/fav.ico">
+      <link href="/icon-192.png" rel="icon" sizes="192x192">
+      <link rel="apple-touch-icon" href="apple.png">
+      </head>
+      """
+    let base = URL(string: "https://www.example.com/")!
+    #expect(SiteIconLinks.candidates(html: html, base: base).map(\.absoluteString) == [
+      "https://www.example.com/apple.png",
+      "https://www.example.com/icon-192.png",
+      "https://cdn.example.com/fav.ico",
+      "https://www.example.com/favicon-16.png",
+    ])
+  }
+
+  @Test func onlyWebPagesHaveAnOrigin() {
+    #expect(SiteIconLinks.origin(of: URL(string: "https://science.nasa.gov/solar-system/")) == URL(string: "https://science.nasa.gov/"))
+    #expect(SiteIconLinks.origin(of: URL(string: "about:blank")) == nil)
+    #expect(SiteIconLinks.origin(of: nil) == nil)
+    #expect(DockSiteIcon.monogram(for: URL(string: "https://www.nasa.gov")) == "N")
+  }
 }

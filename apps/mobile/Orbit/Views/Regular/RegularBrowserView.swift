@@ -22,9 +22,16 @@ struct RegularBrowserView: View {
         OrbitBackdrop()
         HStack(spacing: 0) {
           if browser.isSidebarVisible {
-            SidebarView(width: sidebarWidth, safeArea: safeArea, edgeGap: edgeGap)
-              .frame(width: sidebarWidth)
-              .transition(.move(edge: .leading).combined(with: .opacity))
+            Group {
+              if layout.isDock {
+                SidebarDock(safeArea: safeArea, edgeGap: edgeGap)
+              } else {
+                SidebarView(width: sidebarWidth, safeArea: safeArea, edgeGap: edgeGap)
+              }
+            }
+            .frame(width: sidebarWidth)
+            .transition(.move(edge: .leading).combined(with: .opacity))
+            .zIndex(1)
             SidebarResizeHandle(width: widthBinding, range: range)
           }
           contentColumn(safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth)
@@ -89,6 +96,22 @@ enum SidebarWidth {
   static let defaultWidth: Double = 290
   static let minimum: CGFloat = 240
   static let maximum: CGFloat = 420
+  static let dock: CGFloat = SidebarDock.shelfWidth + SidebarDock.shelfInset * 2
+  static let dockSnap: CGFloat = 170
+
+  static func isDock(_ stored: CGFloat) -> Bool { stored <= dock }
+
+  static func resized(from start: CGFloat, by translation: CGFloat, range: ClosedRange<CGFloat>) -> CGFloat {
+    let proposed = start + translation
+    if proposed < dockSnap { return dock }
+    return min(max(proposed, range.lowerBound), range.upperBound)
+  }
+
+  static func stepped(_ width: CGFloat, by step: CGFloat, range: ClosedRange<CGFloat>) -> CGFloat {
+    if isDock(width) { return step > 0 ? range.lowerBound : dock }
+    if step < 0, width <= range.lowerBound { return dock }
+    return min(max(width + step, range.lowerBound), range.upperBound)
+  }
 
   static func range(windowWidth: CGFloat) -> ClosedRange<CGFloat> {
     minimum...max(minimum, min(maximum, windowWidth * 0.4))
@@ -115,7 +138,12 @@ struct SidebarResizeHandle: View {
       onDrag: { translation in
         let start = dragStartWidth ?? width
         dragStartWidth = start
-        width = min(max(start + translation, range.lowerBound), range.upperBound)
+        let next = SidebarWidth.resized(from: start, by: translation, range: range)
+        if SidebarWidth.isDock(next) != SidebarWidth.isDock(width) {
+          withAnimation(.snappy(duration: 0.28)) { width = next }
+        } else {
+          width = next
+        }
       },
       onDragEnded: { dragStartWidth = nil },
       onDoubleTap: {
@@ -134,10 +162,10 @@ struct SidebarResizeHandle: View {
     }
     .accessibilityElement()
     .accessibilityLabel("Sidebar width")
-    .accessibilityValue("\(Int(width)) points")
+    .accessibilityValue(SidebarWidth.isDock(width) ? "Icons only" : "\(Int(width)) points")
     .accessibilityAdjustableAction { direction in
       let step: CGFloat = direction == .increment ? 20 : -20
-      width = min(max(width + step, range.lowerBound), range.upperBound)
+      withAnimation(.snappy(duration: 0.28)) { width = SidebarWidth.stepped(width, by: step, range: range) }
     }
   }
 }
@@ -300,8 +328,11 @@ struct RegularLayout {
 
   var sidebarRange: ClosedRange<CGFloat> { SidebarWidth.range(windowWidth: windowWidth) }
 
+  var isDock: Bool { SidebarWidth.isDock(storedSidebarWidth) }
+
   var sidebarWidth: CGFloat {
-    min(max(storedSidebarWidth, sidebarRange.lowerBound), sidebarRange.upperBound)
+    if isDock { return SidebarWidth.dock + safeArea.leading }
+    return min(max(storedSidebarWidth, sidebarRange.lowerBound), sidebarRange.upperBound)
   }
 
   var edgeGap: CGFloat {
