@@ -330,6 +330,7 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `components/settings/panes/Sync.tsx` | Removing a device: import; a "Remove…" button (`showForgetDevice(d)`) as the child of each other device's row in Devices. |
 | `lib/favicons.ts` | about:blank favicons: `hasOwnFavicon(url)` after `pageKey`; it guards `noteFavicon`, `fetchMissing`, `lookupIn` (only the `src` lookup for `about:` pages) and `useFavicon`'s `missing`. A tab waking through about:blank showed whatever icon another page had left under that address. Test: `lib/favicons.test.mjs`. |
 | `store/organize.ts` | Pinned-tab link groups from the second link: `looseLinkOf(s, w, openerId, tabId)` before `pinnedChildGroup`; in `groupWithOpener`'s pinned branch, no group until an ungrouped earlier link of the same pinned opener exists, then `withGroup(s, [firstLink, tabId], …)`. Test: `store/tabs.test.mjs` ("a pinned tab's links group from the second one …"). |
+| `components/sidebar/Fold.tsx`, `components/sidebar/hover.ts` | Folded-away rows ignore hover: `FoldedAway` context in `Fold.tsx`, provided around each entry as `foldedAbove \|\| (collapsed && !stays)`; `useRowHover` reads it, skips `onMouseEnter` while folded away and releases its card when its row folds away. A collapsed pinned folder kept its rows mounted at height 0, so the pointer over the rows below still opened their hover cards. |
 
 ## Removing a synced device (Orbit)
 

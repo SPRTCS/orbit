@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Easing, View } from "react-native";
 
 const FOLD_MS = 150;
@@ -28,6 +28,8 @@ export function useFold(collapsed: boolean): FoldState {
   return { open, moving: running || settled !== collapsed };
 }
 
+export const FoldedAway = createContext(false);
+
 export type FoldEntry = { key: string; node: ReactNode; ghost?: boolean };
 
 export function Fold({
@@ -54,6 +56,7 @@ export function Fold({
   footer?: ReactNode;
 }) {
   const { open, moving } = fold;
+  const foldedAbove = useContext(FoldedAway);
   const measuring = rowHeight === undefined;
   const [measured, setMeasured] = useState<Record<string, number>>({});
   const styles = useRef(new Map<number, object>()).current;
@@ -95,19 +98,21 @@ export function Fold({
           if (!stays && !mountAll) return null;
           return (
             <Animated.View key={key} style={folding && !stays ? (moving ? foldingStyle(heightOf(key)) : closed) : null} pointerEvents={collapsed && !stays ? "none" : "auto"}>
-              {measuring ? (
-                <View
-                  onLayout={(e) => {
-                    if (state.current.moving || (state.current.folding && key !== state.current.kept)) return;
-                    const height = e.nativeEvent.layout.height;
-                    setMeasured((all) => (all[key] === height ? all : { ...all, [key]: height }));
-                  }}
-                >
-                  {node}
-                </View>
-              ) : (
-                node
-              )}
+              <FoldedAway.Provider value={foldedAbove || (collapsed && !stays)}>
+                {measuring ? (
+                  <View
+                    onLayout={(e) => {
+                      if (state.current.moving || (state.current.folding && key !== state.current.kept)) return;
+                      const height = e.nativeEvent.layout.height;
+                      setMeasured((all) => (all[key] === height ? all : { ...all, [key]: height }));
+                    }}
+                  >
+                    {node}
+                  </View>
+                ) : (
+                  node
+                )}
+              </FoldedAway.Provider>
             </Animated.View>
           );
         })}

@@ -3,6 +3,7 @@ import type { LayoutChangeEvent } from "react-native";
 import { markHoverProps } from "../../lib/hoverShift";
 import { useBrowser } from "../../store/browser";
 import { PageProfileContext } from "../../store/hooks";
+import { FoldedAway } from "./Fold";
 import { cardReach, type Point, type Rect } from "./hoverAim";
 import { measureRow, setSidebarUi, sidebarUi, type Target } from "./state";
 
@@ -174,8 +175,9 @@ export function useRowHover(windowId: string, target: Target | null) {
   const [hovered, setHovered] = useState(false);
   const [, refresh] = useReducer((n: number) => n + 1, 0);
   const page = useContext(PageProfileContext);
-  const latest = useRef({ windowId, target, page });
-  latest.current = { windowId, target, page };
+  const foldedAway = useContext(FoldedAway);
+  const latest = useRef({ windowId, target, page, foldedAway });
+  latest.current = { windowId, target, page, foldedAway };
   const onCurrentPage = () => {
     const { windowId, page } = latest.current;
     return !page || useBrowser.getState().windows[windowId]?.profileId === page;
@@ -183,7 +185,7 @@ export function useRowHover(windowId: string, target: Target | null) {
   const [hoverProps] = useState(() =>
     markHoverProps({
       onMouseEnter: (event?: PointerEvent) => {
-        if (!onCurrentPage()) return;
+        if (!onCurrentPage() || latest.current.foldedAway) return;
         const { windowId, target } = latest.current;
         pointed(windowId, refresh, true);
         const enter = () => {
@@ -208,6 +210,13 @@ export function useRowHover(windowId: string, target: Target | null) {
       },
     }),
   );
+  useEffect(() => {
+    if (!foldedAway) return;
+    setHovered(false);
+    const { windowId, target } = latest.current;
+    pointed(windowId, refresh, false);
+    if (target) releaseAnchor(windowId, target.id);
+  }, [foldedAway]);
   useEffect(
     () => () => {
       const { windowId, target } = latest.current;
