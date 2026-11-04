@@ -12,30 +12,29 @@ const source = {
 
 test("a narrow drag snaps to the icon dock and a wider one back to the sidebar", () => {
   assert.equal(snapSidebarWidth(60, 160), ICON_DOCK_WIDTH);
-  assert.equal(snapSidebarWidth(119, 160), ICON_DOCK_WIDTH);
-  assert.equal(snapSidebarWidth(120, 160), 160);
+  assert.equal(snapSidebarWidth(127, 160), ICON_DOCK_WIDTH);
+  assert.equal(snapSidebarWidth(128, 160), 160);
   assert.equal(snapSidebarWidth(250, 160), 250);
   assert.ok(isIconDock(ICON_DOCK_WIDTH));
-  assert.ok(!isIconDock(160));
+  assert.ok(isIconDock(127));
+  assert.ok(!isIconDock(128));
 });
 
-test("the root page lists Pinned, then folders, then open tabs", () => {
-  assert.deepEqual(keys(rootItems(source)), ["pins", "f:tax", "separator", "t:x", "t:y"]);
+test("the root page lists the pins in sidebar order, folders among them, then open tabs", () => {
+  assert.deepEqual(keys(rootItems(source)), ["t:a", "t:b", "t:row", "f:tax", "t:g1", "t:g2", "separator", "t:x", "t:y"]);
   assert.deepEqual(keys(rootItems({ tiles: [], nodes: [], open: ["x"] })), ["t:x"]);
-  assert.deepEqual(keys(rootItems({ tiles: ["a"], nodes: [], open: [] })), ["pins"]);
+  assert.deepEqual(keys(rootItems({ tiles: ["a"], nodes: [], open: [] })), ["t:a"]);
 });
 
-test("Pinned and folders open as pages", () => {
-  assert.deepEqual(keys(pageItems(source, { kind: "pins" })), ["t:a", "t:b", "t:row", "t:g1", "t:g2"]);
+test("folders open as pages", () => {
   assert.deepEqual(keys(pageItems(source, { kind: "folder", id: "tax" })), ["t:t1", "t:t2", "f:inner"]);
   assert.deepEqual(keys(pageItems(source, { kind: "folder", id: "inner" })), ["t:deep"]);
   assert.equal(pageItems(source, { kind: "folder", id: "gone" }), null);
-  assert.equal(pageItems({ tiles: [], nodes: [], open: [] }, { kind: "pins" }), null);
 });
 
 test("at most twelve icons fit a screen, within the tile limits", () => {
-  assert.equal(dockTile(2000), 48);
-  assert.equal(dockTile(300), 36);
+  assert.equal(dockTile(2000), 52);
+  assert.equal(dockTile(300), 38);
   const tile = dockTile(700);
   assert.ok(tile * 12 + 8 * 11 + 16 <= 700);
 });

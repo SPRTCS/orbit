@@ -1,5 +1,5 @@
 import { ContextMenuArea, MouseArea, Surface, Symbol, WindowDragRegion } from "@ardia/shell";
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { closeTab } from "../../../lib/actions";
 import { hex, layout, useTheme } from "../../../lib/theme";
@@ -9,8 +9,10 @@ import { activeTabId, isIncognitoProfile } from "../../../store/model";
 import { appearanceOf, usePinnedFolders } from "../../../store/pinnedFolders";
 import { IconButton } from "../../primitives";
 import { clickTab, tabTitle } from "../actions";
+import { dismissHoverIn } from "../hover";
 import { openSidebarMenu, openTabMenu } from "../menus";
 import { ResizeHandle } from "../ResizeHandle";
+import { useSidebarUi } from "../state";
 import { TabIcon } from "../TabIcon";
 import { GROUP_COLORS, withAlpha } from "../tokens";
 import { DockMagnification, ICON_DOCK_WIDTH, isIconDock, pageItems, pageKey, type DockItem, type DockPage, type Placement } from "./model";
@@ -18,6 +20,8 @@ import { dockSource, folderName } from "./source";
 
 const STRIP = 4;
 const FOOTER = 44;
+const BACK_ROW = 40;
+const FADE_MS = 180;
 const TURN_MS = 260;
 const GROW_MS = 140;
 const SHRINK_MS = 180;
@@ -27,9 +31,41 @@ const OVERFLOW = 480;
 export const devIconDocks: Record<string, { hover: (y: number | null) => void; open: (index: number) => void; back: () => void; items: () => DockItem[] }> = {};
 if (__DEV__) (globalThis as { acIconDock?: unknown }).acIconDock = devIconDocks;
 
-export const useIconDockMode = () => useBrowser((s) => isIconDock(s.settings.sidebarWidth ?? layout.sidebarWidth));
+export function IconDockSwitch({ width, children }: { width: number; children: ReactNode }) {
+  const windowId = useWindowId();
+  const dock = isIconDock(width);
+  const dragging = useSidebarUi((u) => u.dragWidth[windowId] !== undefined);
+  const [fade] = useState(() => new Animated.Value(dock ? 1 : 0));
+  const [lingering, setLingering] = useState(false);
+  const was = useRef(dock);
+  useLayoutEffect(() => {
+    if (was.current === dock) return;
+    was.current = dock;
+    dismissHoverIn(windowId);
+    setLingering(true);
+    Animated.timing(fade, { toValue: dock ? 1 : 0, duration: FADE_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
+      if (finished) setLingering(false);
+    });
+  }, [dock]);
+  const sidebarShown = !dock || dragging || lingering;
+  const dockShown = dock || dragging || lingering;
+  return (
+    <View style={{ width, height: "100%" }}>
+      {sidebarShown ? (
+        <Animated.View pointerEvents={dock ? "none" : "box-none"} style={[StyleSheet.absoluteFill, { opacity: fade.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}>
+          {children}
+        </Animated.View>
+      ) : null}
+      {dockShown ? (
+        <Animated.View pointerEvents={dock ? "box-none" : "none"} style={[StyleSheet.absoluteFill, { opacity: fade }]}>
+          <IconDock width={width} />
+        </Animated.View>
+      ) : null}
+    </View>
+  );
+}
 
-export function IconDock({ width }: { width: number }) {
+function IconDock({ width }: { width: number }) {
   const windowId = useWindowId();
   const profileId = useWindowProfileId();
   const theme = useTheme();
@@ -57,12 +93,13 @@ export function IconDock({ width }: { width: number }) {
     Animated.timing(turn, { toValue: 0, duration: TURN_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => setTurning(false));
   };
   const open = (item: DockItem) => {
-    if (item.kind === "pins") go((p) => [...p, { kind: "pins" }], true);
-    else if (item.kind === "folder") go((p) => [...p, { kind: "folder", id: item.folderId }], true);
+    if (item.kind === "folder") go((p) => [...p, { kind: "folder", id: item.folderId }], true);
     else if (item.kind === "tab") clickTab(windowId, item.tabId);
   };
-  const back = () => path.length && go((p) => p.slice(0, -1), false);
-  const title = page?.kind === "folder" ? folderName(tree, page.id) : page ? "Pinned" : null;
+  const back = () => {
+    if (path.length) go((p) => p.slice(0, -1), false);
+  };
+  const title = page ? folderName(tree, page.id) : null;
 
   return (
     <View style={{ width, height: "100%" }}>
@@ -77,22 +114,23 @@ export function IconDock({ width }: { width: number }) {
             transform: [{ translateX: turn.interpolate({ inputRange: [-1, 1], outputRange: [-width * 0.6, width * 0.6] }) }],
           }}
         >
-          <DockPageView key={pageKey(page)} windowId={windowId} items={items} open={open} back={back} />
+          {page ? (
+            <View style={{ height: BACK_ROW, alignItems: "center", justifyContent: "center" }}>
+              <IconButton icon="chevron.backward" size={14} weight="semibold" box={32} radius={16} color={theme.icon} tooltip={title ? `Back from ${title}` : "Back"} onPress={back} />
+            </View>
+          ) : null}
+          <DockPageView key={pageKey(page)} windowId={windowId} width={width} items={items} open={open} back={back} />
         </Animated.View>
       </View>
       <View style={{ height: FOOTER, alignItems: "center", justifyContent: "center" }}>
-        {page ? (
-          <IconButton icon="chevron.backward" size={14} weight="semibold" box={32} radius={16} color={theme.icon} tooltip={title ? `Back from ${title}` : "Back"} onPress={back} />
-        ) : (
-          <IconButton icon="plus" size={14} weight="semibold" box={32} radius={16} color={theme.icon} tooltip="New Tab (⌘T)" onPress={() => useBrowser.getState().newTab(windowId)} />
-        )}
+        <IconButton icon="plus" size={14} weight="semibold" box={32} radius={16} color={theme.icon} tooltip="New Tab (⌘T)" onPress={() => useBrowser.getState().newTab(windowId)} />
       </View>
       <ResizeHandle windowId={windowId} />
     </View>
   );
 }
 
-function DockPageView({ windowId, items, open, back }: { windowId: string; items: DockItem[]; open: (item: DockItem) => void; back: () => void }) {
+function DockPageView({ windowId, width, items, open, back }: { windowId: string; width: number; items: DockItem[]; open: (item: DockItem) => void; back: () => void }) {
   const [viewport, setViewport] = useState(0);
   const dock = useMemo(() => new DockMagnification(items.map((i) => i.kind === "separator"), viewport), [items, viewport]);
   const [focus, setFocus] = useState<number | null>(null);
@@ -164,7 +202,7 @@ function DockPageView({ windowId, items, open, back }: { windowId: string; items
   const latestHover = useRef(hover);
   latestHover.current = hover;
   const placements = dock.layout(focus, amount);
-  const leading = (ICON_DOCK_WIDTH - dock.tile) / 2;
+  const leading = (Math.max(ICON_DOCK_WIDTH, width) - dock.tile) / 2;
 
   return (
     <View style={{ flex: 1 }} onLayout={(e) => setViewport(e.nativeEvent.layout.height)} onMouseLeave={() => hover(null)}>
@@ -193,7 +231,7 @@ function DockPageView({ windowId, items, open, back }: { windowId: string; items
           </ContextMenuArea>
         </MouseArea>
       </Animated.ScrollView>
-      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: ICON_DOCK_WIDTH + OVERFLOW, overflow: "hidden" }}>
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: Math.max(ICON_DOCK_WIDTH, width) + OVERFLOW, overflow: "hidden" }}>
         <Animated.View style={{ height, transform: [{ translateY: Animated.multiply(scrollY, -1) }] }}>
           <DockTiles windowId={windowId} items={items} placements={placements} leading={leading} tile={dock.tile} />
         </Animated.View>
@@ -236,7 +274,6 @@ function DockTiles({ windowId, items, placements, leading, tile }: { windowId: s
 }
 
 const DockTile = memo(function DockTile({ item, size }: { item: DockItem; size: number }) {
-  if (item.kind === "pins") return <SymbolTile name="pin.fill" tint="#F29A38" size={size} rotate />;
   if (item.kind === "folder") return <FolderTile folderId={item.folderId} size={size} />;
   if (item.kind === "tab") return <SiteTile tabId={item.tabId} size={size} />;
   return null;
@@ -273,20 +310,6 @@ function SiteTile({ tabId, size }: { tabId: string; size: number }) {
   );
 }
 
-function SymbolTile({ name, tint, size, rotate }: { name: string; tint: string; size: number; rotate?: boolean }) {
-  return (
-    <TileFrame size={size} fill={withAlpha(tint, 0.22)}>
-      <Symbol
-        name={name}
-        size={Math.round(size * 0.42)}
-        weight="semibold"
-        color={tint}
-        style={{ width: size * 0.6, height: size * 0.6, transform: rotate ? [{ rotate: "45deg" }] : undefined }}
-      />
-    </TileFrame>
-  );
-}
-
 function FolderTile({ folderId, size }: { folderId: string; size: number }) {
   const theme = useTheme();
   const profileId = useWindowProfileId();
@@ -313,7 +336,7 @@ function TitleBubble({ item, place, leading, offset, viewport, opacity }: { item
       const tab = s.tabs[item.tabId];
       return tab ? tabTitle(tab) : "";
     }
-    return item.kind === "pins" ? "Pinned" : item.kind === "folder" ? folderName(tree, item.folderId) : "";
+    return item.kind === "folder" ? folderName(tree, item.folderId) : "";
   });
   if (!label) return null;
   const height = 30;

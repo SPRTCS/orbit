@@ -11,6 +11,7 @@ export function useResizeDrag(o: {
   saved: () => number;
   onLive: (width: number | null) => void;
   onCommit: (width: number) => void;
+  snap?: (width: number) => number;
 }): GestureResponderHandlers {
   const latest = useRef(o);
   latest.current = o;
@@ -41,7 +42,10 @@ export function useResizeDrag(o: {
       if (width < min) return min - unband(min - width);
       return width;
     };
-    const clamp = (width: number) => Math.min(latest.current.max, Math.max(latest.current.min, width));
+    const clamp = (width: number) => {
+      const clamped = Math.min(latest.current.max, Math.max(latest.current.min, width));
+      return latest.current.snap ? latest.current.snap(clamped) : clamped;
+    };
     const at = (dx: number) => rubberBand(start + latest.current.direction * dx);
     return PanResponder.create({
       onStartShouldSetPanResponder: () => true,

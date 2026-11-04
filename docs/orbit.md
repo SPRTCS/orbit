@@ -331,8 +331,9 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `lib/favicons.ts` | about:blank favicons: `hasOwnFavicon(url)` after `pageKey`; it guards `noteFavicon`, `fetchMissing`, `lookupIn` (only the `src` lookup for `about:` pages) and `useFavicon`'s `missing`. A tab waking through about:blank showed whatever icon another page had left under that address. Test: `lib/favicons.test.mjs`. |
 | `store/organize.ts` | Pinned-tab link groups from the second link: `looseLinkOf(s, w, openerId, tabId)` before `pinnedChildGroup`; in `groupWithOpener`'s pinned branch, no group until an ungrouped earlier link of the same pinned opener exists, then `withGroup(s, [firstLink, tabId], …)`. Test: `store/tabs.test.mjs` ("a pinned tab's links group from the second one …"). |
 | `components/sidebar/Fold.tsx`, `components/sidebar/hover.ts` | Folded-away rows ignore hover: `FoldedAway` context in `Fold.tsx`, provided around each entry as `foldedAbove \|\| (collapsed && !stays)`; `useRowHover` reads it, skips `onMouseEnter` while folded away and releases its card when its row folds away. A collapsed pinned folder kept its rows mounted at height 0, so the pointer over the rows below still opened their hover cards. |
-| `components/layout/SidebarDock.tsx` | Icon dock: import; `useIconDockMode()` before the `sidebar` memo, which renders `<IconDock width={width} />` instead of `<Sidebar>` when it's on (deps `[width, iconDock]`). The mode follows the saved width, not the live drag width, so the handle being dragged isn't unmounted mid-drag. |
-| `components/sidebar/ResizeHandle.tsx` | Icon dock: import; `min: ICON_DOCK_WIDTH`, and `snapSidebarWidth(w, SIDEBAR_MIN_WIDTH)` around the live and the committed width. |
+| `components/layout/SidebarDock.tsx` | Icon dock: import; `<Sidebar width={width} />` inside `<IconDockSwitch width={width}>` in the `sidebar` memo. The switch follows the live width: while a drag is on, both the sidebar and the dock stay mounted (so the handle being dragged keeps its responder) and cross-fade at 128 pt; afterwards only the shown one stays mounted, as tracking areas fire for hidden views too. |
+| `components/sidebar/ResizeHandle.tsx` | Icon dock: import; `min: ICON_DOCK_WIDTH` and `snap: (w) => snapSidebarWidth(w, SIDEBAR_MIN_WIDTH)`. |
+| `components/layout/useResizeDrag.ts` | Icon dock: an optional `snap` that `clamp` applies, so a release animates to the snapped width (the dock's 96 pt or the sidebar's minimum). |
 
 ## Removing a synced device (Orbit)
 
@@ -597,15 +598,17 @@ Classic every hook takes upstream's path). Glass is modelled on the Radian brows
 
 ## Icon dock (Orbit)
 
-Drag the sidebar narrower than 120 pt and it snaps to a 76 pt column of icons, like the macOS Dock and Orbit's iPad
-dock (`apps/mobile/Orbit/Views/Regular/SidebarDock.swift`); drag it wider and it's the sidebar again
-(`components/sidebar/iconDock/`).
+Drag the sidebar narrower than 128 pt and it turns into a 96 pt column of icons (wide enough for the window buttons),
+like the macOS Dock and Orbit's iPad dock (`apps/mobile/Orbit/Views/Regular/SidebarDock.swift`); drag it wider and
+it's the sidebar again (`components/sidebar/iconDock/`). The switch happens during the drag, with a 180 ms cross-fade;
+on release the width springs to 96 pt or to the sidebar's minimum.
 
-- **Pages:** the first page is Pinned (a pin, when anything is pinned outside a folder), the top-level pinned folders,
-  a line, then the open tabs (a group's tabs one by one, a split as its active pane). Pinned and each folder open as a
-  page that slides in from the right; the footer's back chevron returns (on the first page it's New Tab).
-- **Size:** at most 12 icons per screen (36–48 pt), the rest scrolls.
-- **Hover:** the pointer magnifies the icons under it like the Dock (a raised cosine up to 68 pt, the point under the
+- **Pages:** the first page shows the pins in sidebar order (Top Apps tiles, then the pinned rows and groups with the
+  top-level folders among them), a line, then the open tabs (a group's tabs one by one, a split as its active pane).
+  Unlike the iPad, there's no Pinned page. A folder opens as a page that slides in from the right; the back chevron
+  above its icons returns. The footer's "+" is New Tab.
+- **Size:** at most 12 icons per screen (38–52 pt), the rest scrolls.
+- **Hover:** the pointer magnifies the icons under it like the Dock (a raised cosine up to 74 pt, the point under the
   pointer stays put) and shows the title in a bubble beside it; a click opens it, a middle click closes a tab, a right
   click opens the tab menu. react-native-macos has no mouse-move event, so the scroll content is a stack of 4 pt
   strips, each with `onMouseEnter`; the tiles are drawn above it in an overlay that follows the scroll offset on the
@@ -613,6 +616,7 @@ dock (`apps/mobile/Orbit/Views/Regular/SidebarDock.swift`); drag it wider and it
 - Tiles are drawn with `Surface`: a React Native view whose `shadowRadius` changes crashes react-native-macos
   (`-[RCTView didUpdateShadow]` → `+[NSColor colorWithCGColor:]`).
 - Dev handle (`__DEV__` only): `globalThis.acIconDock[windowId]` (`hover(y | null)`, `open(index)`, `back()`, `items()`).
+  A drag can be simulated with `ac.sidebarRows.setSidebarUi({ dragWidth: { [windowId]: width } })`.
 - Test: `components/sidebar/iconDock/model.test.mjs`.
 
 ## Devices in the sidebar (Orbit)

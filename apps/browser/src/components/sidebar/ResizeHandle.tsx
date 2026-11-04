@@ -13,9 +13,10 @@ export function ResizeHandle({ windowId }: { windowId: string }) {
     saved: () => useBrowser.getState().settings.sidebarWidth ?? 190,
     onLive: (w) => {
       const { [windowId]: _, ...rest } = sidebarUi().dragWidth;
-      setSidebarUi({ dragWidth: w === null ? rest : { ...rest, [windowId]: Math.round(snapSidebarWidth(w, SIDEBAR_MIN_WIDTH) * 2) / 2 } });
+      setSidebarUi({ dragWidth: w === null ? rest : { ...rest, [windowId]: Math.round(w * 2) / 2 } });
     },
-    onCommit: (w) => useBrowser.getState().updateSettings({ sidebarWidth: snapSidebarWidth(w, SIDEBAR_MIN_WIDTH) }),
+    onCommit: (w) => useBrowser.getState().updateSettings({ sidebarWidth: w }),
+    snap: (w) => snapSidebarWidth(w, SIDEBAR_MIN_WIDTH),
   });
   return (
     <View

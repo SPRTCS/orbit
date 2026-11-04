@@ -1,17 +1,16 @@
-export const ICON_DOCK_WIDTH = 76;
-export const ICON_DOCK_SNAP = 120;
+export const ICON_DOCK_WIDTH = 96;
+export const ICON_DOCK_SNAP = 128;
 
-export const isIconDock = (width: number) => width <= ICON_DOCK_WIDTH;
+export const isIconDock = (width: number) => width < ICON_DOCK_SNAP;
 
 export function snapSidebarWidth(width: number, minimum: number): number {
   if (width < ICON_DOCK_SNAP) return ICON_DOCK_WIDTH;
   return Math.max(minimum, width);
 }
 
-export type DockPage = { kind: "pins" } | { kind: "folder"; id: string };
+export type DockPage = { kind: "folder"; id: string };
 
 export type DockItem =
-  | { kind: "pins"; key: string }
   | { kind: "folder"; key: string; folderId: string }
   | { kind: "tab"; key: string; tabId: string }
   | { kind: "separator"; key: string };
@@ -20,7 +19,7 @@ export type DockNode = { tabIds: string[] } | { folderId: string; children: Dock
 
 export type DockSource = { tiles: string[]; nodes: DockNode[]; open: string[] };
 
-export const pageKey = (page: DockPage | null | undefined) => (!page ? "root" : page.kind === "pins" ? "pins" : `f:${page.id}`);
+export const pageKey = (page: DockPage | null | undefined) => (page ? `f:${page.id}` : "root");
 
 const isFolderNode = (node: DockNode): node is { folderId: string; children: DockNode[] } => "folderId" in node;
 
@@ -40,37 +39,27 @@ export function findFolder(nodes: DockNode[], id: string): DockNode[] | null {
   return null;
 }
 
-function pinnedPage(source: DockSource): DockItem[] {
-  return [...source.tiles.map(tabItem), ...nodeItems(source.nodes.filter((n) => !isFolderNode(n)))];
-}
-
 export function rootItems(source: DockSource): DockItem[] {
-  const top: DockItem[] = [];
-  if (pinnedPage(source).length) top.push({ kind: "pins", key: "pins" });
-  top.push(...nodeItems(source.nodes.filter(isFolderNode)));
+  const pinned = [...source.tiles.map(tabItem), ...nodeItems(source.nodes)];
   const open = source.open.map(tabItem);
-  return top.length && open.length ? [...top, { kind: "separator", key: "separator" }, ...open] : [...top, ...open];
+  return pinned.length && open.length ? [...pinned, { kind: "separator", key: "separator" }, ...open] : [...pinned, ...open];
 }
 
 export function pageItems(source: DockSource, page: DockPage | null | undefined): DockItem[] | null {
   if (!page) return rootItems(source);
-  if (page.kind === "pins") {
-    const items = pinnedPage(source);
-    return items.length ? items : null;
-  }
   const children = findFolder(source.nodes, page.id);
   return children ? nodeItems(children) : null;
 }
 
 export const DOCK_METRICS = {
-  maximumTile: 48,
-  minimumTile: 36,
+  maximumTile: 52,
+  minimumTile: 38,
   visibleIcons: 12,
   spacing: 8,
   separatorHeight: 9,
   padding: 8,
-  peakSize: 68,
-  peakScale: 1.45,
+  peakSize: 74,
+  peakScale: 1.42,
   reachSlots: 2.6,
   reachOfPeak: 1.5,
 };
