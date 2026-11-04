@@ -96,7 +96,7 @@ enum SidebarWidth {
   static let defaultWidth: Double = 290
   static let minimum: CGFloat = 240
   static let maximum: CGFloat = 420
-  static let dock: CGFloat = SidebarDock.shelfWidth + SidebarDock.shelfInset * 2
+  static let dock: CGFloat = SidebarDock.width
   static let dockSnap: CGFloat = 170
 
   static func isDock(_ stored: CGFloat) -> Bool { stored <= dock }

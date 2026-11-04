@@ -53,6 +53,21 @@ nonisolated enum SiteIconLinks {
   }
 }
 
+@MainActor
+enum SiteIconMemory {
+  private static var images: [URL: UIImage?] = [:]
+
+  static func lookup(_ url: URL?) -> UIImage?? {
+    guard let origin = SiteIconLinks.origin(of: url) else { return .some(nil) }
+    return images[origin]
+  }
+
+  static func remember(_ image: UIImage?, for url: URL?) {
+    guard let origin = SiteIconLinks.origin(of: url) else { return }
+    images[origin] = image
+  }
+}
+
 actor SiteIconLoader {
   static let shared = SiteIconLoader()
   static let minimumPixels: CGFloat = 16

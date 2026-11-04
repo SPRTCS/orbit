@@ -1,10 +1,17 @@
 import OrbitSync
 import SwiftUI
+import UIKit
+
+enum DockPage: Hashable {
+  case pins
+  case folder(String)
+}
 
 struct DockItem: Identifiable {
   enum Kind {
+    case pins
     case pin(SyncedPin)
-    case folder(PinFolderInfo, expanded: Bool)
+    case folder(PinFolderInfo)
     case tab(BrowserTab)
     case separator
   }
@@ -17,37 +24,60 @@ struct DockItem: Identifiable {
     return false
   }
 
-  @MainActor static func items(in browser: BrowserModel) -> [DockItem] {
-    var pins: [DockItem] = []
-    if let space = browser.currentSpace {
-      let tree = PinTree(space: space)
-      pins += tree.tiles.filter { $0.url != nil }.map { DockItem(id: "pin:\($0.id)", kind: .pin($0)) }
-      func add(_ nodes: [PinTree.Node]) {
-        for node in nodes {
-          switch node {
-          case .pin(let pin):
-            if pin.url != nil { pins.append(DockItem(id: "pin:\(pin.id)", kind: .pin(pin))) }
-          case .group(_, let members):
-            pins += members.filter { $0.url != nil }.map { DockItem(id: "pin:\($0.id)", kind: .pin($0)) }
-          case .folder(let folder, let children):
-            let expanded = browser.pinFolders.isExpanded(folder.id)
-            pins.append(DockItem(id: "folder:\(folder.id)", kind: .folder(folder, expanded: expanded)))
-            if expanded { add(children) }
-          }
-        }
-      }
-      add(tree.roots)
+  var opensPage: DockPage? {
+    switch kind {
+    case .pins: .pins
+    case .folder(let folder): .folder(folder.id)
+    case .pin, .tab, .separator: nil
     }
-    let tabs = browser.tabs.reversed().map { DockItem(id: "tab:\($0.id)", kind: .tab($0)) }
-    if pins.isEmpty || tabs.isEmpty { return pins + tabs }
-    return pins + [DockItem(id: "separator", kind: .separator)] + tabs
+  }
+
+  static func pinItems(_ nodes: [PinTree.Node]) -> [DockItem] {
+    nodes.flatMap { node -> [DockItem] in
+      switch node {
+      case .pin(let pin): [DockItem(id: "pin:\(pin.id)", kind: .pin(pin))]
+      case .group(_, let members):
+        members.filter { $0.url != nil }.map { DockItem(id: "pin:\($0.id)", kind: .pin($0)) }
+      case .folder(let folder, _): [DockItem(id: "folder:\(folder.id)", kind: .folder(folder))]
+      }
+    }
+  }
+
+  static func items(of page: DockPage, in tree: PinTree) -> [DockItem]? {
+    switch page {
+    case .pins:
+      return tree.tiles.map { DockItem(id: "pin:\($0.id)", kind: .pin($0)) } + pinItems(tree.roots)
+    case .folder(let id):
+      return folder(id, in: tree.roots).map { pinItems($0.children) }
+    }
+  }
+
+  static func folder(_ id: String, in nodes: [PinTree.Node]) -> (info: PinFolderInfo, children: [PinTree.Node])? {
+    for node in nodes {
+      guard case .folder(let folder, let children) = node else { continue }
+      if folder.id == id { return (folder, children) }
+      if let found = Self.folder(id, in: children) { return found }
+    }
+    return nil
+  }
+
+  @MainActor static func items(of page: DockPage?, in browser: BrowserModel) -> [DockItem]? {
+    let tree = browser.currentSpace.map { PinTree(space: $0) }
+    guard let page else {
+      let tabs = browser.tabs.reversed().map { DockItem(id: "tab:\($0.id)", kind: .tab($0)) }
+      guard let tree, !tree.isEmpty else { return tabs }
+      let pins = DockItem(id: "pins", kind: .pins)
+      return tabs.isEmpty ? [pins] : [pins, DockItem(id: "separator", kind: .separator)] + tabs
+    }
+    return tree.flatMap { items(of: page, in: $0) }
   }
 }
 
 struct DockMagnification {
-  static let restTile: CGFloat = 44
-  static let minimumTile: CGFloat = 20
-  static let spacing: CGFloat = 6
+  static let maximumTile: CGFloat = 52
+  static let minimumTile: CGFloat = 40
+  static let visibleIcons: CGFloat = 12
+  static let spacing: CGFloat = 8
   static let separatorHeight: CGFloat = 9
   static let padding: CGFloat = 8
   static let peakSize: CGFloat = 68
@@ -63,13 +93,10 @@ struct DockMagnification {
   let separators: [Bool]
   let tile: CGFloat
 
-  init(separators: [Bool], availableHeight: CGFloat) {
+  init(separators: [Bool], viewportHeight: CGFloat) {
     self.separators = separators
-    let icons = separators.filter { !$0 }.count
-    let fixed = Self.padding * 2 + CGFloat(separators.count - icons) * Self.separatorHeight
-      + Self.spacing * CGFloat(max(0, separators.count - 1))
-    let fitting = icons > 0 ? (availableHeight - fixed) / CGFloat(icons) : Self.restTile
-    tile = min(Self.restTile, max(Self.minimumTile, fitting.rounded(.down)))
+    let fitting = (viewportHeight - Self.padding * 2 - Self.spacing * (Self.visibleIcons - 1)) / Self.visibleIcons
+    tile = min(Self.maximumTile, max(Self.minimumTile, fitting.rounded(.down)))
   }
 
   var peak: CGFloat { max(Self.peakSize, tile * Self.peakScale) }
@@ -128,148 +155,291 @@ struct DockMagnification {
 }
 
 struct SidebarDock: View {
-  static let shelfInset: CGFloat = 6
-  static let shelfWidth = DockMagnification.restTile + DockMagnification.padding * 2
+  static let width: CGFloat = 72
+  static let turnDuration: TimeInterval = 0.32
 
   @Environment(BrowserModel.self) private var browser
   let safeArea: EdgeInsets
   let edgeGap: CGFloat
   @State private var topRow = TopRowGeometry()
+  @State private var path: [DockPage] = []
+  @State private var forward = true
+  @State private var turning = false
 
   var body: some View {
+    let page = path.last
+    let items = DockItem.items(of: page, in: browser)
+    let center = safeArea.leading + Self.width / 2
     VStack(spacing: 0) {
       HStack(spacing: 0) {
         SidebarIconButton(systemImage: "sidebar.left", label: "Hide Sidebar") { browser.isSidebarVisible = false }
         Spacer(minLength: 0)
       }
-      .padding(.leading, safeArea.leading + Self.shelfInset + (Self.shelfWidth - SidebarLayout.iconButtonSize) / 2)
+      .padding(.leading, center - SidebarLayout.iconButtonSize / 2)
       .padding(.top, SidebarLayout.topRowInset(edgeGap: edgeGap, statusBarOverlap: topRow.statusBarOverlap))
       .background { LayoutRegionInsetsReader { topRow = $0 } }
-      DockShelf(items: DockItem.items(in: browser), leading: safeArea.leading + Self.shelfInset)
-        .padding(.vertical, 10)
-        .zIndex(1)
-      GlassCircleButton(systemImage: "square.grid.2x2", label: "All Tabs", size: ChromeMetrics.regularControlSize) {
-        browser.showTabSwitcher()
+      ZStack(alignment: .top) {
+        DockPageView(items: items ?? [], page: page, leading: safeArea.leading, open: open)
+          .id(page)
+          .transition(
+            forward
+              ? .asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading))
+              : .asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .trailing)))
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .mask { Rectangle().padding(.trailing, turning ? 0 : -640) }
+      .padding(.vertical, 6)
+      .zIndex(1)
+      Group {
+        if page != nil {
+          GlassCircleButton(systemImage: "chevron.backward", label: "Back", size: ChromeMetrics.regularControlSize) { back() }
+        } else {
+          GlassCircleButton(systemImage: "square.grid.2x2", label: "All Tabs", size: ChromeMetrics.regularControlSize) {
+            browser.showTabSwitcher()
+          }
+        }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.leading, safeArea.leading + Self.shelfInset + (Self.shelfWidth - ChromeMetrics.regularControlSize) / 2)
+      .padding(.leading, center - ChromeMetrics.regularControlSize / 2)
       .padding(.bottom, edgeGap)
     }
+    .onChange(of: items == nil) { _, missing in
+      if missing { path = [] }
+    }
+    .onChange(of: browser.currentSpace?.id) { _, _ in path = [] }
+    .sensoryFeedback(.impact(weight: .light), trigger: path)
+  }
+
+  private func open(_ item: DockItem) {
+    if let next = item.opensPage {
+      turn(forward: true) { path.append(next) }
+      return
+    }
+    switch item.kind {
+    case .pin(let pin): browser.openPin(pin)
+    case .tab(let tab): browser.select(tab)
+    case .pins, .folder, .separator: break
+    }
+  }
+
+  private func back() {
+    guard !path.isEmpty else { return }
+    turn(forward: false) { _ = path.popLast() }
+  }
+
+  private func turn(forward: Bool, _ change: () -> Void) {
+    self.forward = forward
+    turning = true
+    withAnimation(.smooth(duration: Self.turnDuration)) { change() } completion: { turning = false }
   }
 }
 
-struct DockShelf: View {
+struct DockPageView: View {
   @Environment(BrowserModel.self) private var browser
   let items: [DockItem]
+  let page: DockPage?
   let leading: CGFloat
-  @State private var touch: CGPoint?
-  @State private var hover: CGPoint?
+  let open: (DockItem) -> Void
+  @State private var focus: CGFloat?
+  @State private var magnifying = false
+  @State private var holding = false
+  @State private var offset: CGFloat = 0
+  @State private var heldUntil = Date.distantPast
 
   var body: some View {
     GeometryReader { proxy in
-      let dock = DockMagnification(separators: items.map(\.isSeparator), availableHeight: proxy.size.height)
-      let restTop = max(0, (proxy.size.height - dock.restHeight) / 2)
-      let pointer = touch ?? hover
-      let focusY = pointer.map { $0.y - restTop }
-      let placements = dock.layout(focus: focusY)
-      let focused = focusY.flatMap { dock.index(at: $0) }
-      let tileLeading = leading + DockMagnification.padding + (DockMagnification.restTile - dock.tile) / 2
-      ZStack(alignment: .topLeading) {
-        shelf(placements: placements, restTop: restTop)
-        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-          let place = placements[index]
-          if item.isSeparator {
-            Capsule()
-              .fill(.secondary.opacity(0.45))
-              .frame(width: dock.tile * 0.7, height: 1)
-              .position(x: tileLeading + dock.tile / 2, y: restTop + place.center)
-          } else {
-            DockTile(item: item, size: place.size)
-              .position(x: tileLeading + place.size / 2, y: restTop + place.center)
-            if isSelected(item) {
-              Circle()
-                .fill(.primary.opacity(0.7))
-                .frame(width: 4, height: 4)
-                .position(x: leading + 3.5, y: restTop + place.center)
+      let dock = DockMagnification(separators: items.map(\.isSeparator), viewportHeight: proxy.size.height)
+      let tileLeading = leading + (SidebarDock.width - dock.tile) / 2
+      let focused = focus.flatMap { dock.index(at: $0) }
+      ScrollView {
+        DockStrip(
+          items: items, placements: dock.rest, tile: dock.tile, tileLeading: tileLeading, dotX: leading + 4,
+          isSelected: isSelected)
+          .frame(width: proxy.size.width, height: dock.restHeight, alignment: .topLeading)
+          .opacity(magnifying ? 0 : 1)
+          .contentShape(.rect)
+          .onTapGesture { location in
+            guard Date() > heldUntil, let index = dock.index(at: location.y) else { return }
+            open(items[index])
+          }
+          .gesture(
+            DockHoldGesture { state, location in
+              hold(state, at: location, dock: dock, width: proxy.size.width)
+            }
+          )
+          .onContinuousHover { phase in
+            guard !holding else { return }
+            switch phase {
+            case .active(let point): magnify(to: point.y)
+            case .ended: settle()
             }
           }
-        }
-        if let focused, pointer != nil {
-          DockTitleBubble(title: title(of: items[focused]))
-            .fixedSize()
-            .alignmentGuide(.leading) { _ in -(tileLeading + placements[focused].size + 12) }
-            .alignmentGuide(.top) { dimensions in -(restTop + placements[focused].center - dimensions.height / 2) }
-            .transition(.opacity)
-            .allowsHitTesting(false)
+      }
+      .scrollIndicators(.hidden)
+      .scrollDisabled(holding)
+      .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.y + $0.contentInsets.top } action: { _, value in
+        offset = value
+      }
+      .overlay(alignment: .topLeading) {
+        if magnifying {
+          DockMagnifier(
+            items: items, placements: dock.layout(focus: focus), tile: dock.tile, focused: focused, offset: offset,
+            tileLeading: tileLeading, dotX: leading + 4, title: title, isSelected: isSelected)
+          .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+          .mask { Rectangle().padding(.trailing, -640) }
+          .allowsHitTesting(false)
         }
       }
-      .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
-      .contentShape(.rect)
-      .animation(.smooth(duration: 0.16), value: pointer)
-      .gesture(
-        DragGesture(minimumDistance: 0)
-          .onChanged { value in touch = value.location }
-          .onEnded { value in
-            let index = dock.index(at: value.location.y - restTop)
-            touch = nil
-            guard let index, value.location.x <= proxy.size.width + 160 else { return }
-            activate(items[index])
-          }
-      )
-      .onContinuousHover { phase in
-        switch phase {
-        case .active(let point): hover = point.x <= proxy.size.width ? point : nil
-        case .ended: hover = nil
-        }
-      }
-      .sensoryFeedback(.selection, trigger: touch == nil ? nil : focused)
+      .sensoryFeedback(.selection, trigger: holding ? focused : nil)
       .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Tabs")
-      .accessibilityValue(items.filter(isSelected).first.map(title) ?? "")
+      .accessibilityLabel(pageTitle)
       .accessibilityActions {
         ForEach(items.filter { !$0.isSeparator }) { item in
-          Button(title(of: item)) { activate(item) }
+          Button(title(item)) { open(item) }
         }
       }
     }
   }
 
-  private func shelf(placements: [DockMagnification.Placement], restTop: CGFloat) -> some View {
-    let top = (placements.first.map { $0.center - $0.size / 2 } ?? 0) - DockMagnification.padding
-    let bottom = (placements.last.map { $0.center + $0.size / 2 } ?? 0) + DockMagnification.padding
-    return Color.clear
-      .frame(width: SidebarDock.shelfWidth, height: max(0, bottom - top))
-      .glassEffect(.regular, in: .rect(cornerRadius: 20, style: .continuous))
-      .offset(x: leading, y: restTop + top)
-      .opacity(placements.isEmpty ? 0 : 1)
+  private var pageTitle: String {
+    switch page {
+    case nil: "Tabs"
+    case .pins: "Pinned"
+    case .folder(let id): browser.currentSpace.flatMap { DockItem.folder(id, in: PinTree(space: $0).roots)?.info.name } ?? "Folder"
+    }
+  }
+
+  private func hold(_ state: UIGestureRecognizer.State, at location: CGPoint, dock: DockMagnification, width: CGFloat) {
+    switch state {
+    case .began:
+      holding = true
+      magnify(to: location.y)
+    case .changed:
+      magnify(to: location.y)
+    case .ended:
+      heldUntil = Date().addingTimeInterval(0.3)
+      holding = false
+      let index = dock.index(at: location.y)
+      settle()
+      if let index, location.x <= width + 160 { open(items[index]) }
+    default:
+      heldUntil = Date().addingTimeInterval(0.3)
+      holding = false
+      settle()
+    }
+  }
+
+  private func magnify(to y: CGFloat) {
+    if !magnifying {
+      magnifying = true
+      Task { @MainActor in withAnimation(.smooth(duration: 0.16)) { focus = y } }
+      return
+    }
+    withAnimation(.smooth(duration: 0.12)) { focus = y }
+  }
+
+  private func settle() {
+    guard magnifying else { return }
+    withAnimation(.smooth(duration: 0.18)) { focus = nil } completion: {
+      if focus == nil, !holding { magnifying = false }
+    }
   }
 
   private func isSelected(_ item: DockItem) -> Bool {
     switch item.kind {
     case .pin(let pin): browser.isPinSelected(pin)
     case .tab(let tab): tab.id == browser.selectedTabID
-    case .folder, .separator: false
+    case .pins, .folder, .separator: false
     }
   }
 
-  private func title(of item: DockItem) -> String {
+  private func title(_ item: DockItem) -> String {
     switch item.kind {
+    case .pins: return "Pinned"
     case .pin(let pin):
       let tab = browser.pinTab(for: pin)
       return tab.map { $0.title.isEmpty ? pin.title : $0.title } ?? pin.title
     case .tab(let tab): return tab.displayTitle
-    case .folder(let folder, _): return folder.name
+    case .folder(let folder): return folder.name
     case .separator: return ""
     }
   }
+}
 
-  private func activate(_ item: DockItem) {
-    switch item.kind {
-    case .pin(let pin): browser.openPin(pin)
-    case .tab(let tab): browser.select(tab)
-    case .folder(let folder, _): withAnimation(.snappy) { browser.pinFolders.toggle(folder.id) }
-    case .separator: break
+struct DockStrip: View {
+  let items: [DockItem]
+  let placements: [DockMagnification.Placement]
+  let tile: CGFloat
+  let tileLeading: CGFloat
+  let dotX: CGFloat
+  let isSelected: (DockItem) -> Bool
+  var offset: CGFloat = 0
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+        let place = placements[index]
+        let y = place.center - offset
+        if item.isSeparator {
+          Capsule()
+            .fill(.secondary.opacity(0.45))
+            .frame(width: tile * 0.7, height: 1)
+            .position(x: tileLeading + tile / 2, y: y)
+        } else {
+          DockTile(item: item, size: place.size)
+            .position(x: tileLeading + place.size / 2, y: y)
+          if isSelected(item) {
+            Circle()
+              .fill(.primary.opacity(0.7))
+              .frame(width: 4, height: 4)
+              .position(x: dotX, y: y)
+          }
+        }
+      }
     }
+  }
+}
+
+struct DockMagnifier: View {
+  let items: [DockItem]
+  let placements: [DockMagnification.Placement]
+  let tile: CGFloat
+  let focused: Int?
+  let offset: CGFloat
+  let tileLeading: CGFloat
+  let dotX: CGFloat
+  let title: (DockItem) -> String
+  let isSelected: (DockItem) -> Bool
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      DockStrip(
+        items: items, placements: placements, tile: tile, tileLeading: tileLeading, dotX: dotX, isSelected: isSelected,
+        offset: offset)
+      if let focused, placements.indices.contains(focused) {
+        DockTitleBubble(title: title(items[focused]))
+          .fixedSize()
+          .alignmentGuide(.leading) { _ in -(tileLeading + placements[focused].size + 12) }
+          .alignmentGuide(.top) { dimensions in -(placements[focused].center - offset - dimensions.height / 2) }
+          .transition(.opacity)
+      }
+    }
+  }
+}
+
+struct DockHoldGesture: UIGestureRecognizerRepresentable {
+  static let pressDuration: TimeInterval = 0.22
+  let onChange: (UIGestureRecognizer.State, CGPoint) -> Void
+
+  func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
+    let recognizer = UILongPressGestureRecognizer()
+    recognizer.minimumPressDuration = Self.pressDuration
+    recognizer.allowableMovement = 12
+    return recognizer
+  }
+
+  func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
+    onChange(recognizer.state, context.converter.localLocation)
   }
 }
 
@@ -281,14 +451,33 @@ struct DockTile: View {
   var body: some View {
     Group {
       switch item.kind {
+      case .pins: DockSymbolIcon(systemImage: "pin.fill", tint: .orange, size: size)
       case .pin(let pin): DockSiteIcon(url: browser.pinTab(for: pin)?.url ?? pin.url, size: size)
       case .tab(let tab): DockSiteIcon(url: tab.url, size: size)
-      case .folder(let folder, let expanded): DockFolderIcon(folder: folder, expanded: expanded, size: size)
+      case .folder(let folder): DockFolderIcon(folder: folder, size: size)
       case .separator: EmptyView()
       }
     }
     .frame(width: size, height: size)
-    .shadow(color: .black.opacity(0.18), radius: size * 0.06, y: size * 0.03)
+    .shadow(color: .black.opacity(0.16), radius: size * 0.06, y: size * 0.03)
+  }
+}
+
+struct DockSymbolIcon: View {
+  let systemImage: String
+  let tint: Color
+  let size: CGFloat
+
+  var body: some View {
+    let shape = RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
+    ZStack {
+      shape.fill(tint.opacity(0.22))
+      Image(systemName: systemImage)
+        .font(.system(size: size * 0.42, weight: .semibold))
+        .foregroundStyle(tint)
+        .rotationEffect(.degrees(45))
+    }
+    .overlay(shape.strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
   }
 }
 
@@ -296,7 +485,15 @@ struct DockSiteIcon: View {
   let url: URL?
   let size: CGFloat
   @State private var icon: UIImage?
-  @State private var settled = false
+  @State private var settled: Bool
+
+  init(url: URL?, size: CGFloat) {
+    self.url = url
+    self.size = size
+    let known = SiteIconMemory.lookup(url)
+    _icon = State(initialValue: known ?? nil)
+    _settled = State(initialValue: known != nil)
+  }
 
   var body: some View {
     let shape = RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
@@ -318,8 +515,15 @@ struct DockSiteIcon: View {
     .clipShape(shape)
     .overlay(shape.strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
     .task(id: SiteIconLinks.origin(of: url)) {
+      if let known = SiteIconMemory.lookup(url) {
+        icon = known
+        settled = true
+        return
+      }
       settled = false
-      icon = await SiteIconLoader.shared.icon(for: url)
+      let loaded = await SiteIconLoader.shared.icon(for: url)
+      SiteIconMemory.remember(loaded, for: url)
+      icon = loaded
       settled = true
     }
   }
@@ -337,27 +541,21 @@ struct DockSiteIcon: View {
 
 struct DockFolderIcon: View {
   let folder: PinFolderInfo
-  let expanded: Bool
   let size: CGFloat
 
   var body: some View {
     let shape = RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
     ZStack {
-      shape.fill((folder.tint ?? .secondary).opacity(0.28))
+      shape.fill((folder.tint ?? .secondary).opacity(0.24))
       if let emoji = folder.emoji, !emoji.isEmpty {
         Text(emoji).font(.system(size: size * 0.5))
       } else {
-        Image(systemName: expanded ? "folder" : "folder.fill")
+        Image(systemName: "folder.fill")
           .font(.system(size: size * 0.42, weight: .medium))
           .foregroundStyle(folder.tint ?? .secondary)
       }
     }
-    .overlay(alignment: .bottomTrailing) {
-      Image(systemName: expanded ? "chevron.up" : "chevron.down")
-        .font(.system(size: max(7, size * 0.2), weight: .bold))
-        .foregroundStyle(.secondary)
-        .padding(size * 0.08)
-    }
+    .overlay(shape.strokeBorder(.primary.opacity(0.08), lineWidth: 0.5))
   }
 }
 

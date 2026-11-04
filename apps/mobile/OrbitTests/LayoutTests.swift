@@ -1,4 +1,5 @@
 import Foundation
+import OrbitSync
 import SwiftUI
 import Testing
 import UIKit
@@ -159,26 +160,49 @@ struct SidebarDockTests {
     #expect(notched.sidebarWidth == 134)
   }
 
-  @Test func iconsShrinkToFitLikeTheDock() {
-    let roomy = DockMagnification(separators: Array(repeating: false, count: 5), availableHeight: 800)
-    #expect(roomy.tile == DockMagnification.restTile)
-    let crowded = DockMagnification(separators: Array(repeating: false, count: 30), availableHeight: 800)
-    #expect(crowded.tile < DockMagnification.restTile)
-    #expect(crowded.restHeight <= 800)
-    #expect(abs(crowded.layout(focus: crowded.rest[10].center)[10].size - DockMagnification.peakSize) < 0.001)
+  @Test func iconsShowAtMostTwelvePerScreenAndNeverShrinkBelowTheMinimum() {
+    let tall = DockMagnification(separators: Array(repeating: false, count: 30), viewportHeight: 1000)
+    #expect(tall.tile == DockMagnification.maximumTile)
+    let short = DockMagnification(separators: Array(repeating: false, count: 30), viewportHeight: 420)
+    #expect(short.tile == DockMagnification.minimumTile)
+    #expect(short.restHeight > 420)
+    let fitted = DockMagnification(separators: [], viewportHeight: 600)
+    #expect(fitted.tile * 12 + DockMagnification.spacing * 11 + DockMagnification.padding * 2 <= 600)
+    #expect(fitted.tile >= DockMagnification.minimumTile && fitted.tile <= DockMagnification.maximumTile)
+    #expect(abs(short.layout(focus: short.rest[10].center)[10].size - short.peak) < 0.001)
+    #expect(short.peak == DockMagnification.peakSize)
+  }
+
+  @Test func pinsAndFoldersOpenAsPagesWithTheirOwnIcons() {
+    let folders = [
+      SyncedFolder(id: "tax", name: "Steuer", path: ["Steuer"], parentId: nil, emoji: "💰", color: nil),
+      SyncedFolder(id: "2026", name: "2026", path: ["Steuer", "2026"], parentId: "tax", emoji: nil, color: nil),
+    ]
+    let pins = [
+      SyncedPin(id: "t", title: "Tile", url: URL(string: "https://a.example"), groupId: nil, folderPath: [], isTile: true),
+      SyncedPin(id: "r", title: "Row", url: URL(string: "https://b.example"), groupId: nil, folderPath: []),
+      SyncedPin(id: "e", title: "Elster", url: URL(string: "https://c.example"), groupId: nil, folderPath: [], folderId: "tax"),
+      SyncedPin(id: "x", title: "Beleg", url: URL(string: "https://d.example"), groupId: nil, folderPath: [], folderId: "2026"),
+    ]
+    let tree = PinTree(pins: pins, folders: folders)
+    #expect(DockItem.items(of: .pins, in: tree)?.map(\.id) == ["pin:t", "pin:r", "folder:tax"])
+    #expect(DockItem.items(of: .folder("tax"), in: tree)?.map(\.id) == ["pin:e", "folder:2026"])
+    #expect(DockItem.items(of: .folder("2026"), in: tree)?.map(\.id) == ["pin:x"])
+    #expect(DockItem.items(of: .folder("gone"), in: tree) == nil)
+    #expect(DockItem.items(of: .pins, in: tree)?.last?.opensPage == .folder("tax"))
   }
 
   @Test func theIconUnderTheFingerGrowsMostAndStaysUnderIt() {
-    let dock = DockMagnification(separators: [false, false, true, false, false, false], availableHeight: 900)
+    let dock = DockMagnification(separators: [false, false, true, false, false, false], viewportHeight: 900)
     let rest = dock.rest
     #expect(dock.layout(focus: nil) == rest)
     let focus = rest[3].center
     let grown = dock.layout(focus: focus)
     #expect(abs(grown[3].size - dock.peak) < 0.001)
-    #expect(dock.peak == DockMagnification.peakSize)
+    #expect(dock.peak >= DockMagnification.peakSize)
     #expect(abs(grown[3].center - focus) < 0.001)
     #expect(grown[4].size < grown[3].size && grown[4].size > dock.tile)
-    let even = DockMagnification(separators: Array(repeating: false, count: 5), availableHeight: 900)
+    let even = DockMagnification(separators: Array(repeating: false, count: 5), viewportHeight: 900)
     let around = even.layout(focus: even.rest[2].center)
     #expect(abs(around[1].size - around[3].size) < 0.001)
     #expect(abs((around[2].center - around[1].center) - (around[3].center - around[2].center)) < 0.001)
@@ -189,7 +213,7 @@ struct SidebarDockTests {
   }
 
   @Test func fingerPicksTheNearestIconNeverTheSeparator() {
-    let dock = DockMagnification(separators: [false, true, false], availableHeight: 900)
+    let dock = DockMagnification(separators: [false, true, false], viewportHeight: 900)
     let rest = dock.rest
     #expect(dock.index(at: rest[0].center) == 0)
     #expect(dock.index(at: rest[1].center + 1) == 2)
