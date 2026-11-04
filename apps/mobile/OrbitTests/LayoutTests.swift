@@ -7,13 +7,13 @@ import UIKit
 @testable import Orbit
 
 struct LayoutTests {
-  @Test(arguments: [(220.0, 2), (240.0, 3), (290.0, 3), (399.0, 3), (400.0, 4), (420.0, 4)])
+  @Test(arguments: [(240.0, 3), (269.0, 3), (270.0, 4), (290.0, 4), (329.0, 4), (330.0, 5), (360.0, 5)])
   func pinTileColumnsFollowSidebarWidth(width: Double, columns: Int) {
     #expect(SidebarWidth.tileColumns(forSidebarWidth: CGFloat(width)) == columns)
   }
 
   @Test func sidebarWidthRangeIsClampedToFortyPercent() {
-    #expect(SidebarWidth.range(windowWidth: 1366) == 240...420)
+    #expect(SidebarWidth.range(windowWidth: 1366) == 240...360)
     #expect(SidebarWidth.range(windowWidth: 800) == 240...320)
     #expect(SidebarWidth.range(windowWidth: 500) == 240...240)
   }
@@ -95,8 +95,8 @@ struct RegularLayoutTests {
 
   @Test func landscapeWithSidebarFitsTheWindow() {
     let landscape = layout(width: 1210, sidebar: true, stored: 420)
-    #expect(landscape.sidebarWidth == 420)
-    #expect(landscape.cardWidth == CGFloat(772))
+    #expect(landscape.sidebarWidth == 360)
+    #expect(landscape.cardWidth == CGFloat(832))
     #expect(landscape.edgeGap == 22)
   }
 
@@ -185,11 +185,16 @@ struct SidebarDockTests {
       SyncedPin(id: "x", title: "Beleg", url: URL(string: "https://d.example"), groupId: nil, folderPath: [], folderId: "2026"),
     ]
     let tree = PinTree(pins: pins, folders: folders)
-    #expect(DockItem.items(of: .pins, in: tree)?.map(\.id) == ["pin:t", "pin:r", "folder:tax"])
+    #expect(DockItem.items(of: .pins, in: tree)?.map(\.id) == ["pin:t", "pin:r"])
+    let tab = DockItem(id: "tab:1", kind: .separator)
+    #expect(DockItem.rootItems(tree: tree, tabs: [tab]).map(\.id) == ["pins", "folder:tax", "separator", "tab:1"])
+    let onlyFolders = PinTree(pins: Array(pins.suffix(2)), folders: folders)
+    #expect(DockItem.rootItems(tree: onlyFolders, tabs: []).map(\.id) == ["folder:tax"])
+    #expect(DockItem.rootItems(tree: nil, tabs: [tab]).map(\.id) == ["tab:1"])
     #expect(DockItem.items(of: .folder("tax"), in: tree)?.map(\.id) == ["pin:e", "folder:2026"])
     #expect(DockItem.items(of: .folder("2026"), in: tree)?.map(\.id) == ["pin:x"])
     #expect(DockItem.items(of: .folder("gone"), in: tree) == nil)
-    #expect(DockItem.items(of: .pins, in: tree)?.last?.opensPage == .folder("tax"))
+    #expect(DockItem.rootItems(tree: tree, tabs: [])[1].opensPage == .folder("tax"))
   }
 
   @Test func theIconUnderTheFingerGrowsMostAndStaysUnderIt() {

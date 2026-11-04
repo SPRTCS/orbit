@@ -33,6 +33,7 @@ struct RegularBrowserView: View {
             .transition(.move(edge: .leading).combined(with: .opacity))
             .zIndex(1)
             SidebarResizeHandle(width: widthBinding, range: range)
+              .zIndex(2)
           }
           contentColumn(safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth)
         }
@@ -95,7 +96,7 @@ struct RegularBrowserView: View {
 enum SidebarWidth {
   static let defaultWidth: Double = 290
   static let minimum: CGFloat = 240
-  static let maximum: CGFloat = 420
+  static let maximum: CGFloat = 360
   static let dock: CGFloat = SidebarDock.width
   static let dockSnap: CGFloat = 170
 
@@ -118,14 +119,15 @@ enum SidebarWidth {
   }
 
   static func tileColumns(forSidebarWidth width: CGFloat) -> Int {
-    if width >= 400 { return 4 }
-    if width < 230 { return 2 }
-    return 3
+    if width < 270 { return 3 }
+    if width < 330 { return 4 }
+    return 5
   }
 }
 
 struct SidebarResizeHandle: View {
   static let width: CGFloat = 10
+  static let touchSlop: CGFloat = 14
 
   @Binding var width: CGFloat
   let range: ClosedRange<CGFloat>
@@ -150,14 +152,16 @@ struct SidebarResizeHandle: View {
         withAnimation(.snappy(duration: 0.3)) { width = CGFloat(SidebarWidth.defaultWidth) }
       }
     )
-    .frame(width: Self.width)
+    .frame(width: Self.width + Self.touchSlop * 2)
+    .padding(.horizontal, -Self.touchSlop)
     .frame(maxHeight: .infinity)
     .overlay {
       Capsule()
         .fill(.secondary)
-        .frame(width: 3, height: 44)
-        .opacity(dragStartWidth != nil ? 0.8 : (isHovering ? 0.5 : 0))
+        .frame(width: dragStartWidth != nil ? 5 : 4, height: 56)
+        .opacity(dragStartWidth != nil ? 0.85 : (isHovering ? 0.55 : 0.3))
         .animation(.easeOut(duration: 0.15), value: isHovering)
+        .animation(.easeOut(duration: 0.15), value: dragStartWidth != nil)
         .allowsHitTesting(false)
     }
     .accessibilityElement()

@@ -2,6 +2,13 @@ import OrbitSync
 import SwiftUI
 import UIKit
 
+extension PinTree.Node {
+  var isFolder: Bool {
+    if case .folder = self { return true }
+    return false
+  }
+}
+
 enum DockPage: Hashable {
   case pins
   case folder(String)
@@ -46,7 +53,7 @@ struct DockItem: Identifiable {
   static func items(of page: DockPage, in tree: PinTree) -> [DockItem]? {
     switch page {
     case .pins:
-      return tree.tiles.map { DockItem(id: "pin:\($0.id)", kind: .pin($0)) } + pinItems(tree.roots)
+      return tree.tiles.map { DockItem(id: "pin:\($0.id)", kind: .pin($0)) } + pinItems(tree.roots.filter { !$0.isFolder })
     case .folder(let id):
       return folder(id, in: tree.roots).map { pinItems($0.children) }
     }
@@ -61,13 +68,20 @@ struct DockItem: Identifiable {
     return nil
   }
 
+  static func rootItems(tree: PinTree?, tabs: [DockItem]) -> [DockItem] {
+    var top: [DockItem] = []
+    if let tree {
+      if !(items(of: .pins, in: tree) ?? []).isEmpty { top.append(DockItem(id: "pins", kind: .pins)) }
+      top += pinItems(tree.roots.filter(\.isFolder))
+    }
+    if top.isEmpty || tabs.isEmpty { return top + tabs }
+    return top + [DockItem(id: "separator", kind: .separator)] + tabs
+  }
+
   @MainActor static func items(of page: DockPage?, in browser: BrowserModel) -> [DockItem]? {
     let tree = browser.currentSpace.map { PinTree(space: $0) }
     guard let page else {
-      let tabs = browser.tabs.reversed().map { DockItem(id: "tab:\($0.id)", kind: .tab($0)) }
-      guard let tree, !tree.isEmpty else { return tabs }
-      let pins = DockItem(id: "pins", kind: .pins)
-      return tabs.isEmpty ? [pins] : [pins, DockItem(id: "separator", kind: .separator)] + tabs
+      return rootItems(tree: tree, tabs: browser.tabs.reversed().map { DockItem(id: "tab:\($0.id)", kind: .tab($0)) })
     }
     return tree.flatMap { items(of: page, in: $0) }
   }
