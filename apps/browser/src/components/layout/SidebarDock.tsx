@@ -7,6 +7,7 @@ import { hex, layout, useTheme } from "../../lib/theme";
 import { useBrowser } from "../../store/browser";
 import { useWindowId } from "../../store/hooks";
 import { Sidebar } from "../Sidebar";
+import { IconDock, useIconDockMode } from "../sidebar/iconDock/IconDock";
 import { dismissHoverIn } from "../sidebar/hover";
 import { useSidebarUi } from "../sidebar/state";
 import { ProfileSwipe } from "./ProfileSwipe";
@@ -184,13 +185,14 @@ function SidebarDock({
     [peek.slide, width],
   );
   useTrafficLights(windowId, dock, peek.slide, { width, peeking, fullscreen });
+  const iconDock = useIconDockMode();
   const sidebar = useMemo(
     () => (
       <ProfileSwipe>
-        <Sidebar width={width} />
+        {iconDock ? <IconDock width={width} /> : <Sidebar width={width} />}
       </ProfileSwipe>
     ),
-    [width],
+    [width, iconDock],
   );
 
   const leaveStrip = (e: { nativeEvent: { clientX: number; clientY: number } }) => {

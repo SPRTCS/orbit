@@ -1,0 +1,156 @@
+export const ICON_DOCK_WIDTH = 76;
+export const ICON_DOCK_SNAP = 120;
+
+export const isIconDock = (width: number) => width <= ICON_DOCK_WIDTH;
+
+export function snapSidebarWidth(width: number, minimum: number): number {
+  if (width < ICON_DOCK_SNAP) return ICON_DOCK_WIDTH;
+  return Math.max(minimum, width);
+}
+
+export type DockPage = { kind: "pins" } | { kind: "folder"; id: string };
+
+export type DockItem =
+  | { kind: "pins"; key: string }
+  | { kind: "folder"; key: string; folderId: string }
+  | { kind: "tab"; key: string; tabId: string }
+  | { kind: "separator"; key: string };
+
+export type DockNode = { tabIds: string[] } | { folderId: string; children: DockNode[] };
+
+export type DockSource = { tiles: string[]; nodes: DockNode[]; open: string[] };
+
+export const pageKey = (page: DockPage | null | undefined) => (!page ? "root" : page.kind === "pins" ? "pins" : `f:${page.id}`);
+
+const isFolderNode = (node: DockNode): node is { folderId: string; children: DockNode[] } => "folderId" in node;
+
+const tabItem = (tabId: string): DockItem => ({ kind: "tab", key: `t:${tabId}`, tabId });
+
+function nodeItems(nodes: DockNode[]): DockItem[] {
+  return nodes.flatMap((node) => (isFolderNode(node) ? [{ kind: "folder", key: `f:${node.folderId}`, folderId: node.folderId } as DockItem] : node.tabIds.map(tabItem)));
+}
+
+export function findFolder(nodes: DockNode[], id: string): DockNode[] | null {
+  for (const node of nodes) {
+    if (!isFolderNode(node)) continue;
+    if (node.folderId === id) return node.children;
+    const inside = findFolder(node.children, id);
+    if (inside) return inside;
+  }
+  return null;
+}
+
+function pinnedPage(source: DockSource): DockItem[] {
+  return [...source.tiles.map(tabItem), ...nodeItems(source.nodes.filter((n) => !isFolderNode(n)))];
+}
+
+export function rootItems(source: DockSource): DockItem[] {
+  const top: DockItem[] = [];
+  if (pinnedPage(source).length) top.push({ kind: "pins", key: "pins" });
+  top.push(...nodeItems(source.nodes.filter(isFolderNode)));
+  const open = source.open.map(tabItem);
+  return top.length && open.length ? [...top, { kind: "separator", key: "separator" }, ...open] : [...top, ...open];
+}
+
+export function pageItems(source: DockSource, page: DockPage | null | undefined): DockItem[] | null {
+  if (!page) return rootItems(source);
+  if (page.kind === "pins") {
+    const items = pinnedPage(source);
+    return items.length ? items : null;
+  }
+  const children = findFolder(source.nodes, page.id);
+  return children ? nodeItems(children) : null;
+}
+
+export const DOCK_METRICS = {
+  maximumTile: 48,
+  minimumTile: 36,
+  visibleIcons: 12,
+  spacing: 8,
+  separatorHeight: 9,
+  padding: 8,
+  peakSize: 68,
+  peakScale: 1.45,
+  reachSlots: 2.6,
+  reachOfPeak: 1.5,
+};
+
+export type Placement = { center: number; size: number };
+
+export function dockTile(viewport: number): number {
+  const m = DOCK_METRICS;
+  const fitting = Math.floor((viewport - m.padding * 2 - m.spacing * (m.visibleIcons - 1)) / m.visibleIcons);
+  return Math.min(m.maximumTile, Math.max(m.minimumTile, fitting));
+}
+
+export class DockMagnification {
+  readonly tile: number;
+  readonly peak: number;
+  readonly reach: number;
+  readonly rest: Placement[];
+  readonly separators: boolean[];
+
+  constructor(separators: boolean[], viewport: number) {
+    const m = DOCK_METRICS;
+    this.separators = separators;
+    this.tile = dockTile(viewport);
+    this.peak = Math.max(m.peakSize, this.tile * m.peakScale);
+    this.reach = Math.max(m.reachSlots * (this.tile + m.spacing), m.reachOfPeak * this.peak);
+    this.rest = placements(separators.map((s) => (s ? m.separatorHeight : this.tile)));
+  }
+
+  get restHeight(): number {
+    const last = this.rest[this.rest.length - 1];
+    return last ? last.center + last.size / 2 + DOCK_METRICS.padding : DOCK_METRICS.padding * 2;
+  }
+
+  size(distance: number, amount = 1): number {
+    if (Math.abs(distance) >= this.reach) return this.tile;
+    return this.tile + (this.peak - this.tile) * amount * ((1 + Math.cos((Math.PI * Math.abs(distance)) / this.reach)) / 2);
+  }
+
+  layout(focus: number | null, amount = 1): Placement[] {
+    const rest = this.rest;
+    if (focus === null || amount <= 0 || !rest.length) return rest;
+    const sizes = rest.map((place, i) => (this.separators[i] ? place.size : this.size(place.center - focus, amount)));
+    const grown = placements(sizes);
+    const shift = focus - mapped(focus, rest, grown);
+    return grown.map((p) => ({ center: p.center + shift, size: p.size }));
+  }
+
+  index(y: number): number | null {
+    const rest = this.rest;
+    if (!rest.length || y < -DOCK_METRICS.spacing || y > this.restHeight + DOCK_METRICS.spacing) return null;
+    let best: number | null = null;
+    for (let i = 0; i < rest.length; i++) {
+      if (this.separators[i]) continue;
+      if (best === null || Math.abs(rest[i]!.center - y) < Math.abs(rest[best]!.center - y)) best = i;
+    }
+    return best;
+  }
+}
+
+function placements(sizes: number[]): Placement[] {
+  let y = DOCK_METRICS.padding;
+  return sizes.map((size) => {
+    const place = { center: y + size / 2, size };
+    y += size + DOCK_METRICS.spacing;
+    return place;
+  });
+}
+
+function mapped(y: number, rest: Placement[], grown: Placement[]): number {
+  const first = rest[0]!;
+  const last = rest[rest.length - 1]!;
+  if (y <= first.center) return grown[0]!.center - ((first.center - y) * grown[0]!.size) / first.size;
+  if (y >= last.center) {
+    const end = grown[grown.length - 1]!;
+    return end.center + ((y - last.center) * end.size) / last.size;
+  }
+  let next = rest.findIndex((p) => p.center >= y);
+  if (next < 1) next = rest.length - 1;
+  const previous = next - 1;
+  const span = rest[next]!.center - rest[previous]!.center;
+  const t = span > 0 ? (y - rest[previous]!.center) / span : 0;
+  return grown[previous]!.center + t * (grown[next]!.center - grown[previous]!.center);
+}

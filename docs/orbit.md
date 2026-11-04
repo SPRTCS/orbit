@@ -331,6 +331,8 @@ Re-apply these when a merge conflicts; everything else is in Orbit-owned files
 | `lib/favicons.ts` | about:blank favicons: `hasOwnFavicon(url)` after `pageKey`; it guards `noteFavicon`, `fetchMissing`, `lookupIn` (only the `src` lookup for `about:` pages) and `useFavicon`'s `missing`. A tab waking through about:blank showed whatever icon another page had left under that address. Test: `lib/favicons.test.mjs`. |
 | `store/organize.ts` | Pinned-tab link groups from the second link: `looseLinkOf(s, w, openerId, tabId)` before `pinnedChildGroup`; in `groupWithOpener`'s pinned branch, no group until an ungrouped earlier link of the same pinned opener exists, then `withGroup(s, [firstLink, tabId], …)`. Test: `store/tabs.test.mjs` ("a pinned tab's links group from the second one …"). |
 | `components/sidebar/Fold.tsx`, `components/sidebar/hover.ts` | Folded-away rows ignore hover: `FoldedAway` context in `Fold.tsx`, provided around each entry as `foldedAbove \|\| (collapsed && !stays)`; `useRowHover` reads it, skips `onMouseEnter` while folded away and releases its card when its row folds away. A collapsed pinned folder kept its rows mounted at height 0, so the pointer over the rows below still opened their hover cards. |
+| `components/layout/SidebarDock.tsx` | Icon dock: import; `useIconDockMode()` before the `sidebar` memo, which renders `<IconDock width={width} />` instead of `<Sidebar>` when it's on (deps `[width, iconDock]`). The mode follows the saved width, not the live drag width, so the handle being dragged isn't unmounted mid-drag. |
+| `components/sidebar/ResizeHandle.tsx` | Icon dock: import; `min: ICON_DOCK_WIDTH`, and `snapSidebarWidth(w, SIDEBAR_MIN_WIDTH)` around the live and the committed width. |
 
 ## Removing a synced device (Orbit)
 
@@ -592,6 +594,26 @@ Classic every hook takes upstream's path). Glass is modelled on the Radian brows
   scrolls by touch). Hover-only controls (a row's close button, the URL field's bookmark) don't appear for touch.
 - **Dev handles** (`__DEV__` only): `globalThis.orbitAvatarMenu` (`setState({[windowId]: true})`, `run(item, windowId)`)
   and `globalThis.orbitGlide`.
+
+## Icon dock (Orbit)
+
+Drag the sidebar narrower than 120 pt and it snaps to a 76 pt column of icons, like the macOS Dock and Orbit's iPad
+dock (`apps/mobile/Orbit/Views/Regular/SidebarDock.swift`); drag it wider and it's the sidebar again
+(`components/sidebar/iconDock/`).
+
+- **Pages:** the first page is Pinned (a pin, when anything is pinned outside a folder), the top-level pinned folders,
+  a line, then the open tabs (a group's tabs one by one, a split as its active pane). Pinned and each folder open as a
+  page that slides in from the right; the footer's back chevron returns (on the first page it's New Tab).
+- **Size:** at most 12 icons per screen (36–48 pt), the rest scrolls.
+- **Hover:** the pointer magnifies the icons under it like the Dock (a raised cosine up to 68 pt, the point under the
+  pointer stays put) and shows the title in a bubble beside it; a click opens it, a middle click closes a tab, a right
+  click opens the tab menu. react-native-macos has no mouse-move event, so the scroll content is a stack of 4 pt
+  strips, each with `onMouseEnter`; the tiles are drawn above it in an overlay that follows the scroll offset on the
+  native driver and may overflow over the page.
+- Tiles are drawn with `Surface`: a React Native view whose `shadowRadius` changes crashes react-native-macos
+  (`-[RCTView didUpdateShadow]` → `+[NSColor colorWithCGColor:]`).
+- Dev handle (`__DEV__` only): `globalThis.acIconDock[windowId]` (`hover(y | null)`, `open(index)`, `back()`, `items()`).
+- Test: `components/sidebar/iconDock/model.test.mjs`.
 
 ## Devices in the sidebar (Orbit)
 
