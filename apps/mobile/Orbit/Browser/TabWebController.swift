@@ -19,6 +19,7 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
   private static let bottomMargin: CGFloat = 44
 
   private static let embeddedSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
+  private static let storeSchemes: Set<String> = ["itms-apps", "itms-appss"]
 
   init(webView: WKWebView, tab: BrowserTab, browser: BrowserModel) {
     self.webView = webView
@@ -173,6 +174,7 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
     -> WKNavigationActionPolicy
   {
     guard let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() else { return .allow }
+    if scheme.hasPrefix("itms"), !Self.storeSchemes.contains(scheme) { return .cancel }
     if !Self.embeddedSchemes.contains(scheme) {
       _ = await UIApplication.shared.open(url)
       return .cancel

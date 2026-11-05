@@ -121,7 +121,7 @@ enum Omnibox {
 
   private static let knownSchemes: Set<String> = [
     "http", "https", "file", "about", "data", "blob", "mailto", "tel", "sms", "facetime", "ftp", "view-source",
-    "itms-apps", "itms-services", "maps", "slack", "zoommtg", "notion", "figma", "spotify", "linear", "obsidian",
+    "itms-apps", "maps", "slack", "zoommtg", "notion", "figma", "spotify", "linear", "obsidian",
   ]
 
   private static let knownTLDs: Set<String> = Set(
