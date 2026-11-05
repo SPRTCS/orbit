@@ -162,9 +162,9 @@ function SpaceDot({ id, windowId, cell, page, pos }: { id: string; windowId: str
   );
 }
 
-type Item = { id: string; title: string; icon?: string; badge?: string; checked?: boolean };
+export type AvatarMenuItem = { id: string; title: string; icon?: string; badge?: string; checked?: boolean };
 
-function menuItems(windowId: string): Item[][] {
+export function avatarMenuGroups(windowId: string): AvatarMenuItem[][] {
   const s = useBrowser.getState();
   const current = s.windows[windowId]?.profileId;
   return [
@@ -184,7 +184,7 @@ function menuItems(windowId: string): Item[][] {
   ];
 }
 
-function runMenuItem(id: string, windowId: string) {
+export function runAvatarMenuItem(id: string, windowId: string) {
   const s = useBrowser.getState();
   if (id.startsWith("space:")) return switchProfile(windowId, id.slice("space:".length), true);
   switch (id) {
@@ -203,7 +203,7 @@ function runMenuItem(id: string, windowId: string) {
   }
 }
 
-if (__DEV__) (globalThis as { orbitAvatarMenu?: unknown }).orbitAvatarMenu = Object.assign(useAvatarMenu, { run: runMenuItem });
+if (__DEV__) (globalThis as { orbitAvatarMenu?: unknown }).orbitAvatarMenu = Object.assign(useAvatarMenu, { run: runAvatarMenuItem });
 
 export function menuWidth(sidebarWidth: number) {
   return Math.max(190, Math.min(260, sidebarWidth - 2 * GLASS.footerInsetLeft - 4));
@@ -237,10 +237,10 @@ function AvatarMenu({ windowId, width, open, onClose }: { windowId: string; widt
   const scale = progress.interpolate({ inputRange: [0, 1], outputRange: [FROM_SCALE, 1] });
   const shiftX = progress.interpolate({ inputRange: [0, 1], outputRange: [(-(1 - FROM_SCALE) * w) / 2, 0] });
   const shiftY = progress.interpolate({ inputRange: [0, 1], outputRange: [((1 - FROM_SCALE) * height) / 2, 0] });
-  const groups = menuItems(windowId);
+  const groups = avatarMenuGroups(windowId);
   const pick = (id: string) => {
     onClose();
-    runMenuItem(id, windowId);
+    runAvatarMenuItem(id, windowId);
   };
   return (
     <Animated.View
@@ -281,7 +281,7 @@ function AvatarMenu({ windowId, width, open, onClose }: { windowId: string; widt
   );
 }
 
-function MenuRow({ item, onPress }: { item: Item; onPress: () => void }) {
+function MenuRow({ item, onPress }: { item: AvatarMenuItem; onPress: () => void }) {
   const theme = useTheme();
   const chrome = glassChrome(theme.dark);
   const { hovered, hoverProps } = useHover();

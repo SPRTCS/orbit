@@ -15,8 +15,9 @@ import { openSidebarMenu, openTabMenu } from "../menus";
 import { ResizeHandle } from "../ResizeHandle";
 import { useSidebarUi } from "../state";
 import { TabIcon } from "../TabIcon";
-import { GROUP_COLORS, withAlpha } from "../tokens";
+import { GROUP_COLORS } from "../tokens";
 import { DockMagnification, ICON_DOCK_WIDTH, isIconDock, pageItems, pageKey, type DockItem, type DockPage, type Placement } from "./model";
+import { DockFooter } from "./DockFooter";
 import { dockSource, folderName } from "./source";
 
 const STRIP = 4;
@@ -26,9 +27,11 @@ const FADE_MS = 180;
 const TURN_MS = 260;
 const GROW_MS = 140;
 const SHRINK_MS = 180;
-const DOT_X = 4;
 const OVERFLOW = 480;
 const BADGE = 18;
+const ICON_SHARE = 0.64;
+const FOLDER_SYMBOL_SHARE = 0.5;
+const FOLDER_EMOJI_SHARE = 0.58;
 const BADGE_INSET = 4;
 const BADGE_DROP = 7;
 
@@ -99,6 +102,7 @@ function IconDock({ width }: { width: number }) {
   const open = (item: DockItem) => {
     if (item.kind === "folder") go((p) => [...p, { kind: "folder", id: item.folderId }], true);
     else if (item.kind === "tab") clickTab(windowId, item.tabId);
+    else if (item.kind === "newTab") useBrowser.getState().newTab(windowId);
   };
   const back = () => {
     if (path.length) go((p) => p.slice(0, -1), false);
@@ -127,7 +131,7 @@ function IconDock({ width }: { width: number }) {
         </Animated.View>
       </View>
       <View style={{ height: FOOTER, alignItems: "center", justifyContent: "center" }}>
-        <IconButton icon="plus" size={14} weight="semibold" box={32} radius={16} color={theme.icon} tooltip="New Tab (⌘T)" onPress={() => useBrowser.getState().newTab(windowId)} />
+        <DockFooter />
       </View>
       <ResizeHandle windowId={windowId} />
     </View>
@@ -270,13 +274,8 @@ function DockTiles({ windowId, items, placements, leading, tile }: { windowId: s
           );
         }
         return (
-          <View key={item.key} style={{ position: "absolute", left: 0, top: place.center - place.size / 2, height: place.size, flexDirection: "row", alignItems: "center" }}>
-            {item.kind === "tab" && item.tabId === active ? (
-              <View style={{ position: "absolute", left: DOT_X - 2, width: 4, height: 4, borderRadius: 2, backgroundColor: theme.textPrimary, opacity: 0.7 }} />
-            ) : null}
-            <View style={{ marginLeft: leading }}>
-              <DockTile item={item} size={place.size} />
-            </View>
+          <View key={item.key} style={{ position: "absolute", left: leading, top: place.center - place.size / 2, width: place.size, height: place.size }}>
+            <DockTile item={item} size={place.size} framed={item.kind === "tab" && item.tabId === active} />
           </View>
         );
       })}
@@ -284,38 +283,41 @@ function DockTiles({ windowId, items, placements, leading, tile }: { windowId: s
   );
 }
 
-const DockTile = memo(function DockTile({ item, size }: { item: DockItem; size: number }) {
+const DockTile = memo(function DockTile({ item, size, framed }: { item: DockItem; size: number; framed: boolean }) {
   if (item.kind === "folder") return <FolderTile folderId={item.folderId} size={size} />;
-  if (item.kind === "tab") return <SiteTile tabId={item.tabId} size={size} />;
+  if (item.kind === "tab") return <SiteTile tabId={item.tabId} size={size} framed={framed} />;
+  if (item.kind === "newTab") return <NewTabTile size={size} />;
   return null;
 });
 
-function TileFrame({ size, fill, children }: { size: number; fill?: string; children: ReactNode }) {
+function TileFrame({ size, framed, children }: { size: number; framed: boolean; children: ReactNode }) {
   const theme = useTheme();
   return (
     <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Surface
-        fill={hex(fill ?? (theme.dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.8)"))}
-        cornerRadius={size * 0.225}
-        borderColor={hex(theme.pinnedRestingStroke)}
-        borderWidth={0.5}
-        shadowColor="#000000"
-        shadowOpacity={0.16}
-        shadowRadius={3}
-        shadowOffset={[0, 1.5]}
-        style={StyleSheet.absoluteFill}
-      />
+      {framed ? (
+        <Surface
+          fill={hex(theme.dark ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.8)")}
+          cornerRadius={size * 0.225}
+          borderColor={hex(theme.pinnedRestingStroke)}
+          borderWidth={0.5}
+          shadowColor="#000000"
+          shadowOpacity={0.16}
+          shadowRadius={3}
+          shadowOffset={[0, 1.5]}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       {children}
     </View>
   );
 }
 
-function SiteTile({ tabId, size }: { tabId: string; size: number }) {
+function SiteTile({ tabId, size, framed }: { tabId: string; size: number; framed: boolean }) {
   const tab = useBrowser((s) => s.tabs[tabId]);
-  if (!tab) return <TileFrame size={size}>{null}</TileFrame>;
-  const icon = Math.round(size * 0.56);
+  if (!tab) return <TileFrame size={size} framed={framed}>{null}</TileFrame>;
+  const icon = Math.round(size * ICON_SHARE);
   return (
-    <TileFrame size={size}>
+    <TileFrame size={size} framed={framed}>
       <TabIcon tabId={tab.id} url={tab.url} favicon={tab.favicon} icon={tab.customIcon} size={icon} />
     </TileFrame>
   );
@@ -328,12 +330,21 @@ function FolderTile({ folderId, size }: { folderId: string; size: number }) {
   const look = appearanceOf(folder);
   const tint = look.color ? GROUP_COLORS[look.color].hex : null;
   return (
-    <TileFrame size={size} fill={tint ? withAlpha(tint, 0.24) : theme.dark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.06)"}>
+    <TileFrame size={size} framed={false}>
       {look.emoji ? (
-        <Text style={{ fontSize: Math.round(size * 0.5), lineHeight: size * 0.62 }}>{look.emoji}</Text>
+        <Text style={{ width: size, height: size, textAlign: "center", fontSize: Math.round(size * FOLDER_EMOJI_SHARE), lineHeight: size }}>{look.emoji}</Text>
       ) : (
-        <Symbol name="folder.fill" size={Math.round(size * 0.42)} weight="medium" color={tint ?? theme.textSecondary} style={{ width: size * 0.6, height: size * 0.6 }} />
+        <Symbol name="folder.fill" size={Math.round(size * FOLDER_SYMBOL_SHARE)} weight="medium" color={tint ?? theme.textSecondary} style={{ width: size, height: size }} />
       )}
+    </TileFrame>
+  );
+}
+
+function NewTabTile({ size }: { size: number }) {
+  const theme = useTheme();
+  return (
+    <TileFrame size={size} framed={false}>
+      <Symbol name="plus" size={Math.round(size * 0.36)} weight="medium" color={theme.icon} style={{ width: size, height: size }} />
     </TileFrame>
   );
 }
@@ -383,6 +394,7 @@ function TitleBubble({ item, place, leading, offset, viewport, opacity }: { item
       const tab = s.tabs[item.tabId];
       return tab ? tabTitle(tab) : "";
     }
+    if (item.kind === "newTab") return "New Tab";
     return item.kind === "folder" ? folderName(tree, item.folderId) : "";
   });
   if (!label) return null;

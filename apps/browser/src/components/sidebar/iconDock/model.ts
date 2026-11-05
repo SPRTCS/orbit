@@ -13,6 +13,7 @@ export type DockPage = { kind: "folder"; id: string };
 export type DockItem =
   | { kind: "folder"; key: string; folderId: string }
   | { kind: "tab"; key: string; tabId: string }
+  | { kind: "newTab"; key: string }
   | { kind: "separator"; key: string };
 
 export type DockNode = { tabIds: string[] } | { folderId: string; children: DockNode[] };
@@ -40,8 +41,8 @@ export function findFolder(nodes: DockNode[], id: string): DockNode[] | null {
 }
 
 function withOpenTabs(pinned: DockItem[], source: DockSource): DockItem[] {
-  const open = source.open.map(tabItem);
-  return pinned.length && open.length ? [...pinned, { kind: "separator", key: "separator" }, ...open] : [...pinned, ...open];
+  const open: DockItem[] = [{ kind: "newTab", key: "new-tab" }, ...source.open.map(tabItem)];
+  return pinned.length ? [...pinned, { kind: "separator", key: "separator" }, ...open] : open;
 }
 
 export const rootItems = (source: DockSource): DockItem[] => withOpenTabs([...source.tiles.map(tabItem), ...nodeItems(source.nodes)], source);

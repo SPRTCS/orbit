@@ -604,10 +604,16 @@ it's the sidebar again (`components/sidebar/iconDock/`). The switch happens duri
 on release the width springs to 96 pt or to the sidebar's minimum.
 
 - **Pages:** the first page shows the pins in sidebar order (Top Apps tiles, then the pinned rows and groups with the
-  top-level folders among them), a line, then the open tabs (a group's tabs one by one, a split as its active pane).
+  top-level folders among them), a line, a "+" for New Tab, then the open tabs (a group's tabs one by one, a split as
+  its active pane).
   Unlike the iPad, there's no Pinned page. A folder opens as a page that slides in from the right, its icons followed
-  by the line and the open tabs, so they stay at hand; the back chevron above its icons returns. The footer's "+" is
-  New Tab.
+  by the line, the "+" and the open tabs, so they stay at hand; the back chevron above its icons returns.
+- **Look:** icons stand on their own, without a tile (favicons at 64% of the slot, folders as their emoji or a folder
+  symbol in their colour); only the window's active tab sits on a tile.
+- **Footer** (`DockFooter.tsx`): small buttons for what the sidebar's footer holds. The space badge opens a native
+  menu with the other devices' tabs (`syncedDevicesMenuItem`, the overflow menu's "Your Devices") above the Glass
+  avatar menu's items (`avatarMenuGroups`/`runAvatarMenuItem` from `glassSidebar/GlassFooter.tsx`); Downloads shows
+  while the window has downloads.
 - **Size:** at most 12 icons per screen (38–52 pt), the rest scrolls.
 - **Hover:** the pointer magnifies the icons under it like the Dock (a raised cosine up to 74 pt, the point under the
   pointer stays put) and shows the title in a bubble beside it; a click opens it, a middle click closes a tab, a right
