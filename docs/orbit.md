@@ -605,14 +605,18 @@ on release the width springs to 96 pt or to the sidebar's minimum.
 
 - **Pages:** the first page shows the pins in sidebar order (Top Apps tiles, then the pinned rows and groups with the
   top-level folders among them), a line, then the open tabs (a group's tabs one by one, a split as its active pane).
-  Unlike the iPad, there's no Pinned page. A folder opens as a page that slides in from the right; the back chevron
-  above its icons returns. The footer's "+" is New Tab.
+  Unlike the iPad, there's no Pinned page. A folder opens as a page that slides in from the right, its icons followed
+  by the line and the open tabs, so they stay at hand; the back chevron above its icons returns. The footer's "+" is
+  New Tab.
 - **Size:** at most 12 icons per screen (38–52 pt), the rest scrolls.
 - **Hover:** the pointer magnifies the icons under it like the Dock (a raised cosine up to 74 pt, the point under the
   pointer stays put) and shows the title in a bubble beside it; a click opens it, a middle click closes a tab, a right
   click opens the tab menu. react-native-macos has no mouse-move event, so the scroll content is a stack of 4 pt
   strips, each with `onMouseEnter`; the tiles are drawn above it in an overlay that follows the scroll offset on the
   native driver and may overflow over the page.
+- **Tab buttons:** the hovered tab shows a reload button on its top-left corner and a close button on its top-right
+  one (kept inside the dock, since clicks past its edge reach the page). The hovered item is the tile drawn under the
+  pointer (`DockMagnification.hit`), not the nearest resting slot, so the corners stay reachable on a magnified tile.
 - Tiles are drawn with `Surface`: a React Native view whose `shadowRadius` changes crashes react-native-macos
   (`-[RCTView didUpdateShadow]` → `+[NSColor colorWithCGColor:]`).
 - Dev handle (`__DEV__` only): `globalThis.acIconDock[windowId]` (`hover(y | null)`, `open(index)`, `back()`, `items()`).

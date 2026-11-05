@@ -26,9 +26,10 @@ test("the root page lists the pins in sidebar order, folders among them, then op
   assert.deepEqual(keys(rootItems({ tiles: ["a"], nodes: [], open: [] })), ["t:a"]);
 });
 
-test("folders open as pages", () => {
-  assert.deepEqual(keys(pageItems(source, { kind: "folder", id: "tax" })), ["t:t1", "t:t2", "f:inner"]);
-  assert.deepEqual(keys(pageItems(source, { kind: "folder", id: "inner" })), ["t:deep"]);
+test("folders open as pages that keep the open tabs below", () => {
+  assert.deepEqual(keys(pageItems(source, { kind: "folder", id: "tax" })), ["t:t1", "t:t2", "f:inner", "separator", "t:x", "t:y"]);
+  assert.deepEqual(keys(pageItems(source, { kind: "folder", id: "inner" })), ["t:deep", "separator", "t:x", "t:y"]);
+  assert.deepEqual(keys(pageItems({ ...source, open: [] }, { kind: "folder", id: "inner" })), ["t:deep"]);
   assert.equal(pageItems(source, { kind: "folder", id: "gone" }), null);
 });
 
@@ -56,4 +57,18 @@ test("the pointer picks the nearest icon, never a separator", () => {
   assert.equal(dock.index(dock.rest[1].center), 0);
   assert.equal(dock.index(dock.rest[2].center + 3), 2);
   assert.equal(dock.index(dock.restHeight + 100), null);
+});
+
+test("the hovered tile is the one drawn under the pointer, even near its magnified edge", () => {
+  const dock = new DockMagnification([false, false, false, false, false], 700);
+  for (let y = dock.rest[0].center; y <= dock.rest[4].center; y += 0.5) {
+    const placements = dock.layout(y, 1);
+    const i = dock.hit(placements, y);
+    const p = placements[i];
+    assert.ok(Math.abs(y - p.center) <= p.size / 2 + 4, `y ${y} hits tile ${i}`);
+  }
+  const middle = (dock.rest[1].center + dock.rest[2].center) / 2;
+  for (let y = dock.rest[2].center; y > middle + 1; y -= 0.5) assert.equal(dock.hit(dock.layout(y, 1), y), 2);
+  const near = dock.layout(middle + 1, 1)[2];
+  assert.ok(middle + 1 - (near.center - near.size / 2) < 6, "the top corner of a hovered tile is within reach");
 });

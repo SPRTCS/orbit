@@ -39,16 +39,17 @@ export function findFolder(nodes: DockNode[], id: string): DockNode[] | null {
   return null;
 }
 
-export function rootItems(source: DockSource): DockItem[] {
-  const pinned = [...source.tiles.map(tabItem), ...nodeItems(source.nodes)];
+function withOpenTabs(pinned: DockItem[], source: DockSource): DockItem[] {
   const open = source.open.map(tabItem);
   return pinned.length && open.length ? [...pinned, { kind: "separator", key: "separator" }, ...open] : [...pinned, ...open];
 }
 
+export const rootItems = (source: DockSource): DockItem[] => withOpenTabs([...source.tiles.map(tabItem), ...nodeItems(source.nodes)], source);
+
 export function pageItems(source: DockSource, page: DockPage | null | undefined): DockItem[] | null {
   if (!page) return rootItems(source);
   const children = findFolder(source.nodes, page.id);
-  return children ? nodeItems(children) : null;
+  return children ? withOpenTabs(nodeItems(children), source) : null;
 }
 
 export const DOCK_METRICS = {
@@ -105,6 +106,12 @@ export class DockMagnification {
     const grown = placements(sizes);
     const shift = focus - mapped(focus, rest, grown);
     return grown.map((p) => ({ center: p.center + shift, size: p.size }));
+  }
+
+  hit(placements: Placement[], y: number): number | null {
+    const reach = DOCK_METRICS.spacing / 2;
+    const inside = placements.findIndex((p, i) => !this.separators[i] && Math.abs(y - p.center) <= p.size / 2 + reach);
+    return inside >= 0 ? inside : this.index(y);
   }
 
   index(y: number): number | null {

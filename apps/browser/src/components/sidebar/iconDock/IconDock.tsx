@@ -2,12 +2,13 @@ import { ContextMenuArea, MouseArea, Surface, Symbol, WindowDragRegion } from "@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import { closeTab } from "../../../lib/actions";
+import { withLivePage } from "../../../lib/livePage";
 import { hex, layout, useTheme } from "../../../lib/theme";
 import { useBrowser } from "../../../store/browser";
 import { useWindowId, useWindowProfileId } from "../../../store/hooks";
 import { activeTabId, isIncognitoProfile } from "../../../store/model";
 import { appearanceOf, usePinnedFolders } from "../../../store/pinnedFolders";
-import { IconButton } from "../../primitives";
+import { IconButton, useHover } from "../../primitives";
 import { clickTab, tabTitle } from "../actions";
 import { dismissHoverIn } from "../hover";
 import { openSidebarMenu, openTabMenu } from "../menus";
@@ -27,6 +28,9 @@ const GROW_MS = 140;
 const SHRINK_MS = 180;
 const DOT_X = 4;
 const OVERFLOW = 480;
+const BADGE = 18;
+const BADGE_INSET = 4;
+const BADGE_DROP = 7;
 
 export const devIconDocks: Record<string, { hover: (y: number | null) => void; open: (index: number) => void; back: () => void; items: () => DockItem[] }> = {};
 if (__DEV__) (globalThis as { acIconDock?: unknown }).acIconDock = devIconDocks;
@@ -138,15 +142,20 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
   const target = useRef(0);
   const frame = useRef<number | null>(null);
   const offset = useRef(0);
+  const [, setScrolled] = useState(0);
   const [scrollY] = useState(() => new Animated.Value(0));
   const [onScroll] = useState(() =>
     Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
       useNativeDriver: true,
-      listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => void (offset.current = e.nativeEvent.contentOffset.y),
+      listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        offset.current = e.nativeEvent.contentOffset.y;
+        if (latest.current.focus !== null) setScrolled(offset.current);
+      },
     }),
   );
-  const latest = useRef({ dock, items, focus, open });
-  latest.current = { dock, items, focus, open };
+  const placements = dock.layout(focus, amount);
+  const latest = useRef({ dock, items, focus, open, placements });
+  latest.current = { dock, items, focus, open, placements };
 
   const shown = useRef(0);
   const animateTo = (value: number) => {
@@ -175,10 +184,10 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
     setFocus(y);
     animateTo(1);
   };
-  const focused = focus === null ? null : dock.index(focus);
+  const focused = focus === null ? null : dock.hit(placements, focus);
   const focusedItem = (): DockItem | null => {
-    const { dock: d, items: list, focus: f } = latest.current;
-    const i = f === null ? null : d.index(f);
+    const { dock: d, items: list, focus: f, placements: p } = latest.current;
+    const i = f === null ? null : d.hit(p, f);
     return i === null ? null : (list[i] ?? null);
   };
   if (__DEV__) {
@@ -201,7 +210,6 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
   );
   const latestHover = useRef(hover);
   latestHover.current = hover;
-  const placements = dock.layout(focus, amount);
   const leading = (Math.max(ICON_DOCK_WIDTH, width) - dock.tile) / 2;
 
   return (
@@ -238,6 +246,9 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
       </View>
       {focused !== null && amount > 0.5 && items[focused] ? (
         <TitleBubble item={items[focused]!} place={placements[focused]!} leading={leading} offset={offset.current} viewport={viewport} opacity={(amount - 0.5) * 2} />
+      ) : null}
+      {focused !== null && amount > 0.5 && items[focused]?.kind === "tab" ? (
+        <TileActions tabId={(items[focused] as { tabId: string }).tabId} place={placements[focused]!} leading={leading} edge={Math.max(ICON_DOCK_WIDTH, width)} offset={offset.current} opacity={(amount - 0.5) * 2} />
       ) : null}
     </View>
   );
@@ -324,6 +335,42 @@ function FolderTile({ folderId, size }: { folderId: string; size: number }) {
         <Symbol name="folder.fill" size={Math.round(size * 0.42)} weight="medium" color={tint ?? theme.textSecondary} style={{ width: size * 0.6, height: size * 0.6 }} />
       )}
     </TileFrame>
+  );
+}
+
+function TileActions({ tabId, place, leading, edge, offset, opacity }: { tabId: string; place: Placement; leading: number; edge: number; offset: number; opacity: number }) {
+  const top = Math.max(0, place.center - place.size / 2 - offset + BADGE_DROP - BADGE / 2);
+  return (
+    <>
+      <TileBadge icon="arrow.clockwise" tooltip="Reload" left={leading + BADGE_INSET - BADGE / 2} top={top} opacity={opacity} onPress={() => void withLivePage(tabId, (page) => page.reload())} />
+      <TileBadge icon="xmark" tooltip="Close Tab" left={Math.min(leading + place.size - BADGE_INSET - BADGE / 2, edge - BADGE - 2)} top={top} opacity={opacity} onPress={() => void closeTab(tabId)} />
+    </>
+  );
+}
+
+function TileBadge({ icon, tooltip, left, top, opacity, onPress }: { icon: string; tooltip: string; left: number; top: number; opacity: number; onPress: () => void }) {
+  const theme = useTheme();
+  const { hovered, hoverProps } = useHover();
+  return (
+    <View tooltip={tooltip} style={{ position: "absolute", left, top, width: BADGE, height: BADGE, opacity }} {...hoverProps}>
+      <Pressable onPress={onPress}>
+        {({ pressed }) => (
+          <Surface
+            fill={hex(pressed ? theme.toolbarPressed : hovered ? theme.textPrimary : theme.windowTint[0])}
+            cornerRadius={BADGE / 2}
+            borderColor={hex(theme.panelBorder)}
+            borderWidth={0.5}
+            shadowColor="#000000"
+            shadowOpacity={0.22}
+            shadowRadius={2}
+            shadowOffset={[0, 1]}
+            style={{ width: BADGE, height: BADGE, alignItems: "center", justifyContent: "center" }}
+          >
+            <Symbol name={icon} size={icon === "xmark" ? 8 : 9} weight="bold" color={hovered && !pressed ? theme.windowTint[0] : theme.textPrimary} style={{ width: BADGE, height: BADGE }} />
+          </Surface>
+        )}
+      </Pressable>
+    </View>
   );
 }
 
