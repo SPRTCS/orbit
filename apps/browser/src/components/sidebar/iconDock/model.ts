@@ -60,10 +60,6 @@ export const DOCK_METRICS = {
   spacing: 8,
   separatorHeight: 9,
   padding: 8,
-  peakSize: 74,
-  peakScale: 1.42,
-  reachSlots: 2.6,
-  reachOfPeak: 1.5,
 };
 
 export type Placement = { center: number; size: number };
@@ -74,10 +70,8 @@ export function dockTile(viewport: number): number {
   return Math.min(m.maximumTile, Math.max(m.minimumTile, fitting));
 }
 
-export class DockMagnification {
+export class DockColumn {
   readonly tile: number;
-  readonly peak: number;
-  readonly reach: number;
   readonly rest: Placement[];
   readonly separators: boolean[];
 
@@ -85,34 +79,12 @@ export class DockMagnification {
     const m = DOCK_METRICS;
     this.separators = separators;
     this.tile = dockTile(viewport);
-    this.peak = Math.max(m.peakSize, this.tile * m.peakScale);
-    this.reach = Math.max(m.reachSlots * (this.tile + m.spacing), m.reachOfPeak * this.peak);
     this.rest = placements(separators.map((s) => (s ? m.separatorHeight : this.tile)));
   }
 
   get restHeight(): number {
     const last = this.rest[this.rest.length - 1];
     return last ? last.center + last.size / 2 + DOCK_METRICS.padding : DOCK_METRICS.padding * 2;
-  }
-
-  size(distance: number, amount = 1): number {
-    if (Math.abs(distance) >= this.reach) return this.tile;
-    return this.tile + (this.peak - this.tile) * amount * ((1 + Math.cos((Math.PI * Math.abs(distance)) / this.reach)) / 2);
-  }
-
-  layout(focus: number | null, amount = 1): Placement[] {
-    const rest = this.rest;
-    if (focus === null || amount <= 0 || !rest.length) return rest;
-    const sizes = rest.map((place, i) => (this.separators[i] ? place.size : this.size(place.center - focus, amount)));
-    const grown = placements(sizes);
-    const shift = focus - mapped(focus, rest, grown);
-    return grown.map((p) => ({ center: p.center + shift, size: p.size }));
-  }
-
-  hit(placements: Placement[], y: number): number | null {
-    const reach = DOCK_METRICS.spacing / 2;
-    const inside = placements.findIndex((p, i) => !this.separators[i] && Math.abs(y - p.center) <= p.size / 2 + reach);
-    return inside >= 0 ? inside : this.index(y);
   }
 
   index(y: number): number | null {
@@ -134,20 +106,4 @@ function placements(sizes: number[]): Placement[] {
     y += size + DOCK_METRICS.spacing;
     return place;
   });
-}
-
-function mapped(y: number, rest: Placement[], grown: Placement[]): number {
-  const first = rest[0]!;
-  const last = rest[rest.length - 1]!;
-  if (y <= first.center) return grown[0]!.center - ((first.center - y) * grown[0]!.size) / first.size;
-  if (y >= last.center) {
-    const end = grown[grown.length - 1]!;
-    return end.center + ((y - last.center) * end.size) / last.size;
-  }
-  let next = rest.findIndex((p) => p.center >= y);
-  if (next < 1) next = rest.length - 1;
-  const previous = next - 1;
-  const span = rest[next]!.center - rest[previous]!.center;
-  const t = span > 0 ? (y - rest[previous]!.center) / span : 0;
-  return grown[previous]!.center + t * (grown[next]!.center - grown[previous]!.center);
 }

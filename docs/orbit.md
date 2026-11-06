@@ -615,19 +615,24 @@ on release the width springs to 96 pt or to the sidebar's minimum.
   avatar menu's items (`avatarMenuGroups`/`runAvatarMenuItem` from `glassSidebar/GlassFooter.tsx`); Downloads shows
   while the window has downloads.
 - **Size:** at most 12 icons per screen (38–52 pt), the rest scrolls.
-- **Hover:** the pointer magnifies the icons under it like the Dock (a raised cosine up to 74 pt, the point under the
-  pointer stays put) and shows the title in a bubble beside it; a click opens it, a middle click closes a tab, a right
-  click opens the tab menu. react-native-macos has no mouse-move event, so the scroll content is a stack of 4 pt
-  strips, each with `onMouseEnter`; the tiles are drawn above it in an overlay that follows the scroll offset on the
-  native driver and may overflow over the page.
+- **Hover:** no magnification (the owner dropped it): the icon under the pointer gets a light rounded backdrop
+  (`theme.tabHover`, as sidebar rows) that fades in over 110 ms, and its title shows in a bubble beside it; a click
+  opens it, a middle click closes a tab, a right click opens the tab menu. react-native-macos has no mouse-move event,
+  so the scroll content is a stack of 4 pt strips, each with `onMouseEnter`, and the hovered item is the nearest slot
+  (`DockColumn.index`); the tiles are drawn above it in an overlay that follows the scroll offset on the native driver.
 - **Tab buttons:** the hovered tab shows a reload button on its top-left corner and a close button on its top-right
-  one (kept inside the dock, since clicks past its edge reach the page). The hovered item is the tile drawn under the
-  pointer (`DockMagnification.hit`), not the nearest resting slot, so the corners stay reachable on a magnified tile.
+  one (kept inside the dock, since clicks past its edge reach the page).
+- **Devices** (`DockDevices.tsx`, `devicesDock.ts`): the sidebar's Devices section as a folder that opens upward,
+  shown under the same conditions (`useWindowDevices` in `SyncedDevices.tsx`) and sharing its open state. The Devices
+  icon sits above the footer, on a tile while open; the devices stack above it, the first nearest, and a device opens
+  its tabs above itself on a shared backdrop, so the clicked icon stays put. It takes at most half the dock and
+  scrolls beyond; the height animates (240 ms open, 180 ms closed). Tabs open as in the sidebar (⌘, ⇧, ⌥, middle
+  click), right clicks give the same menus, and hovering shows the name, "n tabs · x min ago" or the tab title.
 - Tiles are drawn with `Surface`: a React Native view whose `shadowRadius` changes crashes react-native-macos
   (`-[RCTView didUpdateShadow]` → `+[NSColor colorWithCGColor:]`).
 - Dev handle (`__DEV__` only): `globalThis.acIconDock[windowId]` (`hover(y | null)`, `open(index)`, `back()`, `items()`).
   A drag can be simulated with `ac.sidebarRows.setSidebarUi({ dragWidth: { [windowId]: width } })`.
-- Test: `components/sidebar/iconDock/model.test.mjs`.
+- Tests: `components/sidebar/iconDock/model.test.mjs`, `devicesDock.test.mjs`.
 
 ## Devices in the sidebar (Orbit)
 

@@ -50,15 +50,19 @@ export function useSyncedDevicesHeight(windowId: string): number {
   return rows < 0 ? 0 : devicesSectionHeight(rows, sidebarHeight, METRICS).height;
 }
 
-export function SyncedDevices({ windowId, bottom }: { windowId: string; bottom: number }) {
+export function useWindowDevices(windowId: string): { profileId: string | null; view: DevicesView; devices: SidebarDevice[]; shown: boolean } {
   const profileId = useBrowser((s) => shownProfile(s, windowId));
   const view = useDevicesViewFor(windowId, profileId);
-  const sidebarHeight = useSyncedDevicesView((v) => v.sidebarHeights[windowId] ?? 0);
   const enabled = useSync((s) => s.enabled);
   const remote = useSync((s) => (profileId && s.enabled ? s.remoteTabs[profileId] : undefined));
   const seen = useSync((s) => s.devices);
   const devices = useMemo(() => (remote ? sidebarDevices(remote, seen) : NO_DEVICES), [remote, seen]);
-  const shown = !!profileId && enabled && devices.length > 0;
+  return { profileId, view, devices, shown: !!profileId && enabled && devices.length > 0 };
+}
+
+export function SyncedDevices({ windowId, bottom }: { windowId: string; bottom: number }) {
+  const { profileId, view, devices, shown } = useWindowDevices(windowId);
+  const sidebarHeight = useSyncedDevicesView((v) => v.sidebarHeights[windowId] ?? 0);
   const size = devicesSectionHeight(devicesBodyRows(devices, view), sidebarHeight, METRICS);
   return (
     <>
@@ -69,12 +73,12 @@ export function SyncedDevices({ windowId, bottom }: { windowId: string; bottom: 
       />
       {shown ? (
         <View style={{ position: "absolute", left: layout.sidebarInset, right: layout.sidebarInset, bottom, height: size.height, paddingTop: METRICS.padTop }}>
-          <DevicesHeader windowId={windowId} profileId={profileId} devices={devices} open={view.open} />
+          <DevicesHeader windowId={windowId} profileId={profileId!} devices={devices} open={view.open} />
           {view.open ? (
             <ScrollView style={{ height: size.body }} scrollEnabled={size.scrolls} showsVerticalScrollIndicator={size.scrolls}>
               <View style={{ paddingTop: METRICS.rowGap, gap: METRICS.rowGap }}>
                 {devices.map((d) => (
-                  <DeviceBlock key={d.id} windowId={windowId} profileId={profileId} device={d} open={deviceOpen(view, d.id, devices.length)} />
+                  <DeviceBlock key={d.id} windowId={windowId} profileId={profileId!} device={d} open={deviceOpen(view, d.id, devices.length)} />
                 ))}
               </View>
             </ScrollView>
@@ -233,9 +237,9 @@ function TwoLines({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-type Modifiers = { metaKey?: boolean; shiftKey?: boolean; altKey?: boolean; middle?: boolean };
+export type Modifiers = { metaKey?: boolean; shiftKey?: boolean; altKey?: boolean; middle?: boolean };
 
-const clickModifiers = (e: GestureResponderEvent): Modifiers => {
+export const clickModifiers = (e: GestureResponderEvent): Modifiers => {
   const n = e.nativeEvent as unknown as Modifiers;
   return { metaKey: !!n.metaKey, shiftKey: !!n.shiftKey, altKey: !!n.altKey };
 };

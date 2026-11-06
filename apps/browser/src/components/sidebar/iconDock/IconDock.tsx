@@ -16,7 +16,8 @@ import { ResizeHandle } from "../ResizeHandle";
 import { useSidebarUi } from "../state";
 import { TabIcon } from "../TabIcon";
 import { GROUP_COLORS } from "../tokens";
-import { DockMagnification, ICON_DOCK_WIDTH, isIconDock, pageItems, pageKey, type DockItem, type DockPage, type Placement } from "./model";
+import { DockColumn, ICON_DOCK_WIDTH, isIconDock, pageItems, pageKey, type DockItem, type DockPage, type Placement } from "./model";
+import { DockDevices } from "./DockDevices";
 import { DockFooter } from "./DockFooter";
 import { dockSource, folderName } from "./source";
 
@@ -25,9 +26,8 @@ const FOOTER = 44;
 const BACK_ROW = 40;
 const FADE_MS = 180;
 const TURN_MS = 260;
-const GROW_MS = 140;
-const SHRINK_MS = 180;
-const OVERFLOW = 480;
+const HOVER_IN_MS = 110;
+const HOVER_OUT_MS = 160;
 const BADGE = 18;
 const ICON_SHARE = 0.64;
 const FOLDER_SYMBOL_SHARE = 0.5;
@@ -108,9 +108,10 @@ function IconDock({ width }: { width: number }) {
     if (path.length) go((p) => p.slice(0, -1), false);
   };
   const title = page ? folderName(tree, page.id) : null;
+  const [dockHeight, setDockHeight] = useState(0);
 
   return (
-    <View style={{ width, height: "100%" }}>
+    <View style={{ width, height: "100%" }} onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}>
       <View style={{ height: layout.sidebarHeader }}>
         <WindowDragRegion style={StyleSheet.absoluteFill} />
       </View>
@@ -130,6 +131,7 @@ function IconDock({ width }: { width: number }) {
           <DockPageView key={pageKey(page)} windowId={windowId} width={width} items={items} open={open} back={back} />
         </Animated.View>
       </View>
+      <DockDevices width={Math.max(ICON_DOCK_WIDTH, width)} available={dockHeight - layout.sidebarHeader - FOOTER} />
       <View style={{ height: FOOTER, alignItems: "center", justifyContent: "center" }}>
         <DockFooter />
       </View>
@@ -140,7 +142,7 @@ function IconDock({ width }: { width: number }) {
 
 function DockPageView({ windowId, width, items, open, back }: { windowId: string; width: number; items: DockItem[]; open: (item: DockItem) => void; back: () => void }) {
   const [viewport, setViewport] = useState(0);
-  const dock = useMemo(() => new DockMagnification(items.map((i) => i.kind === "separator"), viewport), [items, viewport]);
+  const dock = useMemo(() => new DockColumn(items.map((i) => i.kind === "separator"), viewport), [items, viewport]);
   const [focus, setFocus] = useState<number | null>(null);
   const [amount, setAmount] = useState(0);
   const target = useRef(0);
@@ -157,9 +159,9 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
       },
     }),
   );
-  const placements = dock.layout(focus, amount);
-  const latest = useRef({ dock, items, focus, open, placements });
-  latest.current = { dock, items, focus, open, placements };
+  const placements = dock.rest;
+  const latest = useRef({ dock, items, focus, open });
+  latest.current = { dock, items, focus, open };
 
   const shown = useRef(0);
   const animateTo = (value: number) => {
@@ -172,7 +174,7 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
       last = now;
       const goal = target.current;
       const a = shown.current;
-      const next = goal > a ? Math.min(goal, a + dt / GROW_MS) : Math.max(goal, a - dt / SHRINK_MS);
+      const next = goal > a ? Math.min(goal, a + dt / HOVER_IN_MS) : Math.max(goal, a - dt / HOVER_OUT_MS);
       shown.current = next;
       setAmount(next);
       const done = next === goal;
@@ -188,10 +190,10 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
     setFocus(y);
     animateTo(1);
   };
-  const focused = focus === null ? null : dock.hit(placements, focus);
+  const focused = focus === null ? null : dock.index(focus);
   const focusedItem = (): DockItem | null => {
-    const { dock: d, items: list, focus: f, placements: p } = latest.current;
-    const i = f === null ? null : d.hit(p, f);
+    const { dock: d, items: list, focus: f } = latest.current;
+    const i = f === null ? null : d.index(f);
     return i === null ? null : (list[i] ?? null);
   };
   if (__DEV__) {
@@ -243,9 +245,9 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
           </ContextMenuArea>
         </MouseArea>
       </Animated.ScrollView>
-      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: Math.max(ICON_DOCK_WIDTH, width) + OVERFLOW, overflow: "hidden" }}>
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: Math.max(ICON_DOCK_WIDTH, width), overflow: "hidden" }}>
         <Animated.View style={{ height, transform: [{ translateY: Animated.multiply(scrollY, -1) }] }}>
-          <DockTiles windowId={windowId} items={items} placements={placements} leading={leading} tile={dock.tile} />
+          <DockTiles windowId={windowId} items={items} placements={placements} leading={leading} tile={dock.tile} hovered={focused} shown={amount} />
         </Animated.View>
       </View>
       {focused !== null && amount > 0.5 && items[focused] ? (
@@ -258,7 +260,7 @@ function DockPageView({ windowId, width, items, open, back }: { windowId: string
   );
 }
 
-function DockTiles({ windowId, items, placements, leading, tile }: { windowId: string; items: DockItem[]; placements: Placement[]; leading: number; tile: number }) {
+function DockTiles({ windowId, items, placements, leading, tile, hovered, shown }: { windowId: string; items: DockItem[]; placements: Placement[]; leading: number; tile: number; hovered: number | null; shown: number }) {
   const theme = useTheme();
   const active = useBrowser((s) => activeTabId(s, windowId));
   return (
@@ -275,6 +277,9 @@ function DockTiles({ windowId, items, placements, leading, tile }: { windowId: s
         }
         return (
           <View key={item.key} style={{ position: "absolute", left: leading, top: place.center - place.size / 2, width: place.size, height: place.size }}>
+            {i === hovered && shown > 0 && !(item.kind === "tab" && item.tabId === active) ? (
+              <View style={{ position: "absolute", left: 0, top: 0, width: place.size, height: place.size, borderRadius: place.size * 0.225, backgroundColor: theme.tabHover, opacity: shown }} />
+            ) : null}
             <DockTile item={item} size={place.size} framed={item.kind === "tab" && item.tabId === active} />
           </View>
         );
