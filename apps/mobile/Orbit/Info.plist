@@ -51,6 +51,8 @@
 	<string>Websites you allow can use your location, for example for maps.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Websites you allow can use the microphone, for example for calls.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Orbit saves images you choose to save from websites to your photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

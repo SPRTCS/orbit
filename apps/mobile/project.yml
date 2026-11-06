@@ -76,6 +76,7 @@ targets:
         NSMicrophoneUsageDescription: Websites you allow can use the microphone, for example for calls.
         NSLocationWhenInUseUsageDescription: Websites you allow can use your location, for example for maps.
         NSLocalNetworkUsageDescription: Orbit opens pages on your local network when you visit them.
+        NSPhotoLibraryAddUsageDescription: Orbit saves images you choose to save from websites to your photo library.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ais.orbit-mobile
