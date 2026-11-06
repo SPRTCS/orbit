@@ -180,13 +180,8 @@ struct TopAlignedSnapshot: View {
 enum SnapshotFit {
   static func size(image: CGSize, in frame: CGSize) -> CGSize {
     guard image.width > 0, image.height > 0 else { return frame }
-    let widthScale = frame.width / image.width
-    let scaledHeight = image.height * widthScale
-    if scaledHeight >= frame.height * 0.9 {
-      return CGSize(width: frame.width, height: scaledHeight)
-    }
-    let scale = frame.height / image.height
-    return CGSize(width: image.width * scale, height: frame.height)
+    let scale = max(frame.width / image.width, frame.height / image.height)
+    return CGSize(width: image.width * scale, height: image.height * scale)
   }
 }
 

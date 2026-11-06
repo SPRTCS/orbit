@@ -394,6 +394,16 @@ struct SnapshotFitTests {
     #expect(wide.height == 270)
   }
 
+  @Test func slightlyShortSnapshotsStillFillTheWholeCard() {
+    let card = CGSize(width: 692, height: 653)
+    let short = SnapshotFit.size(image: CGSize(width: 692, height: 600), in: card)
+    #expect(short.height == card.height)
+    #expect(short.width >= card.width)
+    let almost = SnapshotFit.size(image: CGSize(width: 440, height: 410), in: card)
+    #expect(almost.width >= card.width)
+    #expect(almost.height >= card.height)
+  }
+
 }
 
 struct SiteIconLinkTests {
