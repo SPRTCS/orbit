@@ -75,6 +75,7 @@ struct BottomChrome: View {
   @Environment(BrowserModel.self) private var browser
   let style: Style
   let metrics: ChromeMetrics
+  var showsTabsButton = false
   @Namespace private var glass
 
   var body: some View {
@@ -120,7 +121,14 @@ struct BottomChrome: View {
     case .compact:
       TabStackButton(size: metrics.barHeight, glassNamespace: glass)
     case .regular:
-      if browser.isSidebarVisible {
+      if browser.isSidebarVisible, showsTabsButton {
+        GlassCircleButton(
+          systemImage: "square.grid.2x2", label: "All Tabs", size: metrics.barHeight, glassID: "leading",
+          glassNamespace: glass
+        ) {
+          browser.showTabSwitcher()
+        }
+      } else if browser.isSidebarVisible {
         Color.clear.frame(width: metrics.barHeight, height: metrics.barHeight)
       } else {
         GlassCircleButton(

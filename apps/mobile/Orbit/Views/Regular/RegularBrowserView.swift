@@ -35,7 +35,7 @@ struct RegularBrowserView: View {
             SidebarResizeHandle(width: widthBinding, range: range)
               .zIndex(2)
           }
-          contentColumn(safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth)
+          contentColumn(safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth, isDock: layout.isDock)
         }
         .animation(.snappy(duration: 0.3), value: browser.isSidebarVisible)
         if browser.isShowingTabSwitcher {
@@ -70,14 +70,14 @@ struct RegularBrowserView: View {
       })
   }
 
-  private func contentColumn(safeArea: EdgeInsets, edgeGap: CGFloat, contentWidth: CGFloat) -> some View {
+  private func contentColumn(safeArea: EdgeInsets, edgeGap: CGFloat, contentWidth: CGFloat, isDock: Bool) -> some View {
     let inset = cardInset
     let metrics = ChromeMetrics.regular(
       edgeGap: edgeGap, cardInset: inset, safeBottom: safeArea.bottom, width: contentWidth)
     let cardShape = PageCardShape.shape(besideSidebar: browser.isSidebarVisible)
     return ZStack(alignment: .bottom) {
       BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed), ignoresSafeArea: true)
-      BottomChrome(style: .regular, metrics: metrics)
+      BottomChrome(style: .regular, metrics: metrics, showsTabsButton: isDock)
     }
     .clipShape(cardShape)
     .background(cardShape.fill(.background).shadow(color: .black.opacity(0.22), radius: 10, y: 3))

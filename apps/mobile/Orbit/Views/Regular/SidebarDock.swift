@@ -192,6 +192,13 @@ struct SidebarDock: View {
       .padding(.leading, center - SidebarLayout.iconButtonSize / 2)
       .padding(.top, SidebarLayout.topRowInset(edgeGap: edgeGap, statusBarOverlap: topRow.statusBarOverlap))
       .background { LayoutRegionInsetsReader { topRow = $0 } }
+      if page != nil {
+        SidebarIconButton(systemImage: "chevron.up", label: "Close Folder") { back() }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.leading, center - SidebarLayout.iconButtonSize / 2)
+          .padding(.top, 6)
+          .transition(.opacity)
+      }
       ZStack(alignment: .top) {
         DockPageView(items: items ?? [], page: page, leading: safeArea.leading, open: open)
           .id(page)
@@ -204,15 +211,7 @@ struct SidebarDock: View {
       .mask { Rectangle().padding(.trailing, turning ? 0 : -640) }
       .padding(.vertical, 6)
       .zIndex(1)
-      Group {
-        if page != nil {
-          GlassCircleButton(systemImage: "chevron.backward", label: "Back", size: ChromeMetrics.regularControlSize) { back() }
-        } else {
-          GlassCircleButton(systemImage: "square.grid.2x2", label: "All Tabs", size: ChromeMetrics.regularControlSize) {
-            browser.showTabSwitcher()
-          }
-        }
-      }
+      DockBackButton(size: ChromeMetrics.regularControlSize)
       .frame(maxWidth: .infinity, alignment: .leading)
       .padding(.leading, center - ChromeMetrics.regularControlSize / 2)
       .padding(.bottom, edgeGap)
@@ -245,6 +244,25 @@ struct SidebarDock: View {
     self.forward = forward
     turning = true
     withAnimation(.smooth(duration: Self.turnDuration)) { change() } completion: { turning = false }
+  }
+}
+
+struct DockBackButton: View {
+  @Environment(BrowserModel.self) private var browser
+  let size: CGFloat
+
+  var body: some View {
+    let tab = browser.selectedTab
+    let canGoBack = tab?.canGoBack == true
+    GlassCircleButton(systemImage: "chevron.backward", label: "Back", size: size) { browser.goBack() }
+      .disabled(!canGoBack)
+      .opacity(canGoBack ? 1 : 0.45)
+      .contextMenu {
+        Button("Forward", systemImage: "chevron.forward") { browser.goForward() }
+          .disabled(tab?.canGoForward != true)
+        Button("Reload", systemImage: "arrow.clockwise") { browser.reloadOrStop() }
+          .disabled(tab?.url == nil)
+      }
   }
 }
 
