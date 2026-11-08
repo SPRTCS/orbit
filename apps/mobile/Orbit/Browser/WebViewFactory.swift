@@ -14,6 +14,7 @@ final class WebViewFactory {
     configuration.mediaTypesRequiringUserActionForPlayback = .audio
     configuration.applicationNameForUserAgent = Self.applicationNameForUserAgent
     configuration.defaultWebpagePreferences.preferredContentMode = .recommended
+    configuration.userContentController.addUserScript(NativeVideoFullscreen.userScript)
     return configuration
   }
 
