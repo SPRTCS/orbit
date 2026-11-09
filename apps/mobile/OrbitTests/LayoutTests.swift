@@ -195,6 +195,11 @@ struct SidebarDockTests {
     #expect(DockItem.items(of: .folder("2026"), in: tree)?.map(\.id) == ["pin:x"])
     #expect(DockItem.items(of: .folder("gone"), in: tree) == nil)
     #expect(DockItem.rootItems(tree: tree, tabs: [])[1].opensPage == .folder("tax"))
+    #expect(tree.folderChain(toPin: "t")?.map(\.id) == [])
+    #expect(tree.folderChain(toPin: "r")?.map(\.id) == [])
+    #expect(tree.folderChain(toPin: "e")?.map(\.id) == ["tax"])
+    #expect(tree.folderChain(toPin: "x")?.map(\.id) == ["tax", "2026"])
+    #expect(tree.folderChain(toPin: "gone") == nil)
   }
 
   @Test func theIconUnderTheFingerGrowsMostAndStaysUnderIt() {

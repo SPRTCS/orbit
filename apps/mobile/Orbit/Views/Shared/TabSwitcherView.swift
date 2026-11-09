@@ -17,7 +17,7 @@ struct TabSwitcherView: View {
       let barWidth = proxy.size.width + safeArea.leading + safeArea.trailing - 2 * horizontalGap
       ZStack(alignment: .bottom) {
         OrbitBackdrop()
-        if browser.tabs.isEmpty {
+        if browser.overviewTabs.isEmpty {
           emptyState
         } else {
           grid(
@@ -52,7 +52,7 @@ struct TabSwitcherView: View {
     return ScrollViewReader { proxy in
       ScrollView {
         LazyVGrid(columns: columns, spacing: isRegular ? RegularOverviewGrid.rowSpacing : 20) {
-          ForEach(browser.tabs) { tab in
+          ForEach(browser.overviewTabs) { tab in
             TabCard(tab: tab, isSelected: tab.id == browser.selectedTabID, aspectRatio: cardAspect)
               .id(tab.id)
           }
@@ -230,6 +230,9 @@ struct TabCard: View {
         .overlay(alignment: .topLeading) {
           if tab.isPrivate {
             PrivateTabBadge()
+              .padding(8)
+          } else if tab.isPinTab {
+            PinnedTabBadge()
               .padding(8)
           }
         }

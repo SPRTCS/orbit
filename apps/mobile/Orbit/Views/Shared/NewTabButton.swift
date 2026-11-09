@@ -100,6 +100,18 @@ struct NewTabRow: View {
   }
 }
 
+struct PinnedTabBadge: View {
+  var size: CGFloat = 28
+
+  var body: some View {
+    Image(systemName: "pin.fill")
+      .font(.system(size: size * 0.4, weight: .semibold))
+      .frame(width: size, height: size)
+      .glassEffect(.regular, in: .circle)
+      .accessibilityLabel("Pinned")
+  }
+}
+
 struct PrivateTabBadge: View {
   var size: CGFloat = 28
 

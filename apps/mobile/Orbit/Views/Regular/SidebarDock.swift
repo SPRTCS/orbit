@@ -219,7 +219,11 @@ struct SidebarDock: View {
     .onChange(of: items == nil) { _, missing in
       if missing { path = [] }
     }
-    .onChange(of: browser.currentSpace?.id) { _, _ in path = [] }
+    .onChange(of: browser.currentSpace?.id) { _, _ in path = pagePath(toPin: browser.selectedTab?.pinID) ?? [] }
+    .onChange(of: browser.pinReveal) { _, reveal in
+      guard let target = pagePath(toPin: reveal?.pinID), target != path else { return }
+      turn(forward: true) { path = target }
+    }
     .sensoryFeedback(.impact(weight: .light), trigger: path)
   }
 
@@ -233,6 +237,13 @@ struct SidebarDock: View {
     case .tab(let tab): browser.select(tab)
     case .pins, .folder, .separator: break
     }
+  }
+
+  private func pagePath(toPin pinID: String?) -> [DockPage]? {
+    guard let pinID, let space = browser.currentSpace,
+      let chain = PinTree(space: space).folderChain(toPin: pinID)
+    else { return nil }
+    return chain.isEmpty ? [.pins] : chain.map { .folder($0.id) }
   }
 
   private func back() {

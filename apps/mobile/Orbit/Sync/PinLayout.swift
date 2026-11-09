@@ -120,6 +120,30 @@ struct PinTree {
     self.tiles = tiles
     roots = build("")
   }
+
+  func folderChain(toPin id: String) -> [PinFolderInfo]? {
+    if tiles.contains(where: { $0.id == id }) { return [] }
+    return Self.folderChain(toPin: id, in: roots)
+  }
+
+  private static func folderChain(toPin id: String, in nodes: [Node]) -> [PinFolderInfo]? {
+    for node in nodes {
+      switch node {
+      case .pin(let pin):
+        if pin.id == id { return [] }
+      case .group(let group, let members):
+        if group.id == id || members.contains(where: { $0.id == id }) { return [] }
+      case .folder(let folder, let children):
+        if let rest = folderChain(toPin: id, in: children) { return [folder] + rest }
+      }
+    }
+    return nil
+  }
+}
+
+struct PinReveal: Equatable {
+  let pinID: String
+  let nonce = UUID()
 }
 
 @Observable

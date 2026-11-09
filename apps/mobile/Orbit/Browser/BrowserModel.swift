@@ -21,6 +21,7 @@ final class BrowserModel {
   var isShowingSyncSetup = false
   var isSidebarVisible = true
   var selectedSpaceID: String?
+  private(set) var pinReveal: PinReveal?
 
   let entry = AddressEntryModel()
   let themes = ThemeStore()
@@ -86,6 +87,18 @@ final class BrowserModel {
   }
 
   var allTabs: [BrowserTab] { tabs + Array(pinTabs.values) }
+
+  var overviewTabs: [BrowserTab] { openPinTabs + tabs }
+
+  var openPinTabs: [BrowserTab] {
+    let order = Dictionary(
+      sync.client.spaces.flatMap(\.pins).enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+    return pinTabs.values.sorted {
+      let left = order[$0.pinID ?? ""] ?? .max
+      let right = order[$1.pinID ?? ""] ?? .max
+      return left != right ? left < right : $0.lastActive < $1.lastActive
+    }
+  }
 
   func pinTab(for pin: SyncedPin) -> BrowserTab? { pinTabs[pin.id] }
 
@@ -229,8 +242,18 @@ final class BrowserModel {
   private func select(_ tab: BrowserTab, keepingOverview: Bool) {
     if let current = selectedTab, current.id != tab.id { captureSnapshot(of: current) }
     activate(tab)
+    if let pinID = tab.pinID { revealPin(pinID) }
     if !keepingOverview { isShowingTabSwitcher = false }
     setChromeCollapsed(false)
+  }
+
+  private func revealPin(_ pinID: String) {
+    guard let space = sync.client.spaces.first(where: { $0.pins.contains { $0.id == pinID } }) else { return }
+    if space.id != currentSpace?.id { selectedSpaceID = space.id }
+    for folder in PinTree(space: space).folderChain(toPin: pinID) ?? [] where !pinFolders.isExpanded(folder.id) {
+      pinFolders.toggle(folder.id)
+    }
+    pinReveal = PinReveal(pinID: pinID)
   }
 
   func select(tabID: UUID) {

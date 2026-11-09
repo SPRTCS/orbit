@@ -233,7 +233,7 @@ struct TabStackButton: View {
   var glassNamespace: Namespace.ID?
 
   var body: some View {
-    let preview = Array(browser.tabs.sorted { $0.lastActive > $1.lastActive }.prefix(2).reversed())
+    let preview = Array(browser.overviewTabs.sorted { $0.lastActive > $1.lastActive }.prefix(2).reversed())
     Button {
       browser.showTabSwitcher()
     } label: {
@@ -258,7 +258,7 @@ struct TabStackButton: View {
     .glassID("leading", in: glassNamespace)
     .hoverEffect(.lift)
     .accessibilityLabel("Tabs")
-    .accessibilityValue("\(browser.tabs.count) open")
+    .accessibilityValue("\(browser.overviewTabs.count) open")
   }
 }
 
