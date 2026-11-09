@@ -170,9 +170,22 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
     }
   }
 
-  func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
-    -> WKNavigationActionPolicy
-  {
+  func webView(
+    _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, preferences: WKWebpagePreferences
+  ) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+    let policy = await policy(for: navigationAction)
+    if policy == .allow, navigationAction.targetFrame?.isMainFrame == true, let url = navigationAction.request.url,
+      let browser
+    {
+      let mode = browser.siteMode(for: url, in: tab)
+      preferences.preferredContentMode = mode.contentMode
+      if webView.customUserAgent != mode.userAgent { webView.customUserAgent = mode.userAgent }
+    }
+    return (policy, preferences)
+  }
+
+  private func policy(for navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
+    if navigationAction.shouldPerformDownload { return .download }
     guard let url = navigationAction.request.url, let scheme = url.scheme?.lowercased() else { return .allow }
     if scheme.hasPrefix("itms"), !Self.storeSchemes.contains(scheme) { return .cancel }
     if !Self.embeddedSchemes.contains(scheme) {
@@ -186,6 +199,42 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
     return .allow
   }
 
+  func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse) async
+    -> WKNavigationResponsePolicy
+  {
+    let disposition = (navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")
+    let download = DownloadPolicy.shouldDownload(
+      canShowMIMEType: navigationResponse.canShowMIMEType, contentDisposition: disposition,
+      isMainFrame: navigationResponse.isForMainFrame)
+    return download ? .download : .allow
+  }
+
+  func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+    browser?.beginDownload(download, source: navigationAction.request.url)
+  }
+
+  func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+    browser?.beginDownload(download, source: navigationResponse.response.url)
+  }
+
+  func webView(_ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge) async
+    -> (URLSession.AuthChallengeDisposition, URLCredential?)
+  {
+    let space = challenge.protectionSpace
+    let passwordMethods = [NSURLAuthenticationMethodHTTPBasic, NSURLAuthenticationMethodHTTPDigest, NSURLAuthenticationMethodNTLM]
+    guard passwordMethods.contains(space.authenticationMethod), let tab, browser?.selectedTabID == tab.id else {
+      return (.performDefaultHandling, nil)
+    }
+    if challenge.previousFailureCount == 0, let proposed = challenge.proposedCredential, proposed.hasPassword {
+      return (.useCredential, proposed)
+    }
+    guard challenge.previousFailureCount < 3,
+      let credential = await UIKitPresenter.credentials(
+        host: space.host, realm: space.realm, retrying: challenge.previousFailureCount > 0)
+    else { return (.cancelAuthenticationChallenge, nil) }
+    return (.useCredential, credential)
+  }
+
   func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
     tab?.loadError = nil
     tab?.failedURL = nil
@@ -195,6 +244,7 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
   func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
     syncState()
     directionTravel = 0
+    if let tab { browser?.applyPageZoom(to: tab) }
     if let tab, browser?.selectedTabID == tab.id { browser?.setChromeCollapsed(false) }
   }
 
@@ -268,7 +318,10 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
       let openBackground = UIAction(title: "Open in Background", image: UIImage(systemName: "square.on.square")) { _ in
         self?.browser?.openInBackground(linkURL, isPrivate: self?.tab?.isPrivate == true)
       }
-      return UIMenu(children: [UIMenu(options: .displayInline, children: [openNew, openBackground])] + suggested)
+      let download = UIAction(title: String(localized: "Download Linked File"), image: UIImage(systemName: "arrow.down.circle")) { _ in
+        self?.browser?.download(linkURL, from: self?.tab)
+      }
+      return UIMenu(children: [UIMenu(options: .displayInline, children: [openNew, openBackground, download])] + suggested)
     }
   }
 }

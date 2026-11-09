@@ -4,7 +4,10 @@ import Foundation
 final class HistoryStore {
   static let limit = 5000
 
-  @ObservationIgnored private var entries: [URL: HistoryEntry] = [:]
+  @ObservationIgnored private var entries: [URL: HistoryEntry] = [:] {
+    didSet { revision &+= 1 }
+  }
+  private(set) var revision = 0
   @ObservationIgnored private let persistence: TabPersistence
   @ObservationIgnored private var saveTask: Task<Void, Never>?
 
@@ -35,6 +38,34 @@ final class HistoryStore {
 
   func recent(limit: Int) -> [HistoryEntry] {
     Array(entries.values.sorted { $0.lastVisit > $1.lastVisit }.prefix(limit))
+  }
+
+  func all() -> [HistoryEntry] {
+    entries.values.sorted { $0.lastVisit > $1.lastVisit }
+  }
+
+  func remove(_ url: URL) {
+    guard entries.removeValue(forKey: url) != nil else { return }
+    scheduleSave()
+  }
+
+  func frequent(limit: Int) -> [HistoryEntry] {
+    var best: [String: HistoryEntry] = [:]
+    var visits: [String: Int] = [:]
+    for entry in entries.values where SearchEngine.query(fromResultsPage: entry.url) == nil {
+      guard let host = entry.url.host()?.lowercased() else { continue }
+      visits[host, default: 0] += entry.visitCount
+      if let current = best[host], current.visitCount >= entry.visitCount { continue }
+      best[host] = entry
+    }
+    return best.values
+      .filter { (visits[$0.url.host()?.lowercased() ?? ""] ?? 0) >= 2 }
+      .sorted {
+        let left = visits[$0.url.host()?.lowercased() ?? ""] ?? 0
+        let right = visits[$1.url.host()?.lowercased() ?? ""] ?? 0
+        return left != right ? left > right : $0.lastVisit > $1.lastVisit
+      }
+      .prefix(limit).map { $0 }
   }
 
   func matches(_ query: String, limit: Int, now: Date = .now) -> [HistoryEntry] {

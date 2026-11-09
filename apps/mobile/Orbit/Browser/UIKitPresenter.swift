@@ -58,6 +58,35 @@ enum UIKitPresenter {
     }
   }
 
+  static func credentials(host: String, realm: String?, retrying: Bool) async -> URLCredential? {
+    await withCheckedContinuation { (continuation: CheckedContinuation<URLCredential?, Never>) in
+      let detail = [realm.flatMap { $0.isEmpty ? nil : $0 }, retrying ? String(localized: "The user name or password was not accepted.") : nil]
+        .compactMap { $0 }.joined(separator: "\n")
+      let alert = UIAlertController(
+        title: String(localized: "Sign in to \(host)"), message: detail.isEmpty ? nil : detail, preferredStyle: .alert)
+      alert.addTextField {
+        $0.placeholder = String(localized: "User Name")
+        $0.textContentType = .username
+        $0.autocapitalizationType = .none
+        $0.autocorrectionType = .no
+      }
+      alert.addTextField {
+        $0.placeholder = String(localized: "Password")
+        $0.textContentType = .password
+        $0.isSecureTextEntry = true
+      }
+      alert.addAction(UIAlertAction(title: String(localized: "Cancel"), style: .cancel) { _ in continuation.resume(returning: nil) })
+      alert.addAction(
+        UIAlertAction(title: String(localized: "Sign In"), style: .default) { [weak alert] _ in
+          let user = alert?.textFields?.first?.text ?? ""
+          let password = alert?.textFields?.last?.text ?? ""
+          continuation.resume(returning: URLCredential(user: user, password: password, persistence: .forSession))
+        })
+      guard let top = topViewController() else { return continuation.resume(returning: nil) }
+      top.present(alert, animated: true)
+    }
+  }
+
   static func prompt(title: String?, message: String, defaultText: String?) async -> String? {
     await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
       let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)

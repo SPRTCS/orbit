@@ -22,6 +22,7 @@ final class BrowserTab: Identifiable {
   @ObservationIgnored var privateInteractionState: Data?
   @ObservationIgnored var snapshotLoaded = false
   @ObservationIgnored var failedURL: URL?
+  var siteModeOverride: SiteMode?
 
   init(
     id: UUID = UUID(), url: URL?, title: String = "", lastActive: Date = .now, pinID: String? = nil, homeURL: URL? = nil,

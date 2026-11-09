@@ -28,6 +28,16 @@ struct RootView: View {
     .sheet(isPresented: $browser.isShowingSettings) {
       SettingsView().environment(browser)
     }
+    .sheet(isPresented: $browser.isShowingHistory) {
+      HistoryView().environment(browser)
+    }
+    .sheet(isPresented: $browser.isShowingDownloads) {
+      DownloadsView().environment(browser)
+    }
+    .overlay(alignment: .bottom) {
+      ToastOverlay()
+        .padding(.bottom, 84)
+    }
     .sheet(isPresented: $browser.isShowingDevices) {
       DevicesView().environment(browser)
     }

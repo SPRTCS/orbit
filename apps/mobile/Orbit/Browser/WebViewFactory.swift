@@ -1,7 +1,7 @@
 import WebKit
 
 final class WebViewFactory {
-  static let applicationNameForUserAgent = "Version/26.0 Mobile/15E148 Safari/604.1"
+  static var applicationNameForUserAgent: String { SiteMode.mobileApplicationName(osMajor: SiteMode.osMajor) }
 
   private var spare: WKWebView?
   private var prewarmTask: Task<Void, Never>?

@@ -9,16 +9,9 @@ struct URLCapsule: View {
   var body: some View {
     let tab = browser.selectedTab
     HStack(spacing: 6) {
-      Group {
-        if tab?.isPrivate == true {
-          Image(systemName: "hand.raised.fill")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(Color.privateTab)
-            .accessibilityLabel("Private")
-        }
-      }
-      .frame(width: 30, height: 30)
-      Spacer(minLength: 0)
+      PageMenuButton(browser: browser, isPrivate: tab?.isPrivate == true)
+        .frame(width: 30, height: 30)
+        .accessibilityLabel(tab?.isPrivate == true ? "Private Tab, Page Menu" : "Page Menu")
       HStack(spacing: 5) {
         if let url = tab?.url, url.scheme == "http" {
           Image(systemName: "lock.open.fill")
@@ -31,7 +24,14 @@ struct URLCapsule: View {
           .lineLimit(1)
           .truncationMode(.middle)
       }
-      Spacer(minLength: 0)
+      .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
+      .contentShape(.rect)
+      .onTapGesture { browser.beginEditingCurrent() }
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Address")
+      .accessibilityValue(label(for: tab))
+      .accessibilityHint("Double-tap to search or enter an address. Swipe left or right to switch tabs.")
+      .accessibilityAddTraits(.isButton)
       Button {
         browser.reloadOrStop()
       } label: {
@@ -59,7 +59,6 @@ struct URLCapsule: View {
     .glassEffect(.regular.interactive(), in: .capsule)
     .glassID("address", in: glassNamespace)
     .offset(x: dragOffset)
-    .onTapGesture { browser.beginEditingCurrent() }
     .gesture(
       HorizontalSwipeGesture(
         onChanged: { translation in
@@ -77,51 +76,12 @@ struct URLCapsule: View {
     )
     .contextMenu { PageActionsMenu() }
     .accessibilityElement(children: .contain)
-    .accessibilityLabel("Address")
-    .accessibilityValue(label(for: tab))
-    .accessibilityHint("Double-tap to search or enter an address. Swipe left or right to switch tabs.")
   }
 
   private func label(for tab: BrowserTab?) -> String {
     guard let tab, let url = tab.url else { return tab?.isPrivate == true ? "Private" : "Search or enter address" }
     if let query = SearchEngine.query(fromResultsPage: url) { return query }
     return Omnibox.displayHost(url)
-  }
-}
-
-struct PageActionsMenu: View {
-  @Environment(BrowserModel.self) private var browser
-
-  var body: some View {
-    let tab = browser.selectedTab
-    let hasPage = tab?.url != nil
-    Section {
-      Button("Share", systemImage: "square.and.arrow.up") { browser.sharePage() }
-        .disabled(!hasPage)
-      Button("Find on Page", systemImage: "doc.text.magnifyingglass") { browser.findInPage() }
-        .disabled(tab?.webView == nil)
-      Button("Open in Reader", systemImage: "doc.plaintext") { browser.openReader() }
-        .disabled(!hasPage)
-      Button("Copy Link", systemImage: "link") { browser.copyLink() }
-        .disabled(!hasPage)
-    }
-    if tab?.isPinTab == true {
-      Section {
-        Button("Back to Pinned URL", systemImage: "arrow.uturn.backward") { browser.returnSelectedPinToHome() }
-      }
-    }
-    Section {
-      Button("Back", systemImage: "chevron.backward") { browser.goBack() }
-        .disabled(tab?.canGoBack != true)
-      Button("Forward", systemImage: "chevron.forward") { browser.goForward() }
-        .disabled(tab?.canGoForward != true)
-      Button("Reload", systemImage: "arrow.clockwise") { browser.reload() }
-        .disabled(!hasPage)
-    }
-    Section {
-      Button("Close Tab", systemImage: "xmark", role: .destructive) { browser.closeSelectedTab() }
-        .disabled(tab == nil)
-    }
   }
 }
 

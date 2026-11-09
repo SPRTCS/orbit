@@ -34,6 +34,18 @@ struct BrowserCommands: Commands {
         .keyboardShortcut(.tab, modifiers: [.control, .shift])
       Button("Show All Tabs") { browser.showTabSwitcher() }
         .keyboardShortcut("\\", modifiers: [.command, .shift])
+      Divider()
+      Button("History") { browser.isShowingHistory = true }
+        .keyboardShortcut("y")
+      Button("Downloads") { browser.isShowingDownloads = true }
+        .keyboardShortcut("l", modifiers: [.command, .option])
+      Divider()
+      Button("Zoom In") { browser.zoomPage(by: 1) }
+        .keyboardShortcut("+")
+      Button("Zoom Out") { browser.zoomPage(by: -1) }
+        .keyboardShortcut("-")
+      Button("Actual Size") { browser.setPageZoom(1) }
+        .keyboardShortcut("0")
     }
     CommandGroup(after: .sidebar) {
       Button("Toggle Sidebar") {

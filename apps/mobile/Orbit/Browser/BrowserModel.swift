@@ -19,6 +19,9 @@ final class BrowserModel {
   var isShowingDevices = false
   var isShowingSettings = false
   var isShowingSyncSetup = false
+  var isShowingHistory = false
+  var isShowingDownloads = false
+  private(set) var toast: Toast?
   var isSidebarVisible = true
   var selectedSpaceID: String?
   private(set) var pinReveal: PinReveal?
@@ -27,7 +30,8 @@ final class BrowserModel {
   let themes = ThemeStore()
   var themeEditTarget: ThemeEditTarget?
   let morph = OverviewMorph()
-  @ObservationIgnored var isCompactLayout = true
+  @ObservationIgnored var isCompactLayout = UIDevice.current.userInterfaceIdiom != .pad
+  let downloads: DownloadStore
   let suggestions = SuggestionEngine()
   let history: HistoryStore
   let settings: AppSettings
@@ -36,7 +40,8 @@ final class BrowserModel {
   @ObservationIgnored let persistence: TabPersistence
   @ObservationIgnored let factory = WebViewFactory()
   @ObservationIgnored private var saveTask: Task<Void, Never>?
-  @ObservationIgnored private var recentlyClosed: [TabRecord] = []
+  private(set) var recentlyClosed: [TabRecord] = []
+  @ObservationIgnored private var toastTask: Task<Void, Never>?
   @ObservationIgnored private var memoryWarningObserver: NSObjectProtocol?
   @ObservationIgnored private var keyboardObservers: [NSObjectProtocol] = []
   @ObservationIgnored private(set) var isKeyboardVisible = false
@@ -44,9 +49,10 @@ final class BrowserModel {
 
   init(
     persistence: TabPersistence = .standard(), settings: AppSettings = AppSettings(),
-    syncClient: any OrbitSyncing = SyncProvider.makeClient()
+    syncClient: any OrbitSyncing = SyncProvider.makeClient(), downloads: DownloadStore = DownloadStore()
   ) {
     self.persistence = persistence
+    self.downloads = downloads
     self.settings = settings
     self.history = HistoryStore(persistence: persistence)
     self.sync = SyncCoordinator(client: syncClient)
@@ -55,6 +61,15 @@ final class BrowserModel {
     }
     restoreSession()
     factory.schedulePrewarm(after: .seconds(1))
+    downloads.onFinish = { [weak self] file in
+      self?.showToast(
+        Toast(text: file.name, systemImage: "arrow.down.circle.fill", actionTitle: String(localized: "Show")) {
+          self?.isShowingDownloads = true
+        })
+    }
+    downloads.onFail = { [weak self] name in
+      self?.showToast(Toast(text: String(localized: "Could not download \(name)"), systemImage: "exclamationmark.triangle.fill"))
+    }
     memoryWarningObserver = NotificationCenter.default.addObserver(
       forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
     ) { [weak self] _ in
@@ -261,6 +276,7 @@ final class BrowserModel {
   }
 
   func selectAdjacent(_ offset: Int, wrap: Bool) {
+    let tabs = overviewTabs
     guard let current = selectedTab, let index = tabs.firstIndex(where: { $0.id == current.id }) else { return }
     var target = index + offset
     if wrap {
@@ -272,8 +288,87 @@ final class BrowserModel {
   }
 
   var hasNextTab: Bool {
+    let tabs = overviewTabs
     guard let id = selectedTabID, let index = tabs.firstIndex(where: { $0.id == id }) else { return false }
     return index < tabs.count - 1
+  }
+
+  func showToast(_ toast: Toast, duration: Duration = .seconds(5)) {
+    toastTask?.cancel()
+    withAnimation(.snappy(duration: 0.3)) { self.toast = toast }
+    toastTask = Task { [weak self] in
+      try? await Task.sleep(for: duration)
+      guard !Task.isCancelled else { return }
+      self?.dismissToast()
+    }
+  }
+
+  func dismissToast() {
+    toastTask?.cancel()
+    withAnimation(.snappy(duration: 0.3)) { toast = nil }
+  }
+
+  func siteMode(for url: URL, in tab: BrowserTab?) -> SiteMode {
+    if let override = tab?.siteModeOverride { return override }
+    if let host = url.host()?.lowercased(), let stored = settings.siteMode(forHost: host) { return stored }
+    return automaticSiteMode
+  }
+
+  private var automaticSiteMode: SiteMode {
+    SiteMode.automatic(isPad: UIDevice.current.userInterfaceIdiom == .pad, isCompactLayout: isCompactLayout)
+  }
+
+  var selectedSiteMode: SiteMode? {
+    guard let tab = selectedTab, let url = tab.url else { return nil }
+    return siteMode(for: url, in: tab)
+  }
+
+  func toggleSiteMode() {
+    guard let tab = selectedTab, let url = tab.url else { return }
+    let next: SiteMode = siteMode(for: url, in: tab) == .desktop ? .mobile : .desktop
+    if tab.isPrivate {
+      tab.siteModeOverride = next
+    } else if let host = url.host()?.lowercased() {
+      settings.setSiteMode(next == automaticSiteMode ? nil : next, forHost: host)
+    }
+    tab.webView?.reload()
+  }
+
+  var selectedPageZoom: Double {
+    guard let host = selectedTab?.url?.host()?.lowercased() else { return 1 }
+    return settings.pageZoom(forHost: host)
+  }
+
+  func zoomPage(by direction: Int) {
+    setPageZoom(PageZoom.stepped(selectedPageZoom, by: direction))
+  }
+
+  func setPageZoom(_ zoom: Double) {
+    guard let tab = selectedTab, let host = tab.url?.host()?.lowercased() else { return }
+    settings.setPageZoom(zoom, forHost: host)
+    for other in allTabs where other.url?.host()?.lowercased() == host { applyPageZoom(to: other) }
+  }
+
+  func applyPageZoom(to tab: BrowserTab) {
+    guard let webView = tab.webView else { return }
+    let zoom = tab.url?.host().map { settings.pageZoom(forHost: $0.lowercased()) } ?? 1
+    if abs(webView.pageZoom - zoom) > 0.001 { webView.pageZoom = zoom }
+  }
+
+  func beginDownload(_ download: WKDownload, source: URL?) {
+    downloads.track(download, source: source)
+    showToast(
+      Toast(text: String(localized: "Downloading…"), systemImage: "arrow.down.circle", actionTitle: String(localized: "Show")) {
+        [weak self] in self?.isShowingDownloads = true
+      }, duration: .seconds(3))
+  }
+
+  func download(_ url: URL, from tab: BrowserTab?) {
+    guard let webView = (tab ?? selectedTab)?.webView else { return }
+    Task { [weak self] in
+      let download = await webView.startDownload(using: URLRequest(url: url))
+      self?.beginDownload(download, source: url)
+    }
   }
 
   @discardableResult
@@ -341,10 +436,7 @@ final class BrowserModel {
       return
     }
     guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
-    if tab.url != nil, !tab.isPrivate {
-      recentlyClosed.append(tab.record)
-      if recentlyClosed.count > 20 { recentlyClosed.removeFirst() }
-    }
+    if tab.url != nil, !tab.isPrivate { rememberClosed([tab.record]) }
     tab.controller?.tearDown()
     tab.controller = nil
     tabs.remove(at: index)
@@ -361,8 +453,23 @@ final class BrowserModel {
     if let selectedTab { close(selectedTab) }
   }
 
+  private func rememberClosed(_ records: [TabRecord]) {
+    recentlyClosed.append(contentsOf: records)
+    if recentlyClosed.count > 50 { recentlyClosed.removeFirst(recentlyClosed.count - 50) }
+  }
+
   func closeAllTabs() {
     let selectedWasRegular = tabs.contains { $0.id == selectedTabID }
+    let closed = tabs.filter { $0.url != nil && !$0.isPrivate }.map(\.record)
+    rememberClosed(closed)
+    if !closed.isEmpty {
+      let ids = Set(closed.map(\.id))
+      showToast(
+        Toast(
+          text: String(localized: "\(closed.count) tabs closed"), systemImage: "xmark.square",
+          actionTitle: String(localized: "Undo")
+        ) { [weak self] in self?.reopenClosedTabs(ids) }, duration: .seconds(8))
+    }
     for tab in tabs {
       tab.controller?.tearDown()
       tab.controller = nil
@@ -374,9 +481,30 @@ final class BrowserModel {
     tabsChanged()
   }
 
+  var canReopenClosedTab: Bool { !recentlyClosed.isEmpty }
+
   func reopenClosedTab() {
     guard let record = recentlyClosed.popLast(), let url = record.url else { return }
+    isShowingTabSwitcher = false
     openNewTab(with: url)
+  }
+
+  func reopenClosedTab(_ id: UUID) {
+    guard let index = recentlyClosed.firstIndex(where: { $0.id == id }) else { return }
+    let record = recentlyClosed.remove(at: index)
+    guard let url = record.url else { return }
+    isShowingTabSwitcher = false
+    openNewTab(with: url)
+  }
+
+  func reopenClosedTabs(_ ids: Set<UUID>) {
+    let records = recentlyClosed.filter { ids.contains($0.id) }
+    recentlyClosed.removeAll { ids.contains($0.id) }
+    for record in records {
+      guard let url = record.url else { continue }
+      openNewTab(with: url, select: false)
+    }
+    if selectedTab == nil, let last = tabs.last { select(last) }
   }
 
   func goBack() { selectedTab?.webView?.goBack() }
@@ -528,6 +656,8 @@ final class BrowserModel {
     isShowingDevices = false
     isShowingSettings = false
     isShowingSyncSetup = false
+    isShowingHistory = false
+    isShowingDownloads = false
     if isShowingTabSwitcher { settleMorph() }
     isShowingTabSwitcher = false
     cancelEntry()
@@ -538,6 +668,8 @@ final class BrowserModel {
     isShowingDevices = false
     isShowingSettings = false
     isShowingSyncSetup = false
+    isShowingHistory = false
+    isShowingDownloads = false
     if isShowingTabSwitcher { settleMorph() }
     isShowingTabSwitcher = false
     beginNewTab(isPrivate: action == .newPrivateTab)
