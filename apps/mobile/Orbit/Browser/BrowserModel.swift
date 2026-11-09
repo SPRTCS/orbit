@@ -21,6 +21,7 @@ final class BrowserModel {
   var isShowingSyncSetup = false
   var isShowingHistory = false
   var isShowingDownloads = false
+  var readerArticle: ReaderArticle?
   private(set) var toast: Toast?
   var isSidebarVisible = true
   var selectedSpaceID: String?
@@ -30,7 +31,7 @@ final class BrowserModel {
   let themes = ThemeStore()
   var themeEditTarget: ThemeEditTarget?
   let morph = OverviewMorph()
-  @ObservationIgnored var isCompactLayout = UIDevice.current.userInterfaceIdiom != .pad
+  @ObservationIgnored var isCompactLayout = true
   let downloads: DownloadStore
   let suggestions = SuggestionEngine()
   let history: HistoryStore
@@ -59,6 +60,9 @@ final class BrowserModel {
     if let name = settings.deviceName, !name.isEmpty, let editable = syncClient as? DeviceNameEditable {
       editable.thisDeviceName = name
     }
+    factory.isContentBlockingEnabled = settings.contentBlockingEnabled
+    factory.blocker.onReady = { [weak self] in self?.applyContentBlocking() }
+    factory.blocker.load()
     restoreSession()
     factory.schedulePrewarm(after: .seconds(1))
     downloads.onFinish = { [weak self] file in
@@ -315,7 +319,9 @@ final class BrowserModel {
   }
 
   private var automaticSiteMode: SiteMode {
-    SiteMode.automatic(isPad: UIDevice.current.userInterfaceIdiom == .pad, isCompactLayout: isCompactLayout)
+    let remembered = settings.lastPageWidth > 0 ? CGFloat(settings.lastPageWidth) : nil
+    return SiteMode.automatic(
+      isPad: UIDevice.current.userInterfaceIdiom == .pad, pageWidth: morph.pageFrame?.width ?? remembered)
   }
 
   var selectedSiteMode: SiteMode? {
@@ -353,6 +359,22 @@ final class BrowserModel {
     guard let webView = tab.webView else { return }
     let zoom = tab.url?.host().map { settings.pageZoom(forHost: $0.lowercased()) } ?? 1
     if abs(webView.pageZoom - zoom) > 0.001 { webView.pageZoom = zoom }
+  }
+
+  func setContentBlocking(_ enabled: Bool) {
+    settings.contentBlockingEnabled = enabled
+    applyContentBlocking()
+    selectedTab?.webView?.reload()
+  }
+
+  private func applyContentBlocking() {
+    factory.isContentBlockingEnabled = settings.contentBlockingEnabled
+    factory.dropSpare()
+    for tab in allTabs {
+      guard let webView = tab.webView else { continue }
+      factory.blocker.apply(to: webView.configuration.userContentController, enabled: settings.contentBlockingEnabled)
+    }
+    factory.schedulePrewarm()
   }
 
   func beginDownload(_ download: WKDownload, source: URL?) {
@@ -483,28 +505,34 @@ final class BrowserModel {
 
   var canReopenClosedTab: Bool { !recentlyClosed.isEmpty }
 
+  private func restoreClosed(_ record: TabRecord, select shouldSelect: Bool) {
+    guard record.url != nil else { return }
+    let tab = BrowserTab(url: record.url, title: record.title)
+    tabs.append(tab)
+    if shouldSelect {
+      isShowingTabSwitcher = false
+      select(tab)
+    } else {
+      tab.lastActive = record.lastActive
+      tabsChanged()
+    }
+  }
+
   func reopenClosedTab() {
-    guard let record = recentlyClosed.popLast(), let url = record.url else { return }
-    isShowingTabSwitcher = false
-    openNewTab(with: url)
+    guard let record = recentlyClosed.popLast() else { return }
+    restoreClosed(record, select: true)
   }
 
   func reopenClosedTab(_ id: UUID) {
     guard let index = recentlyClosed.firstIndex(where: { $0.id == id }) else { return }
-    let record = recentlyClosed.remove(at: index)
-    guard let url = record.url else { return }
-    isShowingTabSwitcher = false
-    openNewTab(with: url)
+    restoreClosed(recentlyClosed.remove(at: index), select: true)
   }
 
   func reopenClosedTabs(_ ids: Set<UUID>) {
     let records = recentlyClosed.filter { ids.contains($0.id) }
     recentlyClosed.removeAll { ids.contains($0.id) }
-    for record in records {
-      guard let url = record.url else { continue }
-      openNewTab(with: url, select: false)
-    }
-    if selectedTab == nil, let last = tabs.last { select(last) }
+    for record in records { restoreClosed(record, select: false) }
+    if selectedTab == nil, let latest = tabs.max(by: { $0.lastActive < $1.lastActive }) { select(latest) }
   }
 
   func goBack() { selectedTab?.webView?.goBack() }
@@ -658,6 +686,7 @@ final class BrowserModel {
     isShowingSyncSetup = false
     isShowingHistory = false
     isShowingDownloads = false
+    readerArticle = nil
     if isShowingTabSwitcher { settleMorph() }
     isShowingTabSwitcher = false
     cancelEntry()
@@ -670,6 +699,7 @@ final class BrowserModel {
     isShowingSyncSetup = false
     isShowingHistory = false
     isShowingDownloads = false
+    readerArticle = nil
     if isShowingTabSwitcher { settleMorph() }
     isShowingTabSwitcher = false
     beginNewTab(isPrivate: action == .newPrivateTab)
@@ -739,8 +769,14 @@ final class BrowserModel {
   }
 
   func openReader() {
-    guard let url = selectedTab?.url, HistoryStore.isRecordable(url) else { return }
-    UIKitPresenter.openReader(url)
+    guard let tab = selectedTab, let url = tab.url, let webView = tab.webView, HistoryStore.isRecordable(url) else { return }
+    Task { [weak self] in
+      if let article = await ReaderExtractor.extract(from: webView, url: url, isPrivate: tab.isPrivate) {
+        self?.readerArticle = article
+      } else {
+        self?.showToast(Toast(text: String(localized: "Reader is not available for this page"), systemImage: "doc.plaintext"))
+      }
+    }
   }
 
   func copyLink() {
@@ -806,6 +842,7 @@ final class BrowserModel {
       }
     }
     if let tab = selectedTab { captureSnapshot(of: tab) }
+    if let width = morph.pageFrame?.width { settings.lastPageWidth = Double(width) }
     persistence.save(session)
     history.saveNow()
   }

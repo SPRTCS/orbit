@@ -42,7 +42,7 @@ Orbit contains no analytics, advertising or tracking SDKs. AIS Consulting UG doe
 
 ### Data on your device
 
-Orbit stores open tabs, history, page previews and preferences locally. WebKit manages website data such as cookies, caches and login sessions on your device. Settings lets you clear history, clear cookies and website data, and close all tabs. Deleting the app removes its local data; any device backups are governed by your Apple backup settings.
+Orbit stores open tabs, history, page previews, downloaded files and preferences locally. Preferences include the sites for which you chose the desktop or mobile version or a page zoom. WebKit manages website data such as cookies, caches and login sessions on your device. Settings lets you clear history, clear cookies and website data, and close all tabs; the Downloads list lets you delete downloaded files. Tracker blocking and the reader work entirely on your device with a list and a script that ship inside the app; nothing is sent to us or to a third party for either. Deleting the app removes its local data; any device backups are governed by your Apple backup settings.
 
 ### Websites and search engines
 

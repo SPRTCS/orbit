@@ -28,6 +28,9 @@ struct RootView: View {
     .sheet(isPresented: $browser.isShowingSettings) {
       SettingsView().environment(browser)
     }
+    .fullScreenCover(item: $browser.readerArticle) { article in
+      ReaderView(article: article).environment(browser)
+    }
     .sheet(isPresented: $browser.isShowingHistory) {
       HistoryView().environment(browser)
     }

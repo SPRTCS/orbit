@@ -81,7 +81,7 @@ struct NewTabRow: View {
       Label(
         press.isArmed ? "New Private Tab" : "New Tab", systemImage: press.isArmed ? "hand.raised.fill" : "plus"
       )
-      .font(.system(size: 14, weight: .medium))
+      .scaledFont(size: 14, weight: .medium)
       .foregroundStyle(press.isArmed ? AnyShapeStyle(Color.white) : AnyShapeStyle(.secondary))
       .padding(.horizontal, 8)
       .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)

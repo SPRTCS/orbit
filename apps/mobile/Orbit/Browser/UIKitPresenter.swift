@@ -1,4 +1,3 @@
-import SafariServices
 import UIKit
 
 enum UIKitPresenter {
@@ -28,15 +27,6 @@ enum UIKitPresenter {
     var items: [Any] = [url]
     if let title, !title.isEmpty { items.insert(title, at: 0) }
     present(UIActivityViewController(activityItems: items, applicationActivities: nil))
-  }
-
-  static func openReader(_ url: URL) {
-    let configuration = SFSafariViewController.Configuration()
-    configuration.entersReaderIfAvailable = true
-    configuration.barCollapsingEnabled = true
-    let controller = SFSafariViewController(url: url, configuration: configuration)
-    controller.dismissButtonStyle = .done
-    present(controller)
   }
 
   static func alert(title: String?, message: String) async {

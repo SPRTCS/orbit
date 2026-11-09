@@ -607,7 +607,7 @@ struct DockTitleBubble: View {
 
   var body: some View {
     Text(title)
-      .font(.system(size: 14, weight: .medium))
+      .scaledFont(size: 14, weight: .medium)
       .lineLimit(1)
       .frame(maxWidth: 320)
       .padding(.horizontal, 12)

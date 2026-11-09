@@ -163,7 +163,7 @@ struct SwitcherBottomBar: View {
         browser.hideTabSwitcher()
       } label: {
         Text("Done")
-          .font(.system(size: 16, weight: .semibold))
+          .scaledFont(size: 16, weight: .semibold)
           .frame(width: OverviewBarLayout.doneWidth, height: buttonSize)
           .contentShape(.capsule)
       }
@@ -201,7 +201,7 @@ struct TabCard: View {
       HStack(spacing: 6) {
         Favicon(url: tab.url, size: 16)
         Text(tab.displayTitle)
-          .font(.system(size: 13, weight: .semibold))
+          .scaledFont(size: 13, weight: .semibold)
           .lineLimit(1)
       }
       .padding(.horizontal, 4)

@@ -4,17 +4,26 @@ A fast, Arc Search–style browser that pairs with Orbit on the Mac. Your Mac's 
 open tabs show up on the phone, and the phone's open tabs show up on the Mac. No AI features.
 
 - **Browsing:** one WebKit view per tab, full screen. The address bar sits at the bottom: tap it to type,
-  swipe it left or right to switch tabs, long-press it for Share, Find on Page, Reader and Copy Link.
+  swipe it left or right to switch tabs, and use its "…" button (or long-press it) for Share, Find on Page,
+  Reader, Request Desktop/Mobile Website, Page Zoom, History, Downloads and Reopen Closed Tab.
   Scrolling down shrinks the bar into a small pill with the site or search; scrolling up, tapping the pill or
   reaching the end of the page brings it back. Swipe up on the bar (or tap the tabs button) and the page
   shrinks into its card in the tab overview. Swipe from the edge to go back or forward, pull down to reload.
 - **Address entry:** suggestions from your open tabs, history, your Mac's tabs and pins, and your search
   engine (Google, DuckDuckGo, Bing or Ecosia).
 - **Tabs:** a card grid with snapshots; swipe a card left to close it. Devices & Spaces (bottom left) lists
-  everything synced from the Mac.
+  everything synced from the Mac. Close All Tabs can be undone.
+- **Downloads:** files a page offers for download are saved to Documents/Downloads, which the Files app
+  shows under On My iPhone › Orbit. The Downloads list previews, shares and deletes them.
+- **Reader:** extracts the article with the bundled Readability.js and shows it without scripts.
+- **Tracker blocking:** a built-in WebKit content rule list blocks third-party requests to well-known
+  advertising and tracking services. It can be turned off in Settings.
+- **Sites:** full-width iPad pages get Safari's desktop user agent and narrow ones the mobile one; the choice
+  and the page zoom can be changed per site and are remembered.
 - **iPad, iPhone Duo unfolded, Split View:** at regular width the app switches to an Orbit-for-Mac layout
   with a resizable sidebar (drag its edge; double-tap to reset). Folding or resizing keeps the current tab, its scroll position and anything you're typing.
-  Keyboard shortcuts: ⌘T, ⌘⇧T, ⌘W, ⌘L, ⌘R, ⌘[, ⌘], ⌃Tab, ⌃⇧Tab, ⌘F, ⌘S (sidebar).
+  Keyboard shortcuts: ⌘T, ⌘⇧T, ⌘W, ⌘L, ⌘R, ⌘[, ⌘], ⌃Tab, ⌃⇧Tab, ⌘F, ⌘S (sidebar), ⌘Y (history), ⌥⌘L (downloads),
+  ⌘+ ⌘- ⌘0 (zoom).
 
 Open tabs, history and snapshots stay on the device, in Application Support. Background tabs beyond the
 six most recent are unloaded to a snapshot and restored from their saved state when you return.

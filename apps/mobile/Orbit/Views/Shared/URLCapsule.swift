@@ -19,7 +19,7 @@ struct URLCapsule: View {
             .foregroundStyle(.orange)
         }
         Text(label(for: tab))
-          .font(.system(size: 16, weight: .medium))
+          .scaledFont(size: 16, weight: .medium)
           .foregroundStyle(tab?.url == nil ? .secondary : .primary)
           .lineLimit(1)
           .truncationMode(.middle)
@@ -106,7 +106,7 @@ struct MinimizedAddressPill: View {
           .foregroundStyle(.orange)
       }
       Text(text)
-        .font(.system(size: 15, weight: .medium))
+        .scaledFont(size: 15, weight: .medium)
         .lineLimit(1)
         .truncationMode(.middle)
     }

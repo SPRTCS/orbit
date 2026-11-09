@@ -97,7 +97,9 @@ struct StartPageView: View {
             }
             .frame(maxWidth: 520)
             .padding(.horizontal, 18)
-          } else if !browser.sync.isConnected {
+          }
+          FrequentSitesGrid()
+          if devices.first == nil, !browser.sync.isConnected {
             Button {
               browser.isShowingSyncSetup = true
             } label: {
@@ -112,6 +114,52 @@ struct StartPageView: View {
         .padding(.bottom, 120)
       }
       .scrollBounceBehavior(.basedOnSize)
+    }
+  }
+}
+
+struct FrequentSitesGrid: View {
+  @Environment(BrowserModel.self) private var browser
+
+  var body: some View {
+    let _ = browser.history.revision
+    let sites = browser.history.frequent(limit: 8)
+    if !sites.isEmpty {
+      VStack(alignment: .leading, spacing: 12) {
+        Text("Frequently Visited")
+          .font(.subheadline.weight(.semibold))
+          .foregroundStyle(.secondary)
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 78, maximum: 110), spacing: 12, alignment: .top)], spacing: 16) {
+          ForEach(sites) { entry in
+            Button {
+              browser.open(entry.url, inNewTab: false)
+            } label: {
+              VStack(spacing: 7) {
+                Favicon(url: entry.url, size: 30)
+                  .frame(width: 58, height: 58)
+                  .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16, style: .continuous))
+                Text(Omnibox.displayHost(entry.url))
+                  .font(.caption)
+                  .lineLimit(1)
+              }
+              .frame(maxWidth: .infinity)
+              .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .hoverEffect(.lift)
+            .contextMenu {
+              Button("Open in New Tab", systemImage: "plus.square.on.square") { browser.open(entry.url, inNewTab: true) }
+              Button("Copy Link", systemImage: "link") { UIPasteboard.general.url = entry.url }
+              Button("Remove from History", systemImage: "trash", role: .destructive) {
+                browser.history.remove(entry.url)
+              }
+            }
+            .accessibilityLabel(entry.title.isEmpty ? Omnibox.displayHost(entry.url) : entry.title)
+          }
+        }
+      }
+      .frame(maxWidth: 520)
+      .padding(.horizontal, 18)
     }
   }
 }

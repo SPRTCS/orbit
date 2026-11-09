@@ -58,6 +58,7 @@ struct RegularBrowserView: View {
       .ignoresSafeArea()
     }
     .ignoresSafeArea(.keyboard)
+    .dynamicTypeSize(ChromeTextSize.limit)
   }
 
   private var storedWidth: Double {

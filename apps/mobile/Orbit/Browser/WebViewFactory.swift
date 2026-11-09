@@ -3,6 +3,9 @@ import WebKit
 final class WebViewFactory {
   static var applicationNameForUserAgent: String { SiteMode.mobileApplicationName(osMajor: SiteMode.osMajor) }
 
+  let blocker = ContentBlocker()
+  var isContentBlockingEnabled = true
+
   private var spare: WKWebView?
   private var prewarmTask: Task<Void, Never>?
 
@@ -15,6 +18,7 @@ final class WebViewFactory {
     configuration.applicationNameForUserAgent = Self.applicationNameForUserAgent
     configuration.defaultWebpagePreferences.preferredContentMode = .recommended
     configuration.userContentController.addUserScript(NativeVideoFullscreen.userScript)
+    blocker.apply(to: configuration.userContentController, enabled: isContentBlockingEnabled)
     return configuration
   }
 

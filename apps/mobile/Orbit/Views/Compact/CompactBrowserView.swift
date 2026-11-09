@@ -43,5 +43,6 @@ struct CompactBrowserView: View {
       }
     }
     .background(OrbitBackdrop().ignoresSafeArea())
+    .dynamicTypeSize(ChromeTextSize.limit)
   }
 }

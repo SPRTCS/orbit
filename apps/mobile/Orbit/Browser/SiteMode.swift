@@ -21,8 +21,12 @@ enum SiteMode: String, Codable {
     "Version/\(osMajor).0 Mobile/15E148 Safari/604.1"
   }
 
-  static func automatic(isPad: Bool, isCompactLayout: Bool) -> SiteMode {
-    isPad && !isCompactLayout ? .desktop : .mobile
+  static let desktopMinimumPageWidth: CGFloat = 650
+
+  static func automatic(isPad: Bool, pageWidth: CGFloat?) -> SiteMode {
+    guard isPad else { return .mobile }
+    guard let pageWidth, pageWidth > 0 else { return .desktop }
+    return pageWidth >= desktopMinimumPageWidth ? .desktop : .mobile
   }
 }
 

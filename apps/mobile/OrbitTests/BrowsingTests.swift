@@ -33,10 +33,11 @@ struct SiteModeTests {
     #expect(SiteMode.mobileApplicationName(osMajor: 27) == "Version/27.0 Mobile/15E148 Safari/604.1")
   }
 
-  @Test func onlyFullWidthIPadsDefaultToDesktop() {
-    #expect(SiteMode.automatic(isPad: true, isCompactLayout: false) == .desktop)
-    #expect(SiteMode.automatic(isPad: true, isCompactLayout: true) == .mobile)
-    #expect(SiteMode.automatic(isPad: false, isCompactLayout: false) == .mobile)
+  @Test func onlyWideIPadPagesDefaultToDesktop() {
+    #expect(SiteMode.automatic(isPad: true, pageWidth: 744) == .desktop)
+    #expect(SiteMode.automatic(isPad: true, pageWidth: 514) == .mobile)
+    #expect(SiteMode.automatic(isPad: true, pageWidth: nil) == .desktop)
+    #expect(SiteMode.automatic(isPad: false, pageWidth: 900) == .mobile)
   }
 
   @Test func requestedDesktopSiteGetsTheDesktopAgent() async throws {
@@ -51,7 +52,7 @@ struct SiteModeTests {
 
   @Test func siteModeIsRememberedPerHostAndPrivateTabsStayOffTheRecord() {
     let browser = makeBrowser()
-    browser.isCompactLayout = true
+    browser.morph.pageFrame = CGRect(x: 0, y: 0, width: 400, height: 800)
     let tab = browser.openNewTab(with: URL(string: "https://news.example/a"))
     #expect(browser.selectedSiteMode == .mobile)
     browser.toggleSiteMode()
@@ -171,5 +172,64 @@ struct HistoryAndClosedTabTests {
     browser.selectAdjacent(1, wrap: false)
     #expect(browser.selectedTabID == second.id)
     #expect(!browser.hasNextTab)
+  }
+}
+
+@MainActor
+struct ContentBlockerTests {
+  @Test func filtersMatchTheDomainAndItsSubdomainsOnly() throws {
+    let filter = try NSRegularExpression(pattern: ContentBlocker.urlFilter(forDomain: "doubleclick.net"))
+    func matches(_ url: String) -> Bool {
+      filter.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)) != nil
+    }
+    #expect(matches("https://doubleclick.net/ad"))
+    #expect(matches("https://stats.g.doubleclick.net/collect"))
+    #expect(matches("http://doubleclick.net:8080/x"))
+    #expect(!matches("https://notdoubleclick.net/ad"))
+    #expect(!matches("https://doubleclick.net.example.com/ad"))
+    #expect(!matches("https://example.com/?u=https://doubleclick.net/"))
+  }
+
+  @Test func webKitAcceptsTheRuleList() async throws {
+    let json = ContentBlocker.rulesJSON()
+    let rules = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [[String: Any]])
+    #expect(rules.count == ContentBlocker.blockedDomains.count + ContentBlocker.blockedPaths.count)
+    #expect(Set(ContentBlocker.blockedDomains).count == ContentBlocker.blockedDomains.count)
+    let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory.appending(path: "OrbitRules-\(UUID().uuidString)")))
+    let list = try await store.compileContentRuleList(forIdentifier: "test", encodedContentRuleList: json)
+    #expect(list?.identifier == "test")
+  }
+}
+
+@MainActor
+struct ReaderTests {
+  @Test func titlesAndCreditsAreEscaped() {
+    let article = ReaderArticle(
+      url: URL(string: "https://news.example/a")!, title: "A <b>bold</b> & \"quoted\" title", byline: "Ada <ada@example.com>",
+      siteName: nil, content: "<p>Body</p>", isRightToLeft: true, isPrivate: false)
+    #expect(article.html.contains("<h1>A &lt;b&gt;bold&lt;/b&gt; &amp; &quot;quoted&quot; title</h1>"))
+    #expect(article.html.contains("Ada &lt;ada@example.com&gt; · news.example"))
+    #expect(article.html.contains("dir=\"rtl\""))
+    #expect(article.html.contains("<p>Body</p>"))
+  }
+
+  @Test func articlesAreExtractedAndShortPagesAreNot() async throws {
+    let paragraph = String(repeating: "Orbit keeps the page readable and removes the clutter around the article. ", count: 12)
+    let page = """
+      <html><head><title>Readable story</title></head><body><nav>Home | About | Contact</nav>
+      <article><h1>Readable story</h1><p>\(paragraph)</p><p>\(paragraph)</p><p>\(paragraph)</p></article>
+      <footer>Footer links</footer></body></html>
+      """
+    let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 600, height: 800), configuration: WebViewFactory().makeConfiguration(dataStore: .nonPersistent()))
+    let url = URL(string: "https://story.example/readable")!
+    webView.loadHTMLString(page, baseURL: url)
+    for _ in 0..<1600 where webView.title != "Readable story" { try await Task.sleep(for: .milliseconds(25)) }
+    let article = try #require(await ReaderExtractor.extract(from: webView, url: url, isPrivate: false))
+    #expect(article.title == "Readable story")
+    #expect(article.content.contains("Orbit keeps the page readable"))
+    #expect(!article.content.contains("Footer links"))
+    webView.loadHTMLString("<html><head><title>Short</title></head><body><p>Hi</p></body></html>", baseURL: url)
+    for _ in 0..<1600 where webView.title != "Short" { try await Task.sleep(for: .milliseconds(25)) }
+    #expect(await ReaderExtractor.extract(from: webView, url: url, isPrivate: false) == nil)
   }
 }

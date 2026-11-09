@@ -250,7 +250,7 @@ struct SidebarFolder: View {
           Text(folder.name).lineLimit(1)
           Spacer(minLength: 0)
         }
-        .font(.system(size: 14, weight: .medium))
+        .scaledFont(size: 14, weight: .medium)
         .padding(.horizontal, 8)
         .frame(height: 34)
         .contentShape(.rect)
@@ -403,7 +403,7 @@ struct SidebarRow: View {
       }
       .frame(width: 20)
       Text(title)
-        .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+        .scaledFont(size: 14, weight: isSelected ? .semibold : .medium)
         .lineLimit(1)
       Spacer(minLength: 0)
       if let close, isHovering || isSelected {
@@ -419,7 +419,7 @@ struct SidebarRow: View {
       }
     }
     .padding(.horizontal, 8)
-    .frame(height: 34)
+    .frame(minHeight: 34)
     .background(
       isSelected ? AnyShapeStyle(.background.opacity(0.7)) : (isHovering ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(.clear)),
       in: .rect(cornerRadius: 9, style: .continuous)

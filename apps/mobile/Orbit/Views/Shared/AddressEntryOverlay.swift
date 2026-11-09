@@ -91,7 +91,7 @@ struct AddressEntryOverlay: View {
       TextField(
         entry.opensPrivateTab ? "Private: search or enter address" : "Search or enter address", text: $entry.text,
         selection: $entry.selection)
-        .font(.system(size: 17))
+        .scaledFont(size: 17)
         .focused($fieldFocused)
         .keyboardType(.webSearch)
         .textInputAutocapitalization(.never)
@@ -117,7 +117,7 @@ struct AddressEntryOverlay: View {
         .accessibilityLabel("Clear")
       }
       Button("Cancel") { browser.cancelEntry() }
-        .font(.system(size: 16, weight: .medium))
+        .scaledFont(size: 16, weight: .medium)
         .buttonStyle(.plain)
         .foregroundStyle(Color.accentColor)
     }
@@ -156,11 +156,11 @@ struct SuggestionRow: View {
       .frame(width: 28, height: 28)
       VStack(alignment: .leading, spacing: 1) {
         Text(suggestion.title)
-          .font(.system(size: 16, weight: .medium))
+          .scaledFont(size: 16, weight: .medium)
           .lineLimit(1)
         if let subtitle = suggestion.subtitle {
           Text(subtitle)
-            .font(.system(size: 12))
+            .scaledFont(size: 12)
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
@@ -168,7 +168,7 @@ struct SuggestionRow: View {
       Spacer(minLength: 4)
       if let badge = suggestion.badge {
         Text(badge)
-          .font(.system(size: 12, weight: .semibold))
+          .scaledFont(size: 12, weight: .semibold)
           .padding(.horizontal, 10)
           .padding(.vertical, 5)
           .background(.fill.secondary, in: .capsule)

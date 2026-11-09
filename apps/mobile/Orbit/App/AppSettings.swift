@@ -8,6 +8,8 @@ final class AppSettings {
     static let deviceName = "deviceName"
     static let siteModes = "siteModes"
     static let pageZooms = "pageZooms"
+    static let contentBlocking = "contentBlockingEnabled"
+    static let lastPageWidth = "lastPageWidth"
   }
 
   @ObservationIgnored private let defaults: UserDefaults
@@ -22,6 +24,14 @@ final class AppSettings {
 
   var deviceName: String? {
     didSet { defaults.set(deviceName, forKey: Key.deviceName) }
+  }
+
+  var contentBlockingEnabled: Bool {
+    didSet { defaults.set(contentBlockingEnabled, forKey: Key.contentBlocking) }
+  }
+
+  var lastPageWidth: Double {
+    didSet { defaults.set(lastPageWidth, forKey: Key.lastPageWidth) }
   }
 
   private(set) var siteModes: [String: String] {
@@ -50,6 +60,8 @@ final class AppSettings {
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
+    contentBlockingEnabled = defaults.object(forKey: Key.contentBlocking) as? Bool ?? true
+    lastPageWidth = defaults.double(forKey: Key.lastPageWidth)
     siteModes = defaults.dictionary(forKey: Key.siteModes) as? [String: String] ?? [:]
     pageZooms = defaults.dictionary(forKey: Key.pageZooms) as? [String: Double] ?? [:]
     searchEngine = defaults.string(forKey: Key.searchEngine).flatMap(SearchEngine.init(rawValue:)) ?? .google

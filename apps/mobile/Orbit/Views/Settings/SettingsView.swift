@@ -112,6 +112,21 @@ struct SettingsView: View {
         }
 
         Section {
+          Toggle("Block Trackers and Ads", isOn: Binding(
+            get: { browser.settings.contentBlockingEnabled }, set: { browser.setContentBlocking($0) }))
+        } footer: {
+          Text("Blocks requests to well-known advertising and tracking services on the sites you visit. Some ads may still appear.")
+        }
+
+        Section {
+          Button("History") {
+            dismiss()
+            browser.isShowingHistory = true
+          }
+          Button("Downloads") {
+            dismiss()
+            browser.isShowingDownloads = true
+          }
           Button("Clear History") { confirmation = .history }
           Button("Clear Cookies and Website Data") { confirmation = .websiteData }
           Button("Close All Tabs", role: .destructive) { confirmation = .tabs }
@@ -195,6 +210,11 @@ struct LicensesView: View {
           .font(.headline)
         Text(Self.mitLicense)
           .font(.system(.footnote, design: .monospaced))
+          .textSelection(.enabled)
+        Text("Readability.js")
+          .font(.headline)
+        Text("The reader uses Readability.js. Copyright (c) 2010 Arc90 Inc and Mozilla contributors. Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0")
+          .font(.footnote)
           .textSelection(.enabled)
       }
       .padding(20)
