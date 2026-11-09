@@ -395,9 +395,8 @@ final class BrowserModel {
       withAnimation(.smooth(duration: 0.3)) { isShowingTabSwitcher = true }
       return
     }
-    let image = instantSnapshot(of: tab)
     measurePageFrame(of: tab)
-    morph.start(.opening, tabID: tab.id, image: image, progress: 0)
+    morph.start(.opening, tabID: tab.id, image: tab.snapshot, liveView: liveSnapshot(of: tab), progress: 0)
     isShowingTabSwitcher = true
     let morph = self.morph
     animateMorph(to: 1, reveal: 1) {
@@ -434,10 +433,10 @@ final class BrowserModel {
     guard usesOverviewMorph, !isShowingTabSwitcher, !morph.isActive, !entry.isPresented,
       let tab = selectedTab, tab.webView != nil
     else { return false }
-    let image = instantSnapshot(of: tab)
     measurePageFrame(of: tab)
-    morph.start(.interactive, tabID: tab.id, image: image, progress: 0)
+    morph.start(.interactive, tabID: tab.id, image: tab.snapshot, liveView: liveSnapshot(of: tab), progress: 0)
     isShowingTabSwitcher = true
+    captureSnapshot(of: tab)
     return true
   }
 
@@ -468,19 +467,9 @@ final class BrowserModel {
     morph.pageFrame = host.convert(host.bounds, to: nil)
   }
 
-  private func instantSnapshot(of tab: BrowserTab) -> UIImage? {
-    guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return tab.snapshot }
-    let format = UIGraphicsImageRendererFormat.preferred()
-    format.scale = min(webView.traitCollection.displayScale, 2)
-    format.opaque = true
-    var drawn = false
-    let image = UIGraphicsImageRenderer(bounds: webView.bounds, format: format).image { _ in
-      drawn = webView.drawHierarchy(in: webView.bounds, afterScreenUpdates: false)
-    }
-    guard drawn else { return tab.snapshot }
-    tab.snapshot = image
-    tab.snapshotLoaded = true
-    return image
+  private func liveSnapshot(of tab: BrowserTab) -> UIView? {
+    guard let webView = tab.webView, webView.window != nil, webView.bounds.width > 0 else { return nil }
+    return webView.snapshotView(afterScreenUpdates: false)
   }
 
   private func growNewTabFromPlusButton(_ tab: BrowserTab) {

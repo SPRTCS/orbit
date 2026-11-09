@@ -19,6 +19,7 @@ final class OverviewMorph {
   var phase: Phase = .idle
   var tabID: UUID?
   var image: UIImage?
+  var liveView: UIView?
   var progress: CGFloat = 0
   var sourceFrame: CGRect?
   var cardReveal: CGFloat = 1
@@ -91,10 +92,13 @@ final class OverviewMorph {
     }
   }
 
-  func start(_ phase: Phase, tabID: UUID?, image: UIImage?, progress: CGFloat, sourceFrame: CGRect? = nil) {
+  func start(
+    _ phase: Phase, tabID: UUID?, image: UIImage?, liveView: UIView? = nil, progress: CGFloat, sourceFrame: CGRect? = nil
+  ) {
     self.phase = phase
     self.tabID = tabID
     self.image = image
+    self.liveView = liveView
     self.progress = progress
     self.sourceFrame = sourceFrame
     translation = .zero
@@ -118,6 +122,7 @@ final class OverviewMorph {
     phase = .idle
     tabID = nil
     image = nil
+    liveView = nil
     sourceFrame = nil
     cardReveal = 1
     translation = .zero
@@ -135,7 +140,7 @@ struct OverviewMorphLayer: View {
         let full = CGRect(origin: .zero, size: proxy.size)
         let page = morph.pageFrame.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) } ?? full
         let target = morph.targetFrame.map { $0.offsetBy(dx: -origin.x, dy: -origin.y) } ?? page
-        MorphSnapshot(image: morph.image)
+        MorphSnapshot(image: morph.image, liveView: morph.liveView)
           .modifier(
             MorphGeometry(
               progress: morph.progress, from: page, to: target, fromRadius: morph.pageCornerRadius,
@@ -151,11 +156,61 @@ struct OverviewMorphLayer: View {
 
 struct MorphSnapshot: View {
   let image: UIImage?
+  var liveView: UIView?
 
   var body: some View {
     ZStack {
       Rectangle().fill(Color(uiColor: .systemBackground))
-      TopAlignedSnapshot(image: image)
+      if let liveView {
+        TopAlignedLiveSnapshot(snapshot: liveView)
+      } else {
+        TopAlignedSnapshot(image: image)
+      }
+    }
+  }
+}
+
+struct TopAlignedLiveSnapshot: UIViewRepresentable {
+  let snapshot: UIView
+
+  func makeUIView(context: Context) -> Container {
+    Container(snapshot: snapshot)
+  }
+
+  func updateUIView(_ container: Container, context: Context) {
+    container.show(snapshot)
+  }
+
+  final class Container: UIView {
+    private var snapshot: UIView
+
+    init(snapshot: UIView) {
+      self.snapshot = snapshot
+      super.init(frame: .zero)
+      clipsToBounds = true
+      isUserInteractionEnabled = false
+      addSubview(snapshot)
+    }
+
+    required init?(coder: NSCoder) {
+      fatalError("init(coder:) is unavailable")
+    }
+
+    func show(_ next: UIView) {
+      guard next !== snapshot else { return }
+      snapshot.removeFromSuperview()
+      snapshot = next
+      addSubview(next)
+      setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      let original = snapshot.bounds.size
+      let fitted = SnapshotFit.size(image: original, in: bounds.size)
+      let scale = original.width > 0 ? fitted.width / original.width : 1
+      snapshot.transform = CGAffineTransform(scaleX: scale, y: scale)
+      snapshot.center = CGPoint(x: bounds.midX, y: fitted.height / 2)
     }
   }
 }
