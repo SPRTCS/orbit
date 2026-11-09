@@ -337,11 +337,39 @@ struct OverviewGestureTests {
 }
 
 struct WebViewInsetTests {
+  private func layout(safeArea: EdgeInsets, sidebar: Bool) -> RegularLayout {
+    RegularLayout(
+      windowWidth: 951, safeArea: safeArea, storedSidebarWidth: SidebarWidth.dock, isSidebarVisible: sidebar,
+      isShowingOverview: false, displayCornerRadius: 55)
+  }
+
+  @Test func pageKeepsClearOfASideStatusStrip() {
+    let strip = layout(safeArea: EdgeInsets(top: 0, leading: 0, bottom: 20, trailing: 86), sidebar: true)
+    #expect(strip.obscuredPageSides == ObscuredSides(left: 0, right: 78))
+  }
+
+  @Test func sidebarAlreadyCoversTheLeadingStrip() {
+    let leading = EdgeInsets(top: 0, leading: 86, bottom: 20, trailing: 0)
+    #expect(layout(safeArea: leading, sidebar: true).obscuredPageSides == ObscuredSides())
+    #expect(layout(safeArea: leading, sidebar: false).obscuredPageSides == ObscuredSides(left: 78, right: 0))
+  }
+
+  @Test func iPadPagesStayEdgeToEdge() {
+    let pad = layout(safeArea: EdgeInsets(top: 24, leading: 0, bottom: 20, trailing: 0), sidebar: true)
+    #expect(pad.obscuredPageSides == ObscuredSides())
+  }
+
   @Test func statusStripIsNotReservedButNotchesAre() {
     let strip = OrbitWebView.sharedHorizontalInsets(UIEdgeInsets(top: 0, left: 0, bottom: 20, right: 86))
     #expect(strip == UIEdgeInsets(top: 0, left: 0, bottom: 20, right: 0))
     let notch = OrbitWebView.sharedHorizontalInsets(UIEdgeInsets(top: 0, left: 62, bottom: 21, right: 62))
     #expect(notch == UIEdgeInsets(top: 0, left: 62, bottom: 21, right: 62))
+  }
+
+  @Test func onlyTheUnevenPartOfASideStripIsObscured() {
+    #expect(ObscuredSides.unevenPart(leading: 0, trailing: 86) == ObscuredSides(left: 0, right: 86))
+    #expect(ObscuredSides.unevenPart(leading: 62, trailing: 62) == ObscuredSides())
+    #expect(ObscuredSides.unevenPart(leading: 62, trailing: 90) == ObscuredSides(left: 0, right: 28))
   }
 }
 

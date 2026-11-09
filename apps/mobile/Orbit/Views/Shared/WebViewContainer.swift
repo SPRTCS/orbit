@@ -6,6 +6,7 @@ struct WebViewContainer: UIViewRepresentable {
   let tab: BrowserTab
   var bottomObscured: CGFloat
   var ignoresSafeArea = false
+  var obscuredSides = ObscuredSides()
 
   func makeUIView(context: Context) -> WebHostView {
     WebHostView()
@@ -15,12 +16,27 @@ struct WebViewContainer: UIViewRepresentable {
     let webView = tab.webView ?? browser.ensureLive(tab)
     host.show(webView)
     (webView as? OrbitWebView)?.ignoresSafeArea = ignoresSafeArea
-    let insets = UIEdgeInsets(top: 0, left: 0, bottom: bottomObscured, right: 0)
+    let insets = UIEdgeInsets(top: 0, left: obscuredSides.left, bottom: bottomObscured, right: obscuredSides.right)
     if webView.obscuredContentInsets != insets { webView.obscuredContentInsets = insets }
   }
 
   static func dismantleUIView(_ host: WebHostView, coordinator: ()) {
     host.releaseWebView()
+  }
+}
+
+struct ObscuredSides: Equatable {
+  var left: CGFloat = 0
+  var right: CGFloat = 0
+
+  init(left: CGFloat = 0, right: CGFloat = 0) {
+    self.left = max(0, left)
+    self.right = max(0, right)
+  }
+
+  static func unevenPart(leading: CGFloat, trailing: CGFloat) -> ObscuredSides {
+    let shared = min(leading, trailing)
+    return ObscuredSides(left: leading - shared, right: trailing - shared)
   }
 }
 

@@ -11,7 +11,10 @@ struct CompactBrowserView: View {
           displayCornerRadius: browser.morph.displayCornerRadius, safeLeading: proxy.safeAreaInsets.leading,
           safeTrailing: proxy.safeAreaInsets.trailing)
         ZStack(alignment: .bottom) {
-          BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed))
+          BrowserContent(
+            bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed),
+            obscuredSides: ObscuredSides.unevenPart(
+              leading: proxy.safeAreaInsets.leading, trailing: proxy.safeAreaInsets.trailing))
             .reportsGlobalFrame { frame in
               browser.morph.pageFrame = frame
               browser.morph.pageCornerRadius = browser.morph.displayCornerRadius

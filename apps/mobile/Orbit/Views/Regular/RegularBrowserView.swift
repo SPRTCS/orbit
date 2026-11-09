@@ -35,7 +35,9 @@ struct RegularBrowserView: View {
             SidebarResizeHandle(width: widthBinding, range: range)
               .zIndex(2)
           }
-          contentColumn(safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth, isDock: layout.isDock)
+          contentColumn(
+            safeArea: safeArea, edgeGap: edgeGap, contentWidth: layout.cardWidth, isDock: layout.isDock,
+            obscuredSides: layout.obscuredPageSides)
         }
         .animation(.snappy(duration: 0.3), value: browser.isSidebarVisible)
         if browser.isShowingTabSwitcher {
@@ -70,13 +72,16 @@ struct RegularBrowserView: View {
       })
   }
 
-  private func contentColumn(safeArea: EdgeInsets, edgeGap: CGFloat, contentWidth: CGFloat, isDock: Bool) -> some View {
+  private func contentColumn(
+    safeArea: EdgeInsets, edgeGap: CGFloat, contentWidth: CGFloat, isDock: Bool, obscuredSides: ObscuredSides
+  ) -> some View {
     let inset = cardInset
     let metrics = ChromeMetrics.regular(
       edgeGap: edgeGap, cardInset: inset, safeBottom: safeArea.bottom, width: contentWidth)
     let cardShape = PageCardShape.shape(besideSidebar: browser.isSidebarVisible)
     return ZStack(alignment: .bottom) {
-      BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed), ignoresSafeArea: true)
+      BrowserContent(bottomObscured: metrics.obscured(collapsed: browser.chromeCollapsed), ignoresSafeArea: true,
+        obscuredSides: obscuredSides)
       BottomChrome(style: .regular, metrics: metrics, showsTabsButton: isDock)
     }
     .clipShape(cardShape)
@@ -357,4 +362,9 @@ struct RegularLayout {
   }
 
   var entryTrailingInset: CGFloat { Self.cardInset }
+
+  var obscuredPageSides: ObscuredSides {
+    ObscuredSides(
+      left: isSidebarVisible ? 0 : safeArea.leading - Self.cardInset, right: safeArea.trailing - Self.cardInset)
+  }
 }
