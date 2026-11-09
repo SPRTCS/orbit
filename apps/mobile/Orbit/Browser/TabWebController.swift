@@ -312,10 +312,10 @@ final class TabWebController: NSObject, WKNavigationDelegate, WKUIDelegate, UIGe
   {
     guard let linkURL = elementInfo.linkURL else { return nil }
     return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] suggested in
-      let openNew = UIAction(title: "Open in New Tab", image: UIImage(systemName: "plus.square.on.square")) { _ in
+      let openNew = UIAction(title: String(localized: "Open in New Tab"), image: UIImage(systemName: "plus.square.on.square")) { _ in
         self?.browser?.open(linkURL, inNewTab: true, isPrivate: self?.tab?.isPrivate == true)
       }
-      let openBackground = UIAction(title: "Open in Background", image: UIImage(systemName: "square.on.square")) { _ in
+      let openBackground = UIAction(title: String(localized: "Open in Background"), image: UIImage(systemName: "square.on.square")) { _ in
         self?.browser?.openInBackground(linkURL, isPrivate: self?.tab?.isPrivate == true)
       }
       let download = UIAction(title: String(localized: "Download Linked File"), image: UIImage(systemName: "arrow.down.circle")) { _ in

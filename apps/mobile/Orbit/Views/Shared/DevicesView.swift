@@ -97,7 +97,7 @@ struct PinNodeRows: View {
         DisclosureGroup {
           ForEach(members) { pin in PinRow(pin: pin) }
         } label: {
-          Label(group.title.isEmpty ? "Tab Group" : group.title, systemImage: "square.split.2x1")
+          Label(group.title.isEmpty ? String(localized: "Tab Group") : group.title, systemImage: "square.split.2x1")
         }
       case .folder(let folder, let children):
         DisclosureGroup(isExpanded: browser.pinFolders.binding(folder.id)) {
@@ -218,7 +218,7 @@ struct DeviceLabel: View {
   }
 
   private var subtitle: String {
-    let count = device.tabs.count == 1 ? "1 tab" : "\(device.tabs.count) tabs"
+    let count = String(localized: "\(device.tabs.count) tabs")
     guard let updatedAt = device.updatedAt else { return count }
     return "\(count) · \(updatedAt.formatted(.relative(presentation: .named)))"
   }

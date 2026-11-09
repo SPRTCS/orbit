@@ -17,7 +17,8 @@ these rules win; read `docs/orbit.md` first.
   the owner's OK.
 - **Builds:** the checkout lives in iCloud. Use an absolute derived data path under `~/Library/Caches/Orbit/`,
   `xattr -cr` the app when codesign reports "detritus", and delete iCloud conflict copies (`* 2.*`).
-- **UI language:** English for now.
+- **UI language:** English for now. The iOS app (`apps/mobile`) also ships German: every user-facing string
+  needs a `de` entry in `Orbit/Resources/Localizable.xcstrings`.
 
 ## How work gets done
 - **Move fast.** Don't break work into phases or ask about details you can decide; there are no users to

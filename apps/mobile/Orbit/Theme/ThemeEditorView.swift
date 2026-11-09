@@ -5,7 +5,7 @@ struct ThemeEditTarget: Identifiable, Hashable {
   let space: SyncedSpace?
 
   var id: String { space?.id ?? ThemeStore.localSpaceID }
-  var title: String { space?.name ?? "This Device" }
+  var title: String { space?.name ?? String(localized: "This Device") }
 }
 
 struct ThemeEditorView: View {
@@ -39,7 +39,7 @@ struct ThemeEditorView: View {
                   .frame(width: 28, height: 28)
               }
               .buttonStyle(.plain)
-              .accessibilityLabel(preset.name)
+              .accessibilityLabel(Text(preset.name))
             }
             Button {
               store.setTheme(ThemeMath.startingTheme(swatch: ProfileColor.purple.swatch), for: target.space)
@@ -137,7 +137,9 @@ struct ThemeEditorView: View {
         }))
       } footer: {
         Text(theme.dark != nil
-          ? "Editing the \(editsDarkLook ? "dark" : "light") look. Switch the system appearance to edit the other one."
+          ? (editsDarkLook
+            ? "Editing the dark look. Switch the system appearance to edit the other one."
+            : "Editing the light look. Switch the system appearance to edit the other one.")
           : "One look for light and dark.")
       }
 
@@ -187,7 +189,7 @@ struct ThemePreview: View {
 }
 
 struct LabeledSlider: View {
-  let title: String
+  let title: LocalizedStringResource
   let value: Double
   let onChange: (Double) -> Void
 
@@ -274,12 +276,25 @@ struct AppIconPickerView: View {
   struct Choice: Identifiable {
     let id: String
     let name: String
+    let title: LocalizedStringResource
     var iconName: String? { id == "default" ? nil : "AppIcon-\(name)" }
+
+    init(name: String, title: LocalizedStringResource) {
+      id = name.lowercased()
+      self.name = name
+      self.title = title
+    }
   }
 
-  static let choices = ["Default", "Midnight", "Daylight", "Plum", "Ocean", "Mono", "Noir"].map {
-    Choice(id: $0.lowercased(), name: $0)
-  }
+  static let choices = [
+    Choice(name: "Default", title: "Default"),
+    Choice(name: "Midnight", title: "Midnight"),
+    Choice(name: "Daylight", title: "Daylight"),
+    Choice(name: "Plum", title: "Plum"),
+    Choice(name: "Ocean", title: "Ocean"),
+    Choice(name: "Mono", title: "Mono"),
+    Choice(name: "Noir", title: "Noir"),
+  ]
 
   @State private var current = UIApplication.shared.alternateIconName
   @State private var errorMessage: String?
@@ -301,7 +316,7 @@ struct AppIconPickerView: View {
                     .strokeBorder(current == choice.iconName ? Color.accentColor : Color.primary.opacity(0.12),
                       lineWidth: current == choice.iconName ? 3 : 1)
                 }
-              Text(choice.name).font(.footnote.weight(.medium))
+              Text(choice.title).font(.footnote.weight(.medium))
             }
           }
           .buttonStyle(.plain)

@@ -92,7 +92,7 @@ final class SuggestionEngine {
     case .url(let url):
       add(
         Suggestion(
-          id: "typed-url", title: Omnibox.displayHost(url) + displayPath(url), subtitle: "Open website",
+          id: "typed-url", title: Omnibox.displayHost(url) + displayPath(url), subtitle: String(localized: "Open website"),
           systemImage: "globe", badge: nil, action: .open(url)),
         key: Omnibox.matchKey(url))
       add(searchSuggestion(query, engine: engine, id: "typed-search"), key: "search:\(needle)")
@@ -111,7 +111,7 @@ final class SuggestionEngine {
       add(
         Suggestion(
           id: "tab-\(tab.id)", title: tab.displayTitle, subtitle: Omnibox.displayHost(url),
-          systemImage: "square.on.square", badge: "Switch to Tab", action: .switchToTab(tab.id)),
+          systemImage: "square.on.square", badge: String(localized: "Switch to Tab"), action: .switchToTab(tab.id)),
         key: Omnibox.matchKey(url))
     }
 
@@ -159,7 +159,7 @@ final class SuggestionEngine {
 
   private func searchSuggestion(_ text: String, engine: SearchEngine, id: String) -> Suggestion {
     Suggestion(
-      id: id, title: text, subtitle: id == "typed-search" ? "Search \(engine.name)" : nil,
+      id: id, title: text, subtitle: id == "typed-search" ? String(localized: "Search \(engine.name)") : nil,
       systemImage: "magnifyingglass", badge: nil, action: .search(text))
   }
 

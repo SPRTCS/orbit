@@ -346,9 +346,9 @@ struct DockPageView: View {
 
   private var pageTitle: String {
     switch page {
-    case nil: "Tabs"
-    case .pins: "Pinned"
-    case .folder(let id): browser.currentSpace.flatMap { DockItem.folder(id, in: PinTree(space: $0).roots)?.info.name } ?? "Folder"
+    case nil: String(localized: "Tabs")
+    case .pins: String(localized: "Pinned")
+    case .folder(let id): browser.currentSpace.flatMap { DockItem.folder(id, in: PinTree(space: $0).roots)?.info.name } ?? String(localized: "Folder")
     }
   }
 
@@ -398,7 +398,7 @@ struct DockPageView: View {
 
   private func title(_ item: DockItem) -> String {
     switch item.kind {
-    case .pins: return "Pinned"
+    case .pins: return String(localized: "Pinned")
     case .pin(let pin):
       let tab = browser.pinTab(for: pin)
       return tab.map { $0.title.isEmpty ? pin.title : $0.title } ?? pin.title

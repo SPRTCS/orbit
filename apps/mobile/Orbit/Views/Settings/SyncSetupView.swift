@@ -155,10 +155,10 @@ struct SyncSetupView: View {
   static func describe(_ error: any Error) -> String {
     guard let syncError = error as? OrbitSyncError else { return error.localizedDescription }
     switch syncError {
-    case .folderUnreadable(let detail): return "Orbit can’t read that folder. \(detail)"
-    case .invalidPhrase(let detail): return "That recovery phrase isn’t valid. \(detail)"
-    case .phraseDoesNotMatchFolder: return "That recovery phrase belongs to a different sync folder."
-    case .notConnected: return "Choose the sync folder first."
+    case .folderUnreadable(let detail): return String(localized: "Orbit can’t read that folder. \(SyncMessage.localized(detail))")
+    case .invalidPhrase(let detail): return String(localized: "That recovery phrase isn’t valid. \(SyncMessage.localized(detail))")
+    case .phraseDoesNotMatchFolder: return String(localized: "That recovery phrase belongs to a different sync folder.")
+    case .notConnected: return String(localized: "Choose the sync folder first.")
     }
   }
 }

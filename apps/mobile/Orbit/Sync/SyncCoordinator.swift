@@ -27,18 +27,18 @@ final class SyncCoordinator {
 
   var statusText: String {
     switch client.state {
-    case .notSetUp: "Not set up"
-    case .needsPhrase: "Waiting for recovery phrase"
-    case .syncing: "Syncing…"
+    case .notSetUp: String(localized: "Not set up")
+    case .needsPhrase: String(localized: "Waiting for recovery phrase")
+    case .syncing: String(localized: "Syncing…")
     case .idle(let lastSync):
       if pendingDownloads > 0 {
-        "Waiting for iCloud to download \(pendingDownloads) \(pendingDownloads == 1 ? "file" : "files")"
+        String(localized: "Waiting for iCloud to download \(pendingDownloads) files")
       } else if let lastSync {
-        "Synced \(lastSync.formatted(.relative(presentation: .named)))"
+        String(localized: "Synced \(lastSync.formatted(.relative(presentation: .named)))")
       } else {
-        "Connected"
+        String(localized: "Connected")
       }
-    case .failed(let message): message
+    case .failed(let message): SyncMessage.localized(message)
     }
   }
 

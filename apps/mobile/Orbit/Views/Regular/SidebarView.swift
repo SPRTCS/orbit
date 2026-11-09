@@ -114,7 +114,7 @@ struct SidebarTopBar: View {
 
 struct SidebarIconButton: View {
   let systemImage: String
-  let label: String
+  let label: LocalizedStringResource
   let action: () -> Void
   @Environment(\.isEnabled) private var isEnabled
 
@@ -128,7 +128,7 @@ struct SidebarIconButton: View {
     .buttonStyle(.plain)
     .foregroundStyle(isEnabled ? .primary : .tertiary)
     .hoverEffect(.highlight)
-    .accessibilityLabel(label)
+    .accessibilityLabel(Text(label))
   }
 }
 
@@ -173,7 +173,7 @@ struct SpacePicker: View {
 }
 
 struct SidebarSectionHeader: View {
-  let title: String
+  let title: LocalizedStringResource
 
   var body: some View {
     Text(title)
@@ -213,7 +213,7 @@ struct SidebarPinNodes: View {
           .padding(.leading, CGFloat(depth) * 14)
       case .group(let group, let members):
         VStack(alignment: .leading, spacing: 2) {
-          Label(group.title.isEmpty ? "Tab Group" : group.title, systemImage: "square.split.2x1")
+          Label(group.title.isEmpty ? String(localized: "Tab Group") : group.title, systemImage: "square.split.2x1")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 8)
@@ -444,7 +444,7 @@ struct SidebarFooter: View {
         Button {
           browser.isShowingSettings = true
         } label: {
-          Label(message, systemImage: "exclamationmark.triangle.fill")
+          Label(SyncMessage.localized(message), systemImage: "exclamationmark.triangle.fill")
             .font(.caption)
             .foregroundStyle(.orange)
             .lineLimit(2)

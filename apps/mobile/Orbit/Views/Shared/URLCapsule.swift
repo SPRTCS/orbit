@@ -79,7 +79,7 @@ struct URLCapsule: View {
   }
 
   private func label(for tab: BrowserTab?) -> String {
-    guard let tab, let url = tab.url else { return tab?.isPrivate == true ? "Private" : "Search or enter address" }
+    guard let tab, let url = tab.url else { return tab?.isPrivate == true ? String(localized: "Private") : String(localized: "Search or enter address") }
     if let query = SearchEngine.query(fromResultsPage: url) { return query }
     return Omnibox.displayHost(url)
   }
@@ -95,7 +95,7 @@ struct MinimizedAddressPill: View {
   var body: some View {
     let tab = browser.selectedTab
     let query = tab?.url.flatMap(SearchEngine.query(fromResultsPage:))
-    let text = query ?? tab?.host ?? "Search or enter address"
+    let text = query ?? tab?.host ?? String(localized: "Search or enter address")
     HStack(spacing: 5) {
       if query != nil {
         Image(systemName: "magnifyingglass")
@@ -162,7 +162,7 @@ extension View {
 
 struct GlassCircleButton: View {
   let systemImage: String
-  let label: String
+  let label: LocalizedStringResource
   var size: CGFloat = 50
   var prominent = false
   var glassID: String?
@@ -183,7 +183,7 @@ struct GlassCircleButton: View {
     .glassEffect(prominent ? .regular.tint(.accentColor).interactive() : .regular.interactive(), in: .circle)
     .glassID(glassID ?? systemImage, in: glassNamespace)
     .hoverEffect(.lift)
-    .accessibilityLabel(label)
+    .accessibilityLabel(Text(label))
   }
 }
 

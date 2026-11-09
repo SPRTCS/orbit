@@ -57,6 +57,6 @@ final class BrowserTab: Identifiable {
 
   var displayTitle: String {
     if !title.isEmpty { return title }
-    return host ?? "New Tab"
+    return host ?? String(localized: "New Tab")
   }
 }

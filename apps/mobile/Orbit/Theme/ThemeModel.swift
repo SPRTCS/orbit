@@ -20,7 +20,15 @@ enum ThemeTexture: String, Codable, CaseIterable, Identifiable, Sendable {
   case tweed
 
   var id: String { rawValue }
-  var name: String { rawValue.capitalized }
+
+  var name: LocalizedStringResource {
+    switch self {
+    case .grain: "Grain"
+    case .sand: "Sand"
+    case .denim: "Denim"
+    case .tweed: "Tweed"
+    }
+  }
 
   var strength: Double {
     switch self {
@@ -39,7 +47,7 @@ enum ThemeMode: String, Codable, CaseIterable, Identifiable, Sendable {
 
   var id: String { rawValue }
 
-  var title: String {
+  var title: LocalizedStringResource {
     switch self {
     case .light: "Light"
     case .dark: "Dark"
@@ -94,7 +102,20 @@ enum ProfileColor: String, CaseIterable, Identifiable, Sendable {
   case neutral
 
   var id: String { rawValue }
-  var name: String { rawValue.capitalized }
+
+  var name: LocalizedStringResource {
+    switch self {
+    case .plum: "Plum"
+    case .blue: "Blue"
+    case .purple: "Purple"
+    case .pink: "Pink"
+    case .red: "Red"
+    case .orange: "Orange"
+    case .yellow: "Yellow"
+    case .green: "Green"
+    case .neutral: "Neutral"
+    }
+  }
 
   var swatch: String {
     switch self {

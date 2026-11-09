@@ -14,7 +14,7 @@ struct SettingsView: View {
 
     var id: String { rawValue }
 
-    var title: String {
+    var title: LocalizedStringResource {
       switch self {
       case .history: "Clear History?"
       case .websiteData: "Clear Cookies and Website Data?"
@@ -22,7 +22,7 @@ struct SettingsView: View {
       }
     }
 
-    var button: String {
+    var button: LocalizedStringResource {
       switch self {
       case .history: "Clear History"
       case .websiteData: "Clear Website Data"
@@ -161,7 +161,7 @@ struct SettingsView: View {
         }
       }
       .confirmationDialog(
-        confirmation?.title ?? "", isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
+        confirmation.map { Text($0.title) } ?? Text(verbatim: ""), isPresented: Binding(get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }),
         titleVisibility: .visible, presenting: confirmation
       ) { action in
         Button(action.button, role: .destructive) { perform(action) }

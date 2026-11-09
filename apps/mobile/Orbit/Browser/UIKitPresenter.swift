@@ -32,7 +32,7 @@ enum UIKitPresenter {
   static func alert(title: String?, message: String) async {
     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
       let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in continuation.resume() })
+      alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { _ in continuation.resume() })
       guard let top = topViewController() else { return continuation.resume() }
       top.present(alert, animated: true)
     }
@@ -41,8 +41,8 @@ enum UIKitPresenter {
   static func confirm(title: String?, message: String) async -> Bool {
     await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
       let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in continuation.resume(returning: false) })
-      alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in continuation.resume(returning: true) })
+      alert.addAction(UIAlertAction(title: String(localized: "Cancel"), style: .cancel) { _ in continuation.resume(returning: false) })
+      alert.addAction(UIAlertAction(title: String(localized: "OK"), style: .default) { _ in continuation.resume(returning: true) })
       guard let top = topViewController() else { return continuation.resume(returning: false) }
       top.present(alert, animated: true)
     }
@@ -81,9 +81,9 @@ enum UIKitPresenter {
     await withCheckedContinuation { (continuation: CheckedContinuation<String?, Never>) in
       let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
       alert.addTextField { $0.text = defaultText }
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in continuation.resume(returning: nil) })
+      alert.addAction(UIAlertAction(title: String(localized: "Cancel"), style: .cancel) { _ in continuation.resume(returning: nil) })
       alert.addAction(
-        UIAlertAction(title: "OK", style: .default) { [weak alert] _ in
+        UIAlertAction(title: String(localized: "OK"), style: .default) { [weak alert] _ in
           continuation.resume(returning: alert?.textFields?.first?.text ?? "")
         })
       guard let top = topViewController() else { return continuation.resume(returning: nil) }

@@ -216,7 +216,7 @@ struct TabCard: View {
               Rectangle().fill(.background.secondary)
               VStack(spacing: 8) {
                 Favicon(url: tab.url, size: 34)
-                Text(tab.host ?? "New Tab")
+                Text(tab.host ?? String(localized: "New Tab"))
                   .font(.caption.weight(.medium))
                   .foregroundStyle(.secondary)
               }

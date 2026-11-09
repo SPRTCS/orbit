@@ -39,6 +39,6 @@ enum PageZoom {
   }
 
   static func label(_ zoom: Double) -> String {
-    "\(Int((zoom * 100).rounded()))%"
+    String(localized: "\(Int((zoom * 100).rounded()))%")
   }
 }
