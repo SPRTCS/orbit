@@ -7,8 +7,12 @@ For the architecture and the test tooling, read `docs/agent-brief.md`.
 ## Orbit overrides (this fork)
 This checkout is **Orbit**, a fork of Ardia owned by AIS Consulting UG. Where the rest of this file says otherwise,
 these rules win; read `docs/orbit.md` first.
-- **Branch:** work on `orbit`, never `main` (`main` mirrors upstream). Push to `origin` (SPRTCS/orbit); `upstream` is
-  Ardia. Merge upstream release tags only, then run `node scripts/orbit/rebrand.mjs`.
+- **Branch:** work on `orbit`, never `main` (`main` mirrors upstream). Push to `origin` (SPRTCS/orbit-private, the
+  private development repo); `upstream` is Ardia. `public` (SPRTCS/orbit) is only the public distribution repo: its
+  releases carry the Mac appcast and DMGs, and its `orbit` branch serves `switches.json` and the iOS privacy policy
+  (`apps/mobile/PRIVACY.md`), which installed apps and the App Store read. Never push code there; when one of those
+  two files changes, update it on `public` with a commit that touches only that file. A clone whose `origin` still
+  points at SPRTCS/orbit: `git remote rename origin public && git remote add origin https://github.com/SPRTCS/orbit-private.git`. Merge upstream release tags only, then run `node scripts/orbit/rebrand.mjs`.
 - **Orbit layers:** build Orbit features in new files with minimal hooks in upstream files, and list every hook in
   `docs/orbit.md` › "Orbit layers and their hooks in upstream files".
 - **AI features are allowed when opt-in** (e.g. the MCP server, local models). Default off, nothing leaves the Mac
